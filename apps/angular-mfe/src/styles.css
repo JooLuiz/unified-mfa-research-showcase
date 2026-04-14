@@ -13,6 +13,7 @@
   border: 1px solid #222;
   padding: 0.75rem;
   height: 100%;
+  min-height: 370px;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -24,11 +25,67 @@
   object-fit: cover;
 }
 
+.product-image-clickable {
+  cursor: pointer;
+}
+
+.product-name {
+  line-height: 1.25;
+  min-height: 2.5em;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quantity-shell {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  border: 1px solid #333;
+}
+
+.quantity-control-button {
+  border: 0;
+  border-right: 1px solid #333;
+  background: #f4f4f4;
+  height: 38px;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.quantity-shell .quantity-control-button:last-child {
+  border-right: 0;
+  border-left: 1px solid #333;
+}
+
+.quantity-value-input {
+  width: 100%;
+  height: 38px;
+  border: 0;
+  text-align: center;
+  font-size: 1rem;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.quantity-value-input::-webkit-outer-spin-button,
+.quantity-value-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 .button-like {
   border: 1px solid #333;
   background: #f4f4f4;
   padding: 0.4rem 0.6rem;
   cursor: pointer;
+}
+
+.add-cart-button {
+  margin-top: auto;
 }
 
 .pdp-shell {
@@ -56,9 +113,29 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 0.75rem;
+  align-items: stretch;
+}
+
+.showcase-grid > div {
+  display: flex;
 }
 
 .apply-coupon-shell {
   border: 1px solid #222;
   padding: 1rem;
+}
+
+.formulary-sent-shell {
+  border: 1px solid #222;
+  background: #fff;
+  margin: 12px 0;
+  padding: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.formulary-sent-icon {
+  color: #10893e;
 }

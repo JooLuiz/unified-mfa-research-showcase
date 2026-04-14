@@ -19,6 +19,7 @@ const appState = {
   plpVisibleCount: 8,
   appliedCoupon: null,
   lastIframeMessage: "",
+  isFormularySubmitted: false,
 };
 
 let currentRenderId = 0;
@@ -33,6 +34,7 @@ const remoteModulesPromise = Promise.all([
   import("angular_mfe/ProductDetails"),
   import("angular_mfe/ProductShowcaseElement"),
   import("angular_mfe/ApplyCoupon"),
+  import("angular_mfe/FormularySentElement"),
   import("vue_mfe/FooterElement"),
   import("vue_mfe/CheckoutSummary"),
 ]).then(
@@ -45,11 +47,13 @@ const remoteModulesPromise = Promise.all([
     productDetailsModule,
     productShowcaseModule,
     applyCouponModule,
+    formularySentModule,
     footerModule,
     checkoutSummaryModule,
   ]) => {
     headerModule.registerHeaderElement();
     productShowcaseModule.registerProductShowcaseElement();
+    formularySentModule.registerFormularySentElement();
     footerModule.registerFooterElement();
 
     return {
@@ -60,6 +64,7 @@ const remoteModulesPromise = Promise.all([
       mountProductDetails: productDetailsModule.mountProductDetails,
       mountProductShowcase: productShowcaseModule.mountProductShowcase,
       mountApplyCoupon: applyCouponModule.mountApplyCoupon,
+      mountFormularySent: formularySentModule.mountFormularySent,
       mountCheckoutSummary: checkoutSummaryModule.mountCheckoutSummary,
     };
   },
@@ -132,6 +137,10 @@ function getCartTotalValue() {
   }, 0);
 }
 
+function getCartItemCount() {
+  return appState.cartItems.reduce((currentCount, cartItem) => currentCount + cartItem.quantity, 0);
+}
+
 function dispatchAddToCartEvent(addToCartPayload) {
   window.dispatchEvent(
     new CustomEvent("cart:add-item", {
@@ -173,8 +182,10 @@ function navigate(path) {
 }
 
 function normalizeProductsByFilters(products) {
-  const minPrice = Number(appState.plpFilters.minPrice);
-  const maxPrice = Number(appState.plpFilters.maxPrice);
+  const hasMinimumFilter = String(appState.plpFilters.minPrice).trim() !== "";
+  const hasMaximumFilter = String(appState.plpFilters.maxPrice).trim() !== "";
+  const minPrice = hasMinimumFilter ? Number(appState.plpFilters.minPrice) : null;
+  const maxPrice = hasMaximumFilter ? Number(appState.plpFilters.maxPrice) : null;
 
   let filteredProducts = products.filter((product) => {
     const isAboveMinimum = Number.isFinite(minPrice) ? product.price >= minPrice : true;
@@ -201,6 +212,7 @@ function mountHeaderAndFooter(layoutMounts) {
   const headerElement = document.createElement("react-header-mfe");
   headerElement.state = {
     totalPrice: getCartTotalValue(),
+    itemCount: getCartItemCount(),
   };
   headerElement.addEventListener("host:navigate", (event) => {
     navigate(event.detail.path);
@@ -208,7 +220,7 @@ function mountHeaderAndFooter(layoutMounts) {
   layoutMounts.headerMount.appendChild(headerElement);
 
   const footerElement = document.createElement("vue-footer-mfe");
-  footerElement.setAttribute("message", "Copyright Message");
+  footerElement.setAttribute("message", "© 2026 Unified MFE Research. All rights reserved.");
   layoutMounts.footerMount.appendChild(footerElement);
 }
 
@@ -248,6 +260,7 @@ async function renderHomePage(pageMount, modules) {
   const noticeMount = pageMount.querySelector("#noticeMount");
 
   const firstBanner = appState.banners[0];
+  const firstBannerProduct = appState.productsById[firstBanner?.associatedProductId];
   const showcaseConfiguration = appState.showcases[0];
   const showcaseProducts = (showcaseConfiguration?.productIds || [])
     .map((productId) => appState.productsById[productId])
@@ -255,7 +268,10 @@ async function renderHomePage(pageMount, modules) {
 
   activeCleanupFunctions.push(
     modules.mountPromotionalBanner(bannerMount, {
-      banner: firstBanner,
+      banner: {
+        ...firstBanner,
+        productTitle: firstBannerProduct?.name || "",
+      },
       onNavigate: navigate,
     }),
   );
@@ -268,11 +284,35 @@ async function renderHomePage(pageMount, modules) {
       onAddToCart: dispatchAddToCartEvent,
     }),
   );
-  activeCleanupFunctions.push(mountFaqIframe(faqMount));
+  if (appState.isFormularySubmitted) {
+    activeCleanupFunctions.push(modules.mountFormularySent(faqMount));
+  } else {
+    activeCleanupFunctions.push(mountFaqIframe(faqMount));
+  }
 
   if (appState.lastIframeMessage) {
     noticeMount.innerHTML = `<div class="notice-box">Latest iframe message: ${appState.lastIframeMessage}</div>`;
   }
+}
+
+async function renderPromotionsPage(pageMount, modules) {
+  pageMount.innerHTML = `<section id="promotionsMount" class="page-content"></section>`;
+  const promotionsMount = pageMount.querySelector("#promotionsMount");
+
+  appState.banners.forEach((banner) => {
+    const bannerContainer = document.createElement("div");
+    promotionsMount.appendChild(bannerContainer);
+    const relatedProduct = appState.productsById[banner.associatedProductId];
+    activeCleanupFunctions.push(
+      modules.mountPromotionalBanner(bannerContainer, {
+        banner: {
+          ...banner,
+          productTitle: relatedProduct?.name || "",
+        },
+        onNavigate: navigate,
+      }),
+    );
+  });
 }
 
 async function renderProductListPage(pageMount, modules) {
@@ -419,6 +459,11 @@ async function renderApp() {
     return;
   }
 
+  if (pathName === "/promotions") {
+    await renderPromotionsPage(layoutMounts.pageMount, modules);
+    return;
+  }
+
   if (pathName === "/product") {
     await renderProductDetailsPage(layoutMounts.pageMount, modules);
     return;
@@ -453,8 +498,10 @@ window.addEventListener("message", (event) => {
     return;
   }
 
-  if (messageData.type === "faq:question-submitted") {
-    appState.lastIframeMessage = `FAQ question submitted: ${messageData.payload.question}`;
+  if (messageData.type === "faq:form-submitted") {
+    appState.isFormularySubmitted = true;
+    appState.lastIframeMessage = `FAQ submitted by ${messageData.payload.name} (${messageData.payload.email})`;
+    renderApp();
   }
 
   if (messageData.type === "order-placed:completed") {

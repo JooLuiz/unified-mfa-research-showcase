@@ -4,33 +4,52 @@ export function mountProductCard(containerElement, props) {
   const quantityDefault = props.defaultQuantity || 1;
   let quantityValue = quantityDefault;
 
+  const normalizeQuantity = (nextQuantity) => {
+    const parsedQuantity = Number(nextQuantity);
+    if (!Number.isFinite(parsedQuantity) || parsedQuantity < 1) {
+      return 1;
+    }
+    return Math.floor(parsedQuantity);
+  };
+
   const renderCard = () => {
     containerElement.innerHTML = `
       <article class="card-shell">
-        <img src="${props.product.image}" alt="${props.product.name}" />
-        <strong>${props.product.name}</strong>
+        <img id="productImageButton" class="product-image-clickable" src="${props.product.image}" alt="${props.product.name}" />
+        <strong class="product-name">${props.product.name}</strong>
         <span>$${props.product.price.toFixed(2)}</span>
-        <label>
-          Quantity Selector
-          <input id="quantityInput" type="number" min="1" value="${quantityValue}" />
-        </label>
-        <button id="productDetailsButton" class="button-like">View Product</button>
-        <button id="addToCartButton" class="button-like">Add to Cart Button</button>
+        <div class="quantity-shell">
+          <button id="decreaseQuantityButton" class="quantity-control-button" type="button">-</button>
+          <input id="quantityInput" class="quantity-value-input" type="number" min="1" value="${quantityValue}" />
+          <button id="increaseQuantityButton" class="quantity-control-button" type="button">+</button>
+        </div>
+        <button id="addToCartButton" class="button-like add-cart-button">Add to Cart</button>
       </article>
     `;
 
+    const productImageButton = containerElement.querySelector("#productImageButton");
     const quantityInput = containerElement.querySelector("#quantityInput");
-    const productDetailsButton = containerElement.querySelector("#productDetailsButton");
+    const decreaseQuantityButton = containerElement.querySelector("#decreaseQuantityButton");
+    const increaseQuantityButton = containerElement.querySelector("#increaseQuantityButton");
     const addToCartButton = containerElement.querySelector("#addToCartButton");
 
-    quantityInput.addEventListener("change", (event) => {
-      const parsedQuantity = Number(event.target.value);
-      quantityValue = Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1;
-      event.target.value = quantityValue;
+    productImageButton.addEventListener("click", () => {
+      props.onProductClick(props.product.id);
     });
 
-    productDetailsButton.addEventListener("click", () => {
-      props.onProductClick(props.product.id);
+    decreaseQuantityButton.addEventListener("click", () => {
+      quantityValue = Math.max(quantityValue - 1, 1);
+      quantityInput.value = String(quantityValue);
+    });
+
+    increaseQuantityButton.addEventListener("click", () => {
+      quantityValue += 1;
+      quantityInput.value = String(quantityValue);
+    });
+
+    quantityInput.addEventListener("change", (event) => {
+      quantityValue = normalizeQuantity(event.target.value);
+      event.target.value = String(quantityValue);
     });
 
     addToCartButton.addEventListener("click", () => {

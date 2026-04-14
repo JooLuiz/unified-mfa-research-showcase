@@ -7,13 +7,19 @@ function PromotionalBannerView({ banner, onNavigate }) {
     return <section className="banner-card">No banner available.</section>;
   }
 
+  const promotionPath = `/product?productId=${banner.associatedProductId}`;
   return (
     <section className="banner-card">
-      <h2>Promotional Banner</h2>
-      <img src={banner.imageUrl} alt={banner.title} />
-      <strong>{banner.title}</strong>
-      <button className="header-action" onClick={() => onNavigate(`/product?productId=${banner.associatedProductId}`)}>
-        View related product
+      <h2>{banner.title}</h2>
+      <img
+        src={banner.imageUrl}
+        alt={banner.title}
+        className="banner-image-clickable"
+        onClick={() => onNavigate(promotionPath)}
+      />
+      <strong>{banner.productTitle ? `Featured Product: ${banner.productTitle}` : "Featured Product"}</strong>
+      <button className="header-action" onClick={() => onNavigate(promotionPath)}>
+        view promotion
       </button>
     </section>
   );

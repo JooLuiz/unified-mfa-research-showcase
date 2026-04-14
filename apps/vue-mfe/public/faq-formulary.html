@@ -13,36 +13,76 @@
         border: 1px solid #222;
         margin: 12px;
         padding: 20px;
+        display: grid;
+        gap: 10px;
+      }
+      .faq-shell input,
+      .faq-shell select {
+        width: 100%;
+        border: 1px solid #555;
+        min-height: 34px;
+        padding: 4px 8px;
+      }
+      .faq-shell button {
+        min-height: 36px;
+        border: 1px solid #333;
+        background: #f4f4f4;
+        cursor: pointer;
       }
     </style>
   </head>
   <body>
     <section class="faq-shell">
       <h2>FAQ Formulary</h2>
+      <label for="nameInput">Name</label>
+      <input id="nameInput" type="text" placeholder="Type your name" />
+      <label for="emailInput">Email</label>
+      <input id="emailInput" type="email" placeholder="Type your email" />
+      <label for="contactMethodInput">How would you like to be contacted?</label>
+      <select id="contactMethodInput">
+        <option value="">Choose one option</option>
+        <option value="email">Email</option>
+        <option value="phone">Phone</option>
+        <option value="whatsapp">WhatsApp</option>
+      </select>
       <label for="questionInput">Your question</label>
       <input id="questionInput" type="text" placeholder="Type your question" />
-      <button id="sendQuestionButton">Send to host</button>
+      <div>
+        <button id="sendQuestionButton">Send</button>
+      </div>
     </section>
     <script>
       const sendQuestionButton = document.getElementById("sendQuestionButton");
+      const nameInput = document.getElementById("nameInput");
+      const emailInput = document.getElementById("emailInput");
+      const contactMethodInput = document.getElementById("contactMethodInput");
       const questionInput = document.getElementById("questionInput");
 
       sendQuestionButton.addEventListener("click", () => {
+        const nameValue = nameInput.value.trim();
+        const emailValue = emailInput.value.trim();
+        const contactMethodValue = contactMethodInput.value.trim();
         const questionValue = questionInput.value.trim();
-        if (!questionValue) {
+        if (!nameValue || !emailValue || !contactMethodValue || !questionValue) {
           return;
         }
 
         window.parent.postMessage(
           {
-            type: "faq:question-submitted",
+            type: "faq:form-submitted",
             payload: {
+              name: nameValue,
+              email: emailValue,
+              contactMethod: contactMethodValue,
               question: questionValue,
             },
           },
           "*",
         );
 
+        nameInput.value = "";
+        emailInput.value = "";
+        contactMethodInput.value = "";
         questionInput.value = "";
       });
     </script>

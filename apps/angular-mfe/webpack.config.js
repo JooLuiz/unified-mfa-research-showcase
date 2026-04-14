@@ -37,6 +37,7 @@ module.exports = {
         "./ProductDetails": "./src/product-details.js",
         "./ProductShowcaseElement": "./src/product-showcase-element.js",
         "./ApplyCoupon": "./src/apply-coupon.js",
+        "./FormularySentElement": "./src/formulary-sent-element.js",
       },
     }),
     new HtmlWebpackPlugin({
