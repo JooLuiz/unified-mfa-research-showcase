@@ -1,0 +1,14 @@
+{
+  "name": "@apps/mock-data-service",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node src/server.js",
+    "build": "node -e \"process.stdout.write('mock-data-service build not required\\\\n')\"",
+    "lint": "node -e \"process.stdout.write('mock-data-service lint not configured\\\\n')\""
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  }
+}

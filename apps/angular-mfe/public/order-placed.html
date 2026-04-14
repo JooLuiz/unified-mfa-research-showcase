@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Order Placed</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+      }
+      .order-shell {
+        border: 1px solid #222;
+        margin: 12px;
+        padding: 20px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="order-shell">
+      <h2>Order Placed Component</h2>
+      <p>Thank you for your purchase.</p>
+      <button id="notifyHostButton">Notify host</button>
+    </section>
+    <script>
+      const notifyHostButton = document.getElementById("notifyHostButton");
+      notifyHostButton.addEventListener("click", () => {
+        window.parent.postMessage(
+          {
+            type: "order-placed:completed",
+            payload: { timestamp: Date.now() },
+          },
+          "*",
+        );
+      });
+    </script>
+  </body>
+</html>

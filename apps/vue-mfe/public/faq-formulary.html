@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FAQ Formulary</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+      }
+      .faq-shell {
+        border: 1px solid #222;
+        margin: 12px;
+        padding: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="faq-shell">
+      <h2>FAQ Formulary</h2>
+      <label for="questionInput">Your question</label>
+      <input id="questionInput" type="text" placeholder="Type your question" />
+      <button id="sendQuestionButton">Send to host</button>
+    </section>
+    <script>
+      const sendQuestionButton = document.getElementById("sendQuestionButton");
+      const questionInput = document.getElementById("questionInput");
+
+      sendQuestionButton.addEventListener("click", () => {
+        const questionValue = questionInput.value.trim();
+        if (!questionValue) {
+          return;
+        }
+
+        window.parent.postMessage(
+          {
+            type: "faq:question-submitted",
+            payload: {
+              question: questionValue,
+            },
+          },
+          "*",
+        );
+
+        questionInput.value = "";
+      });
+    </script>
+  </body>
+</html>

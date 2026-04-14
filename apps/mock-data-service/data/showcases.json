@@ -1,0 +1,14 @@
+[
+  {
+    "showcaseTitle": "Work from Home Essentials",
+    "productIds": ["p-01", "p-02", "p-03", "p-07", "p-08", "p-11"]
+  },
+  {
+    "showcaseTitle": "Desk Organization & Decor",
+    "productIds": ["p-05", "p-09", "p-10", "p-13", "p-14", "p-19"]
+  },
+  {
+    "showcaseTitle": "Tech Maintenance & Accessories",
+    "productIds": ["p-12", "p-16", "p-21", "p-25", "p-29", "p-31"]
+  }
+]

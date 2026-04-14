@@ -1,0 +1,26 @@
+{
+  "name": "unified-mfe-research-showcase",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace apps/mock-data-service\" \"npm run dev --workspace apps/angular-mfe\" \"npm run dev --workspace apps/react-mfe\" \"npm run dev --workspace apps/vue-mfe\" \"npm run dev --workspace apps/host-shell\"",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "start": "npm run dev"
+  },
+  "keywords": [
+    "micro-frontend",
+    "module-federation",
+    "web-components",
+    "iframes"
+  ],
+  "author": "",
+  "license": "MIT",
+  "description": "Unified micro frontend research showcase",
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
