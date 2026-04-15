@@ -2,6 +2,7 @@
     {
         "id": "p-01",
         "name": "Minimalist Desk Lamp",
+        "categoryId": "cat-lighting",
         "price": 45.00,
         "image": "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -15,6 +16,7 @@
     {
         "id": "p-02",
         "name": "Ergonomic Office Chair",
+        "categoryId": "cat-furniture",
         "price": 289.99,
         "image": "https://images.unsplash.com/photo-1505797149-43b0069ec26b?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -28,6 +30,7 @@
     {
         "id": "p-03",
         "name": "Mechanical Wireless Keyboard",
+        "categoryId": "cat-electronics",
         "price": 120.50,
         "image": "https://images.unsplash.com/photo-1511467687858-23d96c32e4ae?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -41,6 +44,7 @@
     {
         "id": "p-04",
         "name": "Precision Optical Mouse",
+        "categoryId": "cat-electronics",
         "price": 55.00,
         "image": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -54,6 +58,7 @@
     {
         "id": "p-05",
         "name": "Bamboo Desk Organizer",
+        "categoryId": "cat-stationery",
         "price": 25.00,
         "image": "https://images.unsplash.com/photo-1591129841117-3adfd313e34f?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -67,6 +72,7 @@
     {
         "id": "p-06",
         "name": "Noise Cancelling Headphones",
+        "categoryId": "cat-electronics",
         "price": 199.00,
         "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -80,6 +86,7 @@
     {
         "id": "p-07",
         "name": "4K Ultra-Wide Monitor",
+        "categoryId": "cat-electronics",
         "price": 450.00,
         "image": "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -93,6 +100,7 @@
     {
         "id": "p-08",
         "name": "Standing Desk Frame",
+        "categoryId": "cat-furniture",
         "price": 310.00,
         "image": "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -106,6 +114,7 @@
     {
         "id": "p-09",
         "name": "Ceramic Succulent Pot",
+        "categoryId": "cat-accessories",
         "price": 12.99,
         "image": "https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -119,6 +128,7 @@
     {
         "id": "p-10",
         "name": "Leather Journal Cover",
+        "categoryId": "cat-stationery",
         "price": 38.00,
         "image": "https://images.unsplash.com/photo-1512418490979-92798ccc1380?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -132,6 +142,7 @@
     {
         "id": "p-11",
         "name": "USB-C Portable Hub",
+        "categoryId": "cat-electronics",
         "price": 49.00,
         "image": "https://images.unsplash.com/photo-1563770660941-20978e870e26?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -145,6 +156,7 @@
     {
         "id": "p-12",
         "name": "Webcam Privacy Cover Set",
+        "categoryId": "cat-accessories",
         "price": 9.50,
         "image": "https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -158,6 +170,7 @@
     {
         "id": "p-13",
         "name": "Smart Table Lamp",
+        "categoryId": "cat-lighting",
         "price": 85.00,
         "image": "https://images.unsplash.com/photo-1534073828943-f801091bb18c?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -171,6 +184,7 @@
     {
         "id": "p-14",
         "name": "Fountain Pen (Matte Black)",
+        "categoryId": "cat-stationery",
         "price": 62.00,
         "image": "https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -184,6 +198,7 @@
     {
         "id": "p-15",
         "name": "Acoustic Desk Divider",
+        "categoryId": "cat-furniture",
         "price": 110.00,
         "image": "https://images.unsplash.com/photo-1519710192539-7475514e399e?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -197,6 +212,7 @@
     {
         "id": "p-16",
         "name": "Wireless Charging Pad",
+        "categoryId": "cat-electronics",
         "price": 35.00,
         "image": "https://images.unsplash.com/photo-1586816829380-004652431688?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -210,6 +226,7 @@
     {
         "id": "p-17",
         "name": "Blue Light Glasses",
+        "categoryId": "cat-accessories",
         "price": 29.00,
         "image": "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -223,6 +240,7 @@
     {
         "id": "p-18",
         "name": "Smart LED Strip Kit",
+        "categoryId": "cat-lighting",
         "price": 42.00,
         "image": "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -236,6 +254,7 @@
     {
         "id": "p-19",
         "name": "Recycled Paper Notebook",
+        "categoryId": "cat-stationery",
         "price": 15.00,
         "image": "https://images.unsplash.com/photo-1531346878377-a5be20888e57?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -249,6 +268,7 @@
     {
         "id": "p-20",
         "name": "Studio Microphone",
+        "categoryId": "cat-electronics",
         "price": 145.00,
         "image": "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -262,6 +282,7 @@
     {
         "id": "p-21",
         "name": "Tech Travel Pouch",
+        "categoryId": "cat-accessories",
         "price": 28.00,
         "image": "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -275,6 +296,7 @@
     {
         "id": "p-22",
         "name": "Leather Laptop Sleeve",
+        "categoryId": "cat-accessories",
         "price": 55.00,
         "image": "https://images.unsplash.com/photo-1603302576837-37561b2e2302?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -288,6 +310,7 @@
     {
         "id": "p-23",
         "name": "Motion Sensor Nightlight",
+        "categoryId": "cat-lighting",
         "price": 18.00,
         "image": "https://images.unsplash.com/photo-1565814636199-ae8133055c1c?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -301,6 +324,7 @@
     {
         "id": "p-24",
         "name": "Pop Filter for Mic",
+        "categoryId": "cat-electronics",
         "price": 15.00,
         "image": "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -314,6 +338,7 @@
     {
         "id": "p-25",
         "name": "Cable Management Clips",
+        "categoryId": "cat-accessories",
         "price": 12.00,
         "image": "https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -327,6 +352,7 @@
     {
         "id": "p-26",
         "name": "Microfiber Cleaning Cloth",
+        "categoryId": "cat-accessories",
         "price": 8.00,
         "image": "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -340,6 +366,7 @@
     {
         "id": "p-27",
         "name": "Boom Arm for Mic",
+        "categoryId": "cat-electronics",
         "price": 35.00,
         "image": "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -353,6 +380,7 @@
     {
         "id": "p-28",
         "name": "Velcro Cable Ties (Set)",
+        "categoryId": "cat-accessories",
         "price": 10.00,
         "image": "https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -366,6 +394,7 @@
     {
         "id": "p-29",
         "name": "Screen Cleaning Spray",
+        "categoryId": "cat-accessories",
         "price": 14.00,
         "image": "https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -379,6 +408,7 @@
     {
         "id": "p-30",
         "name": "Silicone Keyboard Cover",
+        "categoryId": "cat-accessories",
         "price": 12.00,
         "image": "https://images.unsplash.com/photo-1541140134513-85a161dc4a00?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -392,6 +422,7 @@
     {
         "id": "p-31",
         "name": "Compressed Air Duster",
+        "categoryId": "cat-accessories",
         "price": 9.00,
         "image": "https://images.unsplash.com/photo-1587560699334-cc4ff634909a?auto=format&fit=crop&w=400",
         "similarProducts": [
@@ -405,6 +436,7 @@
     {
         "id": "p-32",
         "name": "Desktop Mini Vacuum",
+        "categoryId": "cat-electronics",
         "price": 22.00,
         "image": "https://images.unsplash.com/photo-1520607162513-9252327702f2?auto=format&fit=crop&w=400",
         "similarProducts": [

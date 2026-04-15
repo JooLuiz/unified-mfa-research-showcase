@@ -17,9 +17,16 @@ function PromotionalBannerView({ banner, onNavigate }) {
         className="banner-image-clickable"
         onClick={() => onNavigate(promotionPath)}
       />
-      <strong>{banner.productTitle ? `Featured Product: ${banner.productTitle}` : "Featured Product"}</strong>
-      <button className="header-action" onClick={() => onNavigate(promotionPath)}>
-        view promotion
+      <strong>
+        {banner.productTitle
+          ? `Featured Product: ${banner.productTitle}`
+          : "Featured Product"}
+      </strong>
+      <button
+        className="header-action"
+        onClick={() => onNavigate(promotionPath)}
+      >
+        View Promotion
       </button>
     </section>
   );
@@ -27,7 +34,12 @@ function PromotionalBannerView({ banner, onNavigate }) {
 
 export function mountPromotionalBanner(containerElement, props) {
   const root = createRoot(containerElement);
-  root.render(<PromotionalBannerView banner={props.banner} onNavigate={props.onNavigate} />);
+  root.render(
+    <PromotionalBannerView
+      banner={props.banner}
+      onNavigate={props.onNavigate}
+    />,
+  );
 
   return () => {
     root.unmount();

@@ -40,7 +40,12 @@ app.get("/api/products", async (request, response) => {
 
     let filteredProducts = productsData.filter((product) => {
       const isInsidePriceRange = product.price >= minPrice && product.price <= maxPrice;
-      const matchesSearch = !searchQuery || product.name.toLowerCase().includes(searchQuery);
+      const normalizedProductName = product.name.toLowerCase();
+      const normalizedProductId = String(product.id || "").toLowerCase();
+      const matchesSearch =
+        !searchQuery ||
+        normalizedProductName.includes(searchQuery) ||
+        normalizedProductId.includes(searchQuery);
       const matchesIds = requestedIds.length === 0 || requestedIds.includes(product.id);
       return isInsidePriceRange && matchesSearch && matchesIds;
     });
@@ -85,6 +90,18 @@ app.get("/api/products/:productId", async (request, response) => {
   } catch (error) {
     response.status(500).json({
       message: "Unable to load product",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/categories", async (_request, response) => {
+  try {
+    const categoriesData = await readJsonFile("categories.json");
+    response.json(categoriesData);
+  } catch (error) {
+    response.status(500).json({
+      message: "Unable to load categories",
       details: error.message,
     });
   }

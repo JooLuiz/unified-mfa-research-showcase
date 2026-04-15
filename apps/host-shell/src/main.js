@@ -12,12 +12,15 @@ const ORDER_PLACED_FRAME_ID = "order-placed";
 const appState = {
   products: [],
   productsById: {},
+  categories: [],
   showcases: [],
   banners: [],
   cartItems: [],
   plpFilters: {
+    searchQuery: "",
     minPrice: "",
     maxPrice: "",
+    categoryIds: [],
   },
   plpSortBy: "",
   plpVisibleCount: 8,
@@ -86,9 +89,14 @@ function readStoredPlpFilters() {
       return;
     }
     const parsedValue = JSON.parse(storedValue);
+    const storedCategoryIds = Array.isArray(parsedValue.categoryIds)
+      ? parsedValue.categoryIds.filter((categoryId) => typeof categoryId === "string")
+      : [];
     appState.plpFilters = {
+      searchQuery: parsedValue.searchQuery || "",
       minPrice: parsedValue.minPrice || "",
       maxPrice: parsedValue.maxPrice || "",
+      categoryIds: storedCategoryIds,
     };
   } catch (error) {
     console.warn("Unable to parse stored PLP filters", error);
@@ -108,10 +116,12 @@ async function fetchJson(url) {
 }
 
 async function loadMockData() {
-  const [productsResponse, showcasesResponse, bannersResponse] = await Promise.all([
+  const [productsResponse, showcasesResponse, bannersResponse, categoriesResponse] =
+    await Promise.all([
     fetchJson(`${MOCK_API_BASE_URL}/products`),
     fetchJson(`${MOCK_API_BASE_URL}/showcases`),
     fetchJson(`${MOCK_API_BASE_URL}/banners`),
+    fetchJson(`${MOCK_API_BASE_URL}/categories`),
   ]);
 
   appState.products = productsResponse.items;
@@ -121,6 +131,7 @@ async function loadMockData() {
   }, {});
   appState.showcases = showcasesResponse;
   appState.banners = bannersResponse;
+  appState.categories = categoriesResponse;
 }
 
 function clearCurrentPage() {
@@ -206,16 +217,44 @@ function getPlpInitialVisibleCount(itemsPerRow) {
   return Math.max(itemsPerRow * 2, 2);
 }
 
+function normalizePlpFilters(nextFilters) {
+  const categoryIds = Array.isArray(nextFilters.categoryIds)
+    ? nextFilters.categoryIds.filter((categoryId) => typeof categoryId === "string")
+    : [];
+
+  return {
+    searchQuery: String(nextFilters.searchQuery || ""),
+    minPrice: String(nextFilters.minPrice || ""),
+    maxPrice: String(nextFilters.maxPrice || ""),
+    categoryIds,
+  };
+}
+
 function normalizeProductsByFilters(products) {
+  const searchQuery = String(appState.plpFilters.searchQuery || "")
+    .toLowerCase()
+    .trim();
+  const selectedCategoryIds = Array.isArray(appState.plpFilters.categoryIds)
+    ? appState.plpFilters.categoryIds
+    : [];
   const hasMinimumFilter = String(appState.plpFilters.minPrice).trim() !== "";
   const hasMaximumFilter = String(appState.plpFilters.maxPrice).trim() !== "";
   const minPrice = hasMinimumFilter ? Number(appState.plpFilters.minPrice) : null;
   const maxPrice = hasMaximumFilter ? Number(appState.plpFilters.maxPrice) : null;
 
   let filteredProducts = products.filter((product) => {
+    const normalizedProductName = String(product.name || "").toLowerCase();
+    const normalizedProductId = String(product.id || "").toLowerCase();
+    const matchesSearch =
+      searchQuery === "" ||
+      normalizedProductName.includes(searchQuery) ||
+      normalizedProductId.includes(searchQuery);
+    const matchesCategory =
+      selectedCategoryIds.length === 0 ||
+      selectedCategoryIds.includes(product.categoryId);
     const isAboveMinimum = Number.isFinite(minPrice) ? product.price >= minPrice : true;
     const isBelowMaximum = Number.isFinite(maxPrice) ? product.price <= maxPrice : true;
-    return isAboveMinimum && isBelowMaximum;
+    return matchesSearch && matchesCategory && isAboveMinimum && isBelowMaximum;
   });
 
   if (appState.plpSortBy === "price-asc") {
@@ -382,12 +421,13 @@ async function renderProductListPage(pageMount, modules) {
       totalProducts: normalizedProducts.length,
       activeSort: appState.plpSortBy,
       activeFilters: appState.plpFilters,
+      categories: appState.categories,
       onSortChange: (nextSortBy) => {
         appState.plpSortBy = nextSortBy;
         renderApp();
       },
       onApplyFilters: (nextFilters) => {
-        appState.plpFilters = nextFilters;
+        appState.plpFilters = normalizePlpFilters(nextFilters);
         appState.plpVisibleCount = getPlpInitialVisibleCount(
           calculatePlpItemsPerRow(),
         );
@@ -395,7 +435,7 @@ async function renderProductListPage(pageMount, modules) {
         renderApp();
       },
       onClearFilters: (nextFilters) => {
-        appState.plpFilters = nextFilters;
+        appState.plpFilters = normalizePlpFilters(nextFilters);
         appState.plpVisibleCount = getPlpInitialVisibleCount(
           calculatePlpItemsPerRow(),
         );
