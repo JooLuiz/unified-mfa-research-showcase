@@ -1,0 +1,22 @@
+[
+  {
+    "id": "cat-furniture",
+    "name": "Furniture"
+  },
+  {
+    "id": "cat-electronics",
+    "name": "Electronics"
+  },
+  {
+    "id": "cat-accessories",
+    "name": "Accessories"
+  },
+  {
+    "id": "cat-lighting",
+    "name": "Lighting"
+  },
+  {
+    "id": "cat-stationery",
+    "name": "Stationery"
+  }
+]

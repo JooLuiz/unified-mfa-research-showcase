@@ -20,13 +20,11 @@
   </head>
   <body>
     <section class="order-shell">
-      <h2>Order Placed Component</h2>
+      <h2>Order Placed!</h2>
       <p>Thank you for your purchase.</p>
-      <button id="notifyHostButton">Notify host</button>
     </section>
     <script>
       const FRAME_ID = "order-placed";
-      const notifyHostButton = document.getElementById("notifyHostButton");
 
       const notifyHostHeight = () => {
         const contentHeight = Math.max(
@@ -48,17 +46,6 @@
       window.addEventListener("load", notifyHostHeight);
       window.addEventListener("resize", notifyHostHeight);
       requestAnimationFrame(notifyHostHeight);
-
-      notifyHostButton.addEventListener("click", () => {
-        window.parent.postMessage(
-          {
-            type: "order-placed:completed",
-            payload: { timestamp: Date.now() },
-          },
-          "*",
-        );
-        notifyHostHeight();
-      });
     </script>
   </body>
 </html>

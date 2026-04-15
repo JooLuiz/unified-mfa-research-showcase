@@ -26,8 +26,9 @@ export function mountProductDetails(containerElement, props) {
       </div>
       <div class="pdp-details-column">
         <h2>${selectedProduct.name}</h2>
-        <h3>Price</h3>
-        <p>$${selectedProduct.price.toFixed(2)}</p>
+        <div>
+          <p>Price: $${selectedProduct.price.toFixed(2)}</p>
+        </div>
         <div class="quantity-shell">
           <button id="decreaseQuantityButton" class="quantity-control-button" type="button">-</button>
           <input
