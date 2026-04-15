@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
@@ -8,14 +8,82 @@ function ProductListView({
   activeSort,
   activeFilters,
   onSortChange,
-  onFiltersChange,
+  onApplyFilters,
+  onClearFilters,
   onLoadMore,
+  canLoadMore,
   mountProductCard,
   onProductClick,
   onAddToCart,
 }) {
   const cardSlotsRef = useRef([]);
-  const productCount = useMemo(() => products.length, [products]);
+  const [draftFilters, setDraftFilters] = useState({
+    minPrice: activeFilters.minPrice || "",
+    maxPrice: activeFilters.maxPrice || "",
+  });
+
+  useEffect(() => {
+    setDraftFilters({
+      minPrice: activeFilters.minPrice || "",
+      maxPrice: activeFilters.maxPrice || "",
+    });
+  }, [activeFilters.minPrice, activeFilters.maxPrice]);
+
+  const normalizeFilterValue = (value) => {
+    if (String(value).trim() === "") {
+      return "";
+    }
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+      return "0";
+    }
+    return String(Math.floor(parsedValue));
+  };
+
+  const getNumericValue = (value) => {
+    const parsedValue = Number(value);
+    if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+      return 0;
+    }
+    return Math.floor(parsedValue);
+  };
+
+  const handleFilterInputChange = (fieldName, nextValue) => {
+    const isEmptyValue = nextValue === "";
+    const isNumericValue = /^\d+$/.test(nextValue);
+    if (!isEmptyValue && !isNumericValue) {
+      return;
+    }
+    setDraftFilters((currentFilters) => ({
+      ...currentFilters,
+      [fieldName]: nextValue,
+    }));
+  };
+
+  const adjustFilterValue = (fieldName, delta) => {
+    const currentValue = getNumericValue(draftFilters[fieldName]);
+    const nextValue = Math.max(currentValue + delta, 0);
+    setDraftFilters((currentFilters) => ({
+      ...currentFilters,
+      [fieldName]: String(nextValue),
+    }));
+  };
+
+  const applyFilters = () => {
+    onApplyFilters({
+      minPrice: normalizeFilterValue(draftFilters.minPrice),
+      maxPrice: normalizeFilterValue(draftFilters.maxPrice),
+    });
+  };
+
+  const clearFilters = () => {
+    const clearedFilters = {
+      minPrice: "",
+      maxPrice: "",
+    };
+    setDraftFilters(clearedFilters);
+    onClearFilters(clearedFilters);
+  };
 
   useEffect(() => {
     const cleanupFunctions = [];
@@ -45,35 +113,85 @@ function ProductListView({
 
   return (
     <section className="product-list-shell">
-      <aside>
+      <aside className="product-filter-sidebar">
         <h3>Filters</h3>
-        <label>
+        <label className="filter-label" htmlFor="minPriceInput">
           Min Price
-          <input
-            type="number"
-            value={activeFilters.minPrice}
-            onChange={(event) => onFiltersChange({ ...activeFilters, minPrice: event.target.value })}
-          />
         </label>
-        <label>
+        <div className="filter-quantity-shell">
+          <button
+            className="filter-quantity-button"
+            type="button"
+            onClick={() => adjustFilterValue("minPrice", -1)}
+          >
+            -
+          </button>
+          <input
+            id="minPriceInput"
+            className="filter-quantity-input"
+            type="number"
+            min="0"
+            value={draftFilters.minPrice}
+            onChange={(event) => handleFilterInputChange("minPrice", event.target.value)}
+          />
+          <button
+            className="filter-quantity-button"
+            type="button"
+            onClick={() => adjustFilterValue("minPrice", 1)}
+          >
+            +
+          </button>
+        </div>
+        <label className="filter-label" htmlFor="maxPriceInput">
           Max Price
-          <input
-            type="number"
-            value={activeFilters.maxPrice}
-            onChange={(event) => onFiltersChange({ ...activeFilters, maxPrice: event.target.value })}
-          />
         </label>
+        <div className="filter-quantity-shell">
+          <button
+            className="filter-quantity-button"
+            type="button"
+            onClick={() => adjustFilterValue("maxPrice", -1)}
+          >
+            -
+          </button>
+          <input
+            id="maxPriceInput"
+            className="filter-quantity-input"
+            type="number"
+            min="0"
+            value={draftFilters.maxPrice}
+            onChange={(event) => handleFilterInputChange("maxPrice", event.target.value)}
+          />
+          <button
+            className="filter-quantity-button"
+            type="button"
+            onClick={() => adjustFilterValue("maxPrice", 1)}
+          >
+            +
+          </button>
+        </div>
+        <button className="header-action filter-clear-button" type="button" onClick={clearFilters}>
+          Clear filters
+        </button>
+        <button className="header-action filter-apply-button" type="button" onClick={applyFilters}>
+          Apply filters
+        </button>
       </aside>
       <div>
         <div className="product-list-controls">
-          <h2>Title (Products)</h2>
-          <span>Total Quantity Of Products: {totalProducts}</span>
-          <select value={activeSort} onChange={(event) => onSortChange(event.target.value)}>
-            <option value="">Product Sorting</option>
-            <option value="price-asc">Price: Low to High</option>
-            <option value="price-desc">Price: High to Low</option>
-            <option value="name-asc">Name: A-Z</option>
-          </select>
+          <h2>Products</h2>
+          <div className="product-list-actions">
+            <span className="total-quantity-label">Total Quantity: {totalProducts}</span>
+            <select
+              className="product-sort-select"
+              value={activeSort}
+              onChange={(event) => onSortChange(event.target.value)}
+            >
+              <option value="">Product Sorting</option>
+              <option value="price-asc">Price: Low to High</option>
+              <option value="price-desc">Price: High to Low</option>
+              <option value="name-asc">Name: A-Z</option>
+            </select>
+          </div>
         </div>
         <div className="product-grid">
           {products.map((product, index) => (
@@ -86,9 +204,11 @@ function ProductListView({
             />
           ))}
         </div>
-        <button className="header-action" onClick={onLoadMore}>
-          Load More ({productCount})
-        </button>
+        {canLoadMore && (
+          <button className="header-action product-load-more-button" onClick={onLoadMore}>
+            Load More
+          </button>
+        )}
       </div>
     </section>
   );
@@ -103,8 +223,10 @@ export function mountProductList(containerElement, props) {
       activeSort={props.activeSort}
       activeFilters={props.activeFilters}
       onSortChange={props.onSortChange}
-      onFiltersChange={props.onFiltersChange}
+      onApplyFilters={props.onApplyFilters}
+      onClearFilters={props.onClearFilters}
       onLoadMore={props.onLoadMore}
+      canLoadMore={props.canLoadMore}
       mountProductCard={props.mountProductCard}
       onProductClick={props.onProductClick}
       onAddToCart={props.onAddToCart}

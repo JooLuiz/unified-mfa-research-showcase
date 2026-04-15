@@ -29,12 +29,14 @@ body {
 
 .frame-container {
   border: 1px solid #222;
-  min-height: 250px;
+  width: 100%;
+  overflow: hidden;
 }
 
 .frame-container iframe {
   width: 100%;
-  min-height: 280px;
+  display: block;
+  height: 0;
   border: 0;
 }
 

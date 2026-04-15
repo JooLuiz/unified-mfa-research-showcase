@@ -2,8 +2,12 @@ import "./styles.css";
 
 const MOCK_API_BASE_URL = "http://localhost:4000/api";
 const FAQ_IFRAME_URL = "http://localhost:4203/faq-formulary.html";
+const CHECKOUT_EMPTY_IFRAME_URL = "http://localhost:4202/checkout-empty.html";
 const ORDER_PLACED_IFRAME_URL = "http://localhost:4202/order-placed.html";
 const FILTER_STORAGE_KEY = "host-shell:plp-filters";
+const FAQ_FRAME_ID = "faq-formulary";
+const CHECKOUT_EMPTY_FRAME_ID = "checkout-empty";
+const ORDER_PLACED_FRAME_ID = "order-placed";
 
 const appState = {
   products: [],
@@ -17,6 +21,7 @@ const appState = {
   },
   plpSortBy: "",
   plpVisibleCount: 8,
+  plpItemsPerRow: 4,
   appliedCoupon: null,
   lastIframeMessage: "",
   isFormularySubmitted: false,
@@ -181,6 +186,26 @@ function navigate(path) {
   renderApp();
 }
 
+function calculatePlpItemsPerRow() {
+  const minimumCardWidth = 170;
+  const cardGap = 12;
+  const filtersColumnWidth = 220;
+  const pagePaddingAllowance = 96;
+  const estimatedGridWidth = Math.max(
+    window.innerWidth - filtersColumnWidth - pagePaddingAllowance,
+    minimumCardWidth,
+  );
+
+  const estimatedCardsPerRow = Math.floor(
+    (estimatedGridWidth + cardGap) / (minimumCardWidth + cardGap),
+  );
+  return Math.max(estimatedCardsPerRow, 1);
+}
+
+function getPlpInitialVisibleCount(itemsPerRow) {
+  return Math.max(itemsPerRow * 2, 2);
+}
+
 function normalizeProductsByFilters(products) {
   const hasMinimumFilter = String(appState.plpFilters.minPrice).trim() !== "";
   const hasMaximumFilter = String(appState.plpFilters.maxPrice).trim() !== "";
@@ -225,25 +250,49 @@ function mountHeaderAndFooter(layoutMounts) {
 }
 
 function mountFaqIframe(containerElement) {
+  return mountResizableIframe(containerElement, {
+    title: "FAQ Formulary",
+    src: FAQ_IFRAME_URL,
+    frameId: FAQ_FRAME_ID,
+  });
+}
+
+function mountCheckoutEmptyIframe(containerElement) {
+  return mountResizableIframe(containerElement, {
+    title: "Checkout Empty",
+    src: CHECKOUT_EMPTY_IFRAME_URL,
+    frameId: CHECKOUT_EMPTY_FRAME_ID,
+  });
+}
+
+function mountResizableIframe(containerElement, iframeConfig) {
   containerElement.innerHTML = `
     <section class="frame-container">
-      <iframe title="FAQ Formulary" src="${FAQ_IFRAME_URL}"></iframe>
+      <iframe
+        data-frame-id="${iframeConfig.frameId}"
+        title="${iframeConfig.title}"
+        src="${iframeConfig.src}"
+        scrolling="no"
+      ></iframe>
     </section>
   `;
+
+  const iframeElement = containerElement.querySelector("iframe");
+  if (iframeElement) {
+    iframeElement.style.height = "0px";
+  }
+
   return () => {
     containerElement.innerHTML = "";
   };
 }
 
 function mountOrderPlacedIframe(containerElement) {
-  containerElement.innerHTML = `
-    <section class="frame-container">
-      <iframe title="Order Placed" src="${ORDER_PLACED_IFRAME_URL}"></iframe>
-    </section>
-  `;
-  return () => {
-    containerElement.innerHTML = "";
-  };
+  return mountResizableIframe(containerElement, {
+    title: "Order Placed",
+    src: ORDER_PLACED_IFRAME_URL,
+    frameId: ORDER_PLACED_FRAME_ID,
+  });
 }
 
 async function renderHomePage(pageMount, modules) {
@@ -318,8 +367,14 @@ async function renderPromotionsPage(pageMount, modules) {
 async function renderProductListPage(pageMount, modules) {
   pageMount.innerHTML = `<section id="plpMount"></section>`;
   const plpMount = pageMount.querySelector("#plpMount");
+  appState.plpItemsPerRow = calculatePlpItemsPerRow();
+  const minimumVisibleCount = getPlpInitialVisibleCount(appState.plpItemsPerRow);
+  appState.plpVisibleCount = Math.max(appState.plpVisibleCount, minimumVisibleCount);
+
   const normalizedProducts = normalizeProductsByFilters([...appState.products]);
-  const visibleProducts = normalizedProducts.slice(0, appState.plpVisibleCount);
+  const visibleCount = Math.min(appState.plpVisibleCount, normalizedProducts.length);
+  const visibleProducts = normalizedProducts.slice(0, visibleCount);
+  const canLoadMore = visibleCount < normalizedProducts.length;
 
   activeCleanupFunctions.push(
     modules.mountProductList(plpMount, {
@@ -331,16 +386,27 @@ async function renderProductListPage(pageMount, modules) {
         appState.plpSortBy = nextSortBy;
         renderApp();
       },
-      onFiltersChange: (nextFilters) => {
+      onApplyFilters: (nextFilters) => {
         appState.plpFilters = nextFilters;
-        appState.plpVisibleCount = 8;
+        appState.plpVisibleCount = getPlpInitialVisibleCount(
+          calculatePlpItemsPerRow(),
+        );
+        storePlpFilters();
+        renderApp();
+      },
+      onClearFilters: (nextFilters) => {
+        appState.plpFilters = nextFilters;
+        appState.plpVisibleCount = getPlpInitialVisibleCount(
+          calculatePlpItemsPerRow(),
+        );
         storePlpFilters();
         renderApp();
       },
       onLoadMore: () => {
-        appState.plpVisibleCount += 4;
+        appState.plpVisibleCount += appState.plpItemsPerRow;
         renderApp();
       },
+      canLoadMore,
       onProductClick: (productId) => navigate(`/product?productId=${productId}`),
       onAddToCart: dispatchAddToCartEvent,
       mountProductCard: modules.mountProductCard,
@@ -376,6 +442,13 @@ async function renderProductDetailsPage(pageMount, modules) {
 }
 
 async function renderCheckoutPage(pageMount, modules) {
+  if (appState.cartItems.length === 0) {
+    pageMount.innerHTML = `<section id="checkoutEmptyMount"></section>`;
+    const checkoutEmptyMount = pageMount.querySelector("#checkoutEmptyMount");
+    activeCleanupFunctions.push(mountCheckoutEmptyIframe(checkoutEmptyMount));
+    return;
+  }
+
   pageMount.innerHTML = `
     <section class="checkout-grid">
       <div id="checkoutItemsMount"></div>
@@ -409,6 +482,12 @@ async function renderCheckoutPage(pageMount, modules) {
     modules.mountCheckoutSummary(checkoutSummaryMount, {
       subtotal,
       discountAmount,
+      onPlaceOrder: () => {
+        appState.cartItems = [];
+        appState.appliedCoupon = null;
+        setGlobalCartVariable();
+        navigate("/order-placed");
+      },
     }),
   );
 
@@ -492,9 +571,41 @@ window.addEventListener("popstate", () => {
   renderApp();
 });
 
+window.addEventListener("resize", () => {
+  if (window.location.pathname !== "/products") {
+    return;
+  }
+
+  const recalculatedItemsPerRow = calculatePlpItemsPerRow();
+  if (recalculatedItemsPerRow === appState.plpItemsPerRow) {
+    return;
+  }
+
+  appState.plpItemsPerRow = recalculatedItemsPerRow;
+  appState.plpVisibleCount = Math.max(
+    appState.plpVisibleCount,
+    getPlpInitialVisibleCount(recalculatedItemsPerRow),
+  );
+  renderApp();
+});
+
 window.addEventListener("message", (event) => {
   const messageData = event.data;
   if (!messageData || typeof messageData !== "object") {
+    return;
+  }
+
+  if (messageData.type === "iframe:resize") {
+    const frameId = messageData.payload?.frameId;
+    const rawHeight = Number(messageData.payload?.height);
+    if (typeof frameId === "string" && Number.isFinite(rawHeight)) {
+      const frameElement = document.querySelector(
+        `iframe[data-frame-id="${frameId}"]`,
+      );
+      if (frameElement) {
+        frameElement.style.height = `${Math.max(rawHeight, 80)}px`;
+      }
+    }
     return;
   }
 
@@ -502,10 +613,16 @@ window.addEventListener("message", (event) => {
     appState.isFormularySubmitted = true;
     appState.lastIframeMessage = `FAQ submitted by ${messageData.payload.name} (${messageData.payload.email})`;
     renderApp();
+    return;
   }
 
   if (messageData.type === "order-placed:completed") {
     appState.lastIframeMessage = "Order placed flow completed via iframe.";
+    return;
+  }
+
+  if (messageData.type === "checkout:go-shopping") {
+    navigate("/products");
   }
 });
 

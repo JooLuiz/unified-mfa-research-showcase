@@ -8,6 +8,7 @@
       body {
         margin: 0;
         font-family: Arial, sans-serif;
+        overflow: hidden;
       }
       .faq-shell {
         border: 1px solid #222;
@@ -52,11 +53,33 @@
       </div>
     </section>
     <script>
+      const FRAME_ID = "faq-formulary";
       const sendQuestionButton = document.getElementById("sendQuestionButton");
       const nameInput = document.getElementById("nameInput");
       const emailInput = document.getElementById("emailInput");
       const contactMethodInput = document.getElementById("contactMethodInput");
       const questionInput = document.getElementById("questionInput");
+
+      const notifyHostHeight = () => {
+        const contentHeight = Math.max(
+          document.documentElement.scrollHeight,
+          document.body.scrollHeight,
+        );
+        window.parent.postMessage(
+          {
+            type: "iframe:resize",
+            payload: {
+              frameId: FRAME_ID,
+              height: contentHeight,
+            },
+          },
+          "*",
+        );
+      };
+
+      window.addEventListener("load", notifyHostHeight);
+      window.addEventListener("resize", notifyHostHeight);
+      requestAnimationFrame(notifyHostHeight);
 
       sendQuestionButton.addEventListener("click", () => {
         const nameValue = nameInput.value.trim();
@@ -84,6 +107,7 @@
         emailInput.value = "";
         contactMethodInput.value = "";
         questionInput.value = "";
+        notifyHostHeight();
       });
     </script>
   </body>

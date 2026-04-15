@@ -19,3 +19,12 @@
   justify-content: space-between;
   margin-bottom: 0.4rem;
 }
+
+.place-order-button {
+  width: 100%;
+  min-height: 36px;
+  margin-top: 0.6rem;
+  border: 1px solid #333;
+  background: #f4f4f4;
+  cursor: pointer;
+}

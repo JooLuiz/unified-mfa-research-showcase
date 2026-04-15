@@ -3,30 +3,44 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Order Placed</title>
+    <title>Checkout Empty</title>
     <style>
       body {
         margin: 0;
         font-family: Arial, sans-serif;
         overflow: hidden;
       }
-      .order-shell {
+
+      .checkout-empty-shell {
         border: 1px solid #222;
         margin: 12px;
         padding: 20px;
+        display: grid;
+        gap: 12px;
+        justify-items: center;
         text-align: center;
+      }
+
+      .checkout-empty-shell button {
+        min-height: 36px;
+        padding: 0.4rem 0.85rem;
+        border: 1px solid #333;
+        background: #f4f4f4;
+        cursor: pointer;
       }
     </style>
   </head>
   <body>
-    <section class="order-shell">
-      <h2>Order Placed Component</h2>
-      <p>Thank you for your purchase.</p>
-      <button id="notifyHostButton">Notify host</button>
+    <section class="checkout-empty-shell">
+      <h2>There are no items in your cart</h2>
+      <p>Please add some items to your cart to proceed</p>
+      <button id="goBackToShoppingButton">Go Back to Shopping</button>
     </section>
     <script>
-      const FRAME_ID = "order-placed";
-      const notifyHostButton = document.getElementById("notifyHostButton");
+      const FRAME_ID = "checkout-empty";
+      const goBackToShoppingButton = document.getElementById(
+        "goBackToShoppingButton",
+      );
 
       const notifyHostHeight = () => {
         const contentHeight = Math.max(
@@ -49,15 +63,13 @@
       window.addEventListener("resize", notifyHostHeight);
       requestAnimationFrame(notifyHostHeight);
 
-      notifyHostButton.addEventListener("click", () => {
+      goBackToShoppingButton.addEventListener("click", () => {
         window.parent.postMessage(
           {
-            type: "order-placed:completed",
-            payload: { timestamp: Date.now() },
+            type: "checkout:go-shopping",
           },
           "*",
         );
-        notifyHostHeight();
       });
     </script>
   </body>
