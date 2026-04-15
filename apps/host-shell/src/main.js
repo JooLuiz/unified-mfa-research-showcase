@@ -175,6 +175,11 @@ function updateCartItem(productId, quantity) {
   setGlobalCartVariable();
 }
 
+function removeCartItem(productId) {
+  appState.cartItems = appState.cartItems.filter((cartItem) => cartItem.productId !== productId);
+  setGlobalCartVariable();
+}
+
 function withLayout() {
   const appRoot = document.getElementById("appRoot");
   appRoot.innerHTML = `
@@ -513,6 +518,10 @@ async function renderCheckoutPage(pageMount, modules) {
       productsById: appState.productsById,
       onQuantityChange: (productId, quantity) => {
         updateCartItem(productId, quantity);
+        renderApp();
+      },
+      onRemoveItem: (productId) => {
+        removeCartItem(productId);
         renderApp();
       },
     }),
