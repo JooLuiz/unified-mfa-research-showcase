@@ -2,7 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
-function CheckoutItemsView({ cartItems, productsById, onQuantityChange }) {
+function CheckoutItemsView({ cartItems, productsById, onQuantityChange, onRemoveItem }) {
   const normalizeQuantity = (nextQuantity) => {
     const parsedQuantity = Number(nextQuantity);
     if (!Number.isFinite(parsedQuantity) || parsedQuantity < 1) {
@@ -27,6 +27,13 @@ function CheckoutItemsView({ cartItems, productsById, onQuantityChange }) {
             <div className="checkout-item-details">
               <strong>{product.name}</strong>
               <span>${(product.price * cartItem.quantity).toFixed(2)}</span>
+              <button
+                type="button"
+                className="checkout-item-remove-button"
+                onClick={() => onRemoveItem(cartItem.productId)}
+              >
+                Remove
+              </button>
             </div>
             <div className="checkout-quantity-shell">
               <button
@@ -65,6 +72,7 @@ export function mountCheckoutItems(containerElement, props) {
       cartItems={props.cartItems}
       productsById={props.productsById}
       onQuantityChange={props.onQuantityChange}
+      onRemoveItem={props.onRemoveItem}
     />,
   );
 

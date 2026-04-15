@@ -415,6 +415,18 @@
   gap: 0.3rem;
 }
 
+.checkout-item-remove-button {
+  background: none;
+  border: none;
+  color: #d32f2f;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+}
+
 .checkout-quantity-shell {
   width: 100%;
   display: grid;
