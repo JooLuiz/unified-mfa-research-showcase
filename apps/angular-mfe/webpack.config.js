@@ -1,10 +1,11 @@
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { ModuleFederationPlugin } = require("webpack").container;
+const { AngularWebpackPlugin } = require("@ngtools/webpack");
 
 module.exports = {
   mode: "development",
-  entry: path.resolve(__dirname, "src/index.js"),
+  entry: path.resolve(__dirname, "src/index.ts"),
   output: {
     publicPath: "auto",
     clean: true,
@@ -20,8 +21,16 @@ module.exports = {
       "Access-Control-Allow-Origin": "*",
     },
   },
+  resolve: {
+    extensions: [".ts", ".js"],
+  },
   module: {
     rules: [
+      {
+        test: /\.ts$/,
+        exclude: /node_modules/,
+        use: ["@ngtools/webpack"],
+      },
       {
         test: /\.css$/,
         use: ["style-loader", "css-loader"],
@@ -33,12 +42,24 @@ module.exports = {
       name: "angular_mfe",
       filename: "remoteEntry.js",
       exposes: {
-        "./ProductCard": "./src/product-card.js",
-        "./ProductDetails": "./src/product-details.js",
-        "./ProductShowcaseElement": "./src/product-showcase-element.js",
-        "./ApplyCoupon": "./src/apply-coupon.js",
-        "./FormularySentElement": "./src/formulary-sent-element.js",
+        "./ProductCard": "./src/product-card.ts",
+        "./ProductDetails": "./src/product-details.ts",
+        "./ProductShowcaseElement": "./src/product-showcase-element.ts",
+        "./ApplyCoupon": "./src/apply-coupon.ts",
+        "./FormularySentElement": "./src/formulary-sent-element.ts",
       },
+      shared: {
+        "@angular/common": { singleton: true },
+        "@angular/compiler": { singleton: true },
+        "@angular/core": { singleton: true },
+        "@angular/elements": { singleton: true },
+        "@angular/platform-browser": { singleton: true },
+        rxjs: { singleton: true },
+        "zone.js": { singleton: true },
+      },
+    }),
+    new AngularWebpackPlugin({
+      tsconfig: path.resolve(__dirname, "tsconfig.json"),
     }),
     new HtmlWebpackPlugin({
       template: path.resolve(__dirname, "public/index.html"),

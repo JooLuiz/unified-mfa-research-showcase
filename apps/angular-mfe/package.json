@@ -7,17 +7,24 @@
     "build": "webpack --config webpack.config.js",
     "lint": "node -e \"process.stdout.write('angular-mfe lint not configured\\\\n')\""
   },
-  "dependencies": {
-    "js-pretty-icons": "^0.2.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
   "devDependencies": {
+    "@angular/compiler": "^21.2.8",
+    "@angular/compiler-cli": "^21.2.8",
+    "@ngtools/webpack": "^21.2.7",
     "css-loader": "^7.1.2",
     "html-webpack-plugin": "^5.6.3",
     "style-loader": "^4.0.0",
+    "typescript": "^6.0.2",
     "webpack": "^5.98.0",
     "webpack-cli": "^6.0.1",
     "webpack-dev-server": "^5.2.0"
+  },
+  "dependencies": {
+    "@angular/common": "^21.2.8",
+    "@angular/core": "^21.2.8",
+    "@angular/elements": "^21.2.8",
+    "@angular/platform-browser": "^21.2.8",
+    "rxjs": "^7.8.2",
+    "zone.js": "^0.16.1"
   }
 }
