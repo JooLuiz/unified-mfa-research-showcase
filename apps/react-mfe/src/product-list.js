@@ -123,6 +123,68 @@ function ProductListView({
     });
   };
 
+  const buildActiveFilterTags = () => {
+    const activeTags = [];
+
+    if (activeFilters.searchQuery) {
+      activeTags.push({
+        key: "searchQuery",
+        label: `Search: ${activeFilters.searchQuery}`,
+      });
+    }
+
+    if (String(activeFilters.minPrice || "").trim() !== "") {
+      activeTags.push({
+        key: "minPrice",
+        label: `Min Price: $${activeFilters.minPrice}`,
+      });
+    }
+
+    if (String(activeFilters.maxPrice || "").trim() !== "") {
+      activeTags.push({
+        key: "maxPrice",
+        label: `Max Price: $${activeFilters.maxPrice}`,
+      });
+    }
+
+    const selectedCategoryIds = Array.isArray(activeFilters.categoryIds)
+      ? activeFilters.categoryIds
+      : [];
+    selectedCategoryIds.forEach((selectedCategoryId) => {
+      const matchingCategory = availableCategories.find(
+        (category) => category.id === selectedCategoryId,
+      );
+      activeTags.push({
+        key: `category:${selectedCategoryId}`,
+        label: `Category: ${matchingCategory?.name || selectedCategoryId}`,
+      });
+    });
+
+    return activeTags;
+  };
+
+  const removeActiveFilter = (filterKey) => {
+    const isCategoryRemoval = filterKey.startsWith("category:");
+    const remainingCategoryIds = isCategoryRemoval
+      ? (Array.isArray(activeFilters.categoryIds) ? activeFilters.categoryIds : []).filter(
+          (selectedCategoryId) => `category:${selectedCategoryId}` !== filterKey,
+        )
+      : Array.isArray(activeFilters.categoryIds)
+        ? activeFilters.categoryIds
+        : [];
+
+    const nextFilters = {
+      searchQuery: filterKey === "searchQuery" ? "" : activeFilters.searchQuery || "",
+      minPrice: filterKey === "minPrice" ? "" : activeFilters.minPrice || "",
+      maxPrice: filterKey === "maxPrice" ? "" : activeFilters.maxPrice || "",
+      categoryIds: remainingCategoryIds,
+    };
+
+    onApplyFilters(nextFilters);
+  };
+
+  const activeFilterTags = buildActiveFilterTags();
+
   useEffect(() => {
     const cleanupFunctions = [];
 
@@ -278,6 +340,23 @@ function ProductListView({
             </select>
           </div>
         </div>
+        {activeFilterTags.length > 0 && (
+          <div className="active-filters">
+            {activeFilterTags.map((activeTag) => (
+              <span key={activeTag.key} className="filter-tag">
+                <span className="filter-tag-label">{activeTag.label}</span>
+                <button
+                  type="button"
+                  className="filter-tag-remove"
+                  aria-label={`Remove filter ${activeTag.label}`}
+                  onClick={() => removeActiveFilter(activeTag.key)}
+                >
+                  X
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <div className="product-grid">
           {products.map((product, index) => (
             <div

@@ -42,7 +42,6 @@ module.exports = {
       name: "angular_mfe",
       filename: "remoteEntry.js",
       exposes: {
-        "./ProductCard": "./src/product-card.ts",
         "./ProductDetails": "./src/product-details.ts",
         "./ProductShowcaseElement": "./src/product-showcase-element.ts",
         "./ApplyCoupon": "./src/apply-coupon.ts",

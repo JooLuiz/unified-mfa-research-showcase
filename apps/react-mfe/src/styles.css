@@ -251,6 +251,49 @@
   min-height: 34px;
 }
 
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.filter-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid #333;
+  background: #f8f8f8;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  border-radius: 99px;
+}
+
+.filter-tag-label {
+  white-space: nowrap;
+}
+
+.filter-tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #333;
+  background: #fff;
+  width: 18px;
+  height: 18px;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 99px;
+}
+
+.filter-tag-remove:hover {
+  background: #d32f2f;
+  color: #fff;
+  border-color: #d32f2f;
+}
+
 .product-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
