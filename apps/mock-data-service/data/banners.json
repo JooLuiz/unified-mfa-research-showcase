@@ -3,30 +3,41 @@
         "id": "b-01",
         "title": "Upgrade Your Focus",
         "imageUrl": "https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=1200",
-        "associatedProductId": "p-07"
+        "filters": {
+            "searchQuery": "monitor"
+        }
     },
     {
         "id": "b-02",
         "title": "Comfort for the Long Haul",
         "imageUrl": "https://images.unsplash.com/photo-1517705008128-361805f42e86?auto=format&fit=crop&w=1200",
-        "associatedProductId": "p-02"
+        "filters": {
+            "categoryIds": ["cat-furniture"]
+        }
     },
     {
         "id": "b-03",
         "title": "The Perfect Setup Starts Here",
         "imageUrl": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200",
-        "associatedProductId": "p-03"
+        "filters": {
+            "categoryIds": ["cat-electronics"],
+            "maxPrice": "150"
+        }
     },
     {
         "id": "b-04",
         "title": "Studio Quality at Home",
         "imageUrl": "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=1200",
-        "associatedProductId": "p-06"
+        "filters": {
+            "searchQuery": "mic"
+        }
     },
     {
         "id": "b-05",
         "title": "Zen Your Desk Space",
         "imageUrl": "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&w=1200",
-        "associatedProductId": "p-01"
+        "filters": {
+            "categoryIds": ["cat-lighting"]
+        }
     }
 ]

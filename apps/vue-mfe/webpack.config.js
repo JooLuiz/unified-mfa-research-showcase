@@ -35,6 +35,7 @@ module.exports = {
       exposes: {
         "./FooterElement": "./src/footer-element.js",
         "./CheckoutSummary": "./src/checkout-summary.js",
+        "./ProductCard": "./src/product-card.js",
       },
       shared: {
         vue: {

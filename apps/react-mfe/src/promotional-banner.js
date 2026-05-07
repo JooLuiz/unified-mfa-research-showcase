@@ -2,12 +2,17 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
-function PromotionalBannerView({ banner, onNavigate }) {
+function PromotionalBannerView({ banner, onApplyPromotion }) {
   if (!banner) {
     return <section className="banner-card">No banner available.</section>;
   }
 
-  const promotionPath = `/product?productId=${banner.associatedProductId}`;
+  const handleApplyPromotion = () => {
+    if (typeof onApplyPromotion === "function") {
+      onApplyPromotion(banner.filters || {});
+    }
+  };
+
   return (
     <section className="banner-card">
       <h2>{banner.title}</h2>
@@ -15,17 +20,10 @@ function PromotionalBannerView({ banner, onNavigate }) {
         src={banner.imageUrl}
         alt={banner.title}
         className="banner-image-clickable"
-        onClick={() => onNavigate(promotionPath)}
+        onClick={handleApplyPromotion}
       />
-      <strong>
-        {banner.productTitle
-          ? `Featured Product: ${banner.productTitle}`
-          : "Featured Product"}
-      </strong>
-      <button
-        className="header-action"
-        onClick={() => onNavigate(promotionPath)}
-      >
+      <strong>Shop the Collection</strong>
+      <button className="header-action" onClick={handleApplyPromotion}>
         View Promotion
       </button>
     </section>
@@ -37,7 +35,7 @@ export function mountPromotionalBanner(containerElement, props) {
   root.render(
     <PromotionalBannerView
       banner={props.banner}
-      onNavigate={props.onNavigate}
+      onApplyPromotion={props.onApplyPromotion}
     />,
   );
 
