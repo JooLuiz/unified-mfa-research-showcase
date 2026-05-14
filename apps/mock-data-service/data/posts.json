@@ -1,0 +1,191 @@
+[
+  {
+    "id": "post-01",
+    "authorId": "u-01",
+    "content": "Just set up my new minimalist desk lamp from MFE Lab. The light is buttery soft and the build feels premium.",
+    "imageUrl": "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=800",
+    "createdAt": "2026-04-29T14:32:00Z",
+    "likes": 124,
+    "comments": 18
+  },
+  {
+    "id": "post-02",
+    "authorId": "u-02",
+    "content": "Working from home looks pretty great with the new ergonomic chair. Goodbye, back pain!",
+    "imageUrl": "https://images.unsplash.com/photo-1505797149-43b0069ec26b?auto=format&fit=crop&w=800",
+    "createdAt": "2026-04-30T09:15:00Z",
+    "likes": 87,
+    "comments": 12
+  },
+  {
+    "id": "post-03",
+    "authorId": "u-03",
+    "content": "Studio-quality recordings from my apartment thanks to the new microphone setup. Sample track coming soon.",
+    "imageUrl": "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-01T18:42:00Z",
+    "likes": 203,
+    "comments": 31
+  },
+  {
+    "id": "post-04",
+    "authorId": "u-01",
+    "content": "Bamboo desk organizer obsession. Everything finally has a place. Productivity boost confirmed.",
+    "imageUrl": "https://images.unsplash.com/photo-1591129841117-3adfd313e34f?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-03T11:05:00Z",
+    "likes": 56,
+    "comments": 7
+  },
+  {
+    "id": "post-05",
+    "authorId": "u-02",
+    "content": "Late night coding session with the smart LED strip on. The vibe is unmatched.",
+    "imageUrl": "https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-04T22:20:00Z",
+    "likes": 142,
+    "comments": 22
+  },
+  {
+    "id": "post-06",
+    "authorId": "u-03",
+    "content": "New noise cancelling headphones arrived. The world is finally quiet enough to think clearly.",
+    "imageUrl": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-05T07:48:00Z",
+    "likes": 175,
+    "comments": 26
+  },
+  {
+    "id": "post-07",
+    "authorId": "u-01",
+    "content": "Mechanical keyboard upgrade complete. Typing feels musical now. My pull request reviews have never been so therapeutic.",
+    "imageUrl": "https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-06T10:10:00Z",
+    "likes": 98,
+    "comments": 14
+  },
+  {
+    "id": "post-08",
+    "authorId": "u-02",
+    "content": "Weekend project: cable management. Spent four hours hiding wires. Worth every minute.",
+    "imageUrl": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-07T16:25:00Z",
+    "likes": 73,
+    "comments": 9
+  },
+  {
+    "id": "post-09",
+    "authorId": "u-03",
+    "content": "The ultrawide monitor changed my life. I can finally see all 47 browser tabs at once.",
+    "imageUrl": "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-08T09:00:00Z",
+    "likes": 211,
+    "comments": 34
+  },
+  {
+    "id": "post-10",
+    "authorId": "u-01",
+    "content": "Morning coffee, fresh notebook, brand new mouse. Today is going to be a great day.",
+    "imageUrl": "https://images.unsplash.com/photo-1499914485622-a88fac536970?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-09T07:15:00Z",
+    "likes": 64,
+    "comments": 5
+  },
+  {
+    "id": "post-11",
+    "authorId": "u-02",
+    "content": "Plants on the desk make a real difference. My focus is up and my screen feels less intimidating.",
+    "imageUrl": "https://images.unsplash.com/photo-1521334884684-d80222895322?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-10T12:40:00Z",
+    "likes": 119,
+    "comments": 17
+  },
+  {
+    "id": "post-12",
+    "authorId": "u-03",
+    "content": "Just finished a 5K run and got home to my smart speaker playing my recovery playlist automatically. The future is good.",
+    "imageUrl": "https://images.unsplash.com/photo-1539701938214-0d9736e1c16b?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-11T08:05:00Z",
+    "likes": 88,
+    "comments": 11
+  },
+  {
+    "id": "post-13",
+    "authorId": "u-01",
+    "content": "Switched to a standing desk and my afternoon energy actually exists now. Highly recommend.",
+    "imageUrl": "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-12T14:30:00Z",
+    "likes": 156,
+    "comments": 20
+  },
+  {
+    "id": "post-14",
+    "authorId": "u-02",
+    "content": "Tried the new ceramic mug. Coffee stays warm forever. Mornings will never be the same.",
+    "imageUrl": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-13T09:55:00Z",
+    "likes": 49,
+    "comments": 6
+  },
+  {
+    "id": "post-15",
+    "authorId": "u-03",
+    "content": "Designing in the new tablet. The pressure sensitivity is wild. Sketches feel alive now.",
+    "imageUrl": "https://images.unsplash.com/photo-1561070791-2526d30994b8?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-14T17:20:00Z",
+    "likes": 187,
+    "comments": 28
+  },
+  {
+    "id": "post-16",
+    "authorId": "u-01",
+    "content": "Fresh haircut, fresh playlist, fresh sprint. Let us ship something great this week.",
+    "imageUrl": "https://images.unsplash.com/photo-1542744095-291d1f67b221?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-15T08:45:00Z",
+    "likes": 71,
+    "comments": 8
+  },
+  {
+    "id": "post-17",
+    "authorId": "u-02",
+    "content": "Bought a portable monitor for travel. Working from cafes will never be cramped again.",
+    "imageUrl": "https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-16T11:10:00Z",
+    "likes": 132,
+    "comments": 19
+  },
+  {
+    "id": "post-18",
+    "authorId": "u-03",
+    "content": "Movie night on the new projector. Nothing beats popcorn, a giant screen, and friends laughing too loud.",
+    "imageUrl": "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-17T20:30:00Z",
+    "likes": 224,
+    "comments": 41
+  },
+  {
+    "id": "post-19",
+    "authorId": "u-01",
+    "content": "Sunday reset: clean desk, empty inbox, full water bottle. Ready for the week.",
+    "imageUrl": "https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-18T18:00:00Z",
+    "likes": 95,
+    "comments": 13
+  },
+  {
+    "id": "post-20",
+    "authorId": "u-02",
+    "content": "First long bike ride with the new helmet. Comfortable, light, and the visibility is amazing.",
+    "imageUrl": "https://images.unsplash.com/photo-1518655048521-f130df041f66?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-19T07:25:00Z",
+    "likes": 108,
+    "comments": 16
+  },
+  {
+    "id": "post-21",
+    "authorId": "u-03",
+    "content": "Late night brainstorm session with the team. Whiteboards full, ideas flowing, snacks low.",
+    "imageUrl": "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=800",
+    "createdAt": "2026-05-20T22:45:00Z",
+    "likes": 167,
+    "comments": 24
+  }
+]

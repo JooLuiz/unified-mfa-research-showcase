@@ -1,0 +1,83 @@
+.vue-preview {
+  font-family: Arial, sans-serif;
+  padding: 1rem;
+}
+
+.account-card {
+  border: 1px solid #222;
+  background: #fff;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.account-card-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.account-card-title {
+  margin: 0;
+}
+
+.account-card-subtitle {
+  margin: 0.15rem 0;
+  font-size: 0.95rem;
+}
+
+.account-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 99px;
+  object-fit: cover;
+  border: 1px solid #aaa;
+}
+
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.account-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+}
+
+.account-form-grid .account-form-button {
+  grid-column: 1 / -1;
+}
+
+.account-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.account-form-label {
+  font-size: 0.95rem;
+}
+
+.account-form-input {
+  border: 1px solid #555;
+  min-height: 34px;
+  padding: 0.35rem 0.5rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.account-form-button {
+  border: 1px solid #333;
+  background: #f4f4f4;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+@media (max-width: 600px) {
+  .account-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

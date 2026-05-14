@@ -1,0 +1,10 @@
+.vue-preview {
+  font-family: Arial, sans-serif;
+  padding: 1rem;
+}
+
+.footer-shell {
+  border: 1px solid #222;
+  padding: 1rem;
+  text-align: center;
+}

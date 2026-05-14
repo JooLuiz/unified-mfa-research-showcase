@@ -1,0 +1,38 @@
+[
+  {
+    "id": "order-mp20d2w4-s59o9n",
+    "userId": "u-01",
+    "items": [
+      {
+        "productId": "p-01",
+        "name": "Minimalist Desk Lamp",
+        "quantity": 1,
+        "unitPrice": 45
+      },
+      {
+        "productId": "p-02",
+        "name": "Ergonomic Office Chair",
+        "quantity": 1,
+        "unitPrice": 289.99
+      },
+      {
+        "productId": "p-03",
+        "name": "Mechanical Wireless Keyboard",
+        "quantity": 1,
+        "unitPrice": 120.5
+      }
+    ],
+    "subtotal": 455.49,
+    "discountAmount": 0,
+    "totalAmount": 455.49,
+    "appliedCoupon": null,
+    "shippingAddress": {
+      "street": "123 Maple Street",
+      "city": "Austin",
+      "state": "TX",
+      "postalCode": "73301",
+      "country": "USA"
+    },
+    "placedAt": "2026-05-12T02:25:11.140Z"
+  }
+]

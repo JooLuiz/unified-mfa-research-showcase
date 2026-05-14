@@ -1,0 +1,140 @@
+.angular-preview {
+  font-family: Arial, sans-serif;
+  padding: 1rem;
+}
+
+.checkout-items-shell {
+  border: 1px solid #222;
+  padding: 1rem;
+}
+
+.checkout-item {
+  display: grid;
+  grid-template-columns: 96px 1fr 180px;
+  gap: 0.5rem;
+  align-items: center;
+  border: 1px solid #ddd;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.checkout-item-image {
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border: 1px solid #bbb;
+}
+
+.checkout-item-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.checkout-item-remove-button {
+  background: none;
+  border: none;
+  color: #d32f2f;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.checkout-quantity-shell {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  border: 1px solid #333;
+}
+
+.checkout-quantity-button {
+  border: 0;
+  border-right: 1px solid #333;
+  background: #f4f4f4;
+  height: 38px;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.checkout-quantity-shell .checkout-quantity-button:last-child {
+  border-right: 0;
+  border-left: 1px solid #333;
+}
+
+.checkout-quantity-input {
+  width: 100%;
+  height: 38px;
+  border: 0;
+  text-align: center;
+  font-size: 1rem;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.checkout-quantity-input::-webkit-outer-spin-button,
+.checkout-quantity-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.checkout-summary-shell {
+  border: 1px solid #222;
+  padding: 1rem;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.place-order-button {
+  width: 100%;
+  min-height: 36px;
+  margin-top: 0.6rem;
+  border: 1px solid #333;
+  background: #f4f4f4;
+  cursor: pointer;
+}
+
+.apply-coupon-shell {
+  border: 1px solid #222;
+  padding: 1rem;
+}
+
+.apply-coupon-shell input {
+  width: 100%;
+  border: 1px solid #555;
+  min-height: 34px;
+  padding: 4px 8px;
+  margin-bottom: 0.5rem;
+}
+
+.button-like {
+  border: 1px solid #333;
+  background: #f4f4f4;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+}
+
+.checkout-empty-shell {
+  border: 1px solid #222;
+  margin: 12px;
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  text-align: center;
+}
+
+.checkout-empty-shell button {
+  min-height: 36px;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid #333;
+  background: #f4f4f4;
+  cursor: pointer;
+}
