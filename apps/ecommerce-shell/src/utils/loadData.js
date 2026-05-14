@@ -6,12 +6,10 @@ async function loadMockData(appState) {
     productsResponse,
     showcasesResponse,
     bannersResponse,
-    categoriesResponse,
   ] = await Promise.all([
     fetchJson(`${MOCK_API_BASE_URL}/products`),
     fetchJson(`${MOCK_API_BASE_URL}/showcases`),
     fetchJson(`${MOCK_API_BASE_URL}/banners`),
-    fetchJson(`${MOCK_API_BASE_URL}/categories`),
   ]);
 
   appState.products = productsResponse.items;
@@ -21,7 +19,6 @@ async function loadMockData(appState) {
   }, {});
   appState.showcases = showcasesResponse;
   appState.banners = bannersResponse;
-  appState.categories = categoriesResponse;
 }
 
 export default loadMockData;

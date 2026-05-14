@@ -1,4 +1,4 @@
-import { createApp, h } from "vue";
+import { createApp, h, onMounted, onUnmounted, ref, watch } from "vue";
 import "./styles.css";
 
 function formatCurrencyValue(amount) {
@@ -35,14 +35,102 @@ function buildAddressLines(shippingAddress) {
   );
 }
 
+async function fetchOrderById(apiBaseUrl, orderId, authToken, signal) {
+  const requestHeaders = {};
+  if (authToken) {
+    requestHeaders.Authorization = `Bearer ${authToken}`;
+  }
+  const response = await fetch(`${apiBaseUrl}/orders/${orderId}`, {
+    headers: requestHeaders,
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(
+      `fetchOrderById - request failed: ${response.status} ${response.statusText}`,
+    );
+  }
+  return response.json();
+}
+
 const OrderDetailsComponent = {
   props: {
-    order: {
-      type: Object,
-      default: () => null,
+    orderId: {
+      type: String,
+      default: "",
+    },
+    apiBaseUrl: {
+      type: String,
+      default: "",
+    },
+    authToken: {
+      type: String,
+      default: "",
     },
   },
   setup(props) {
+    const orderData = ref(null);
+    const isLoading = ref(false);
+    const loadError = ref(null);
+    let activeAbortController = null;
+
+    const loadOrder = async () => {
+      if (!props.orderId || !props.apiBaseUrl) {
+        orderData.value = null;
+        return;
+      }
+
+      if (activeAbortController) {
+        activeAbortController.abort();
+      }
+
+      const abortController = new AbortController();
+      activeAbortController = abortController;
+      isLoading.value = true;
+      loadError.value = null;
+
+      try {
+        const fetchedOrder = await fetchOrderById(
+          props.apiBaseUrl,
+          props.orderId,
+          props.authToken,
+          abortController.signal,
+        );
+        if (!abortController.signal.aborted) {
+          orderData.value = fetchedOrder;
+        }
+      } catch (error) {
+        if (error.name === "AbortError") {
+          return;
+        }
+        console.warn("loadOrder - error");
+        console.warn(error);
+        loadError.value = error;
+        orderData.value = null;
+      } finally {
+        if (activeAbortController === abortController) {
+          activeAbortController = null;
+        }
+        if (!abortController.signal.aborted) {
+          isLoading.value = false;
+        }
+      }
+    };
+
+    onMounted(loadOrder);
+    onUnmounted(() => {
+      if (activeAbortController) {
+        activeAbortController.abort();
+        activeAbortController = null;
+      }
+    });
+
+    watch(
+      () => [props.orderId, props.apiBaseUrl, props.authToken],
+      () => {
+        loadOrder();
+      },
+    );
+
     const renderItemsTable = (items) =>
       h("table", { class: "order-details-items-table" }, [
         h("thead", null, [
@@ -92,7 +180,23 @@ const OrderDetailsComponent = {
     };
 
     return () => {
-      const order = props.order;
+      if (isLoading.value && !orderData.value) {
+        return h(
+          "section",
+          { class: "order-details-empty" },
+          "Loading order...",
+        );
+      }
+
+      if (loadError.value) {
+        return h(
+          "section",
+          { class: "order-details-empty" },
+          "Unable to load order details.",
+        );
+      }
+
+      const order = orderData.value;
       if (!order) {
         return h(
           "section",
@@ -181,7 +285,9 @@ const OrderDetailsComponent = {
 
 export function mountOrderDetails(containerElement, props) {
   const orderDetailsApp = createApp(OrderDetailsComponent, {
-    order: props.order,
+    orderId: props.orderId,
+    apiBaseUrl: props.apiBaseUrl,
+    authToken: props.authToken,
   });
   orderDetailsApp.mount(containerElement);
 

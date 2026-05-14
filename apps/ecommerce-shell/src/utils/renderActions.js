@@ -9,11 +9,6 @@ import {
   updateCartItem,
   removeCartItem,
 } from "./cartActions";
-import {
-  calculatePlpItemsPerRow,
-  getPlpInitialVisibleCount,
-  filterProducts,
-} from "./PLPProductsActions";
 import { storePLPFilters, normalizePlpFilters } from "./PLPFilterActions";
 import {
   isAuthenticated,
@@ -37,23 +32,22 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
   const faqMount = pageMount.querySelector("#faqMount");
   const noticeMount = pageMount.querySelector("#noticeMount");
 
-  const firstBanner = appState.banners[0];
-  const showcaseConfiguration = appState.showcases[0];
-  const showcaseProducts = (showcaseConfiguration?.productIds || [])
-    .map((productId) => appState.productsById[productId])
-    .filter(Boolean);
+  const firstBannerId = appState.banners[0]?.id;
+  const firstShowcaseId = appState.showcases[0]?.id;
 
   activeCleanupFunctions.push(
     modules.mountPromotionalBanner(bannerMount, {
-      banner: firstBanner,
+      bannerId: firstBannerId,
+      apiBaseUrl: MOCK_API_BASE_URL,
       onApplyPromotion: (promotionFilters) =>
         applyPromotionFilters(appState, promotionFilters),
     }),
   );
   activeCleanupFunctions.push(
     modules.mountProductShowcase(showcaseMount, {
-      title: showcaseConfiguration?.showcaseTitle || "New Products Showcase",
-      products: showcaseProducts,
+      showcaseId: firstShowcaseId,
+      apiBaseUrl: MOCK_API_BASE_URL,
+      fallbackTitle: "New Products Showcase",
       mountProductCard: modules.mountProductCard,
       onProductClick: (productId) => navigate(`/product?productId=${productId}`),
       onAddToCart: dispatchAddToCartEvent,
@@ -79,7 +73,8 @@ async function renderPromotionsPage(appState, pageMount, modules, activeCleanupF
     promotionsMount.appendChild(bannerContainer);
     activeCleanupFunctions.push(
       modules.mountPromotionalBanner(bannerContainer, {
-        banner,
+        bannerId: banner.id,
+        apiBaseUrl: MOCK_API_BASE_URL,
         onApplyPromotion: (promotionFilters) =>
           applyPromotionFilters(appState, promotionFilters),
       }),
@@ -89,7 +84,6 @@ async function renderPromotionsPage(appState, pageMount, modules, activeCleanupF
 
 function applyPromotionFilters(appState, promotionFilters) {
   appState.plpFilters = normalizePlpFilters(promotionFilters || {});
-  appState.plpVisibleCount = getPlpInitialVisibleCount();
   storePLPFilters(appState);
   navigate("/products");
 }
@@ -97,43 +91,16 @@ function applyPromotionFilters(appState, promotionFilters) {
 async function renderProductListPage(appState, pageMount, modules, activeCleanupFunctions) {
   pageMount.innerHTML = `<section id="plpMount"></section>`;
   const plpMount = pageMount.querySelector("#plpMount");
-  appState.plpItemsPerRow = calculatePlpItemsPerRow();
-  const minimumVisibleCount = getPlpInitialVisibleCount(appState.plpItemsPerRow);
-  appState.plpVisibleCount = Math.max(appState.plpVisibleCount, minimumVisibleCount);
-
-  const normalizedProducts = filterProducts(appState, [...appState.products]);
-  const visibleCount = Math.min(appState.plpVisibleCount, normalizedProducts.length);
-  const visibleProducts = normalizedProducts.slice(0, visibleCount);
-  const canLoadMore = visibleCount < normalizedProducts.length;
 
   activeCleanupFunctions.push(
     modules.mountProductList(plpMount, {
-      products: visibleProducts,
-      totalProducts: normalizedProducts.length,
-      activeSort: appState.plpSortBy,
-      activeFilters: appState.plpFilters,
-      categories: appState.categories,
-      onSortChange: (nextSortBy) => {
-        appState.plpSortBy = nextSortBy;
-        window.dispatchEvent(new CustomEvent("global:renderApp"));
-      },
-      onApplyFilters: (nextFilters) => {
+      apiBaseUrl: MOCK_API_BASE_URL,
+      initialFilters: appState.plpFilters,
+      initialSort: appState.plpSortBy,
+      onFiltersChange: (nextFilters) => {
         appState.plpFilters = normalizePlpFilters(nextFilters);
-        appState.plpVisibleCount = getPlpInitialVisibleCount();
         storePLPFilters(appState);
-        window.dispatchEvent(new CustomEvent("global:renderApp"));
       },
-      onClearFilters: (nextFilters) => {
-        appState.plpFilters = normalizePlpFilters(nextFilters);
-        appState.plpVisibleCount = getPlpInitialVisibleCount();
-        storePLPFilters(appState);
-        window.dispatchEvent(new CustomEvent("global:renderApp"));
-      },
-      onLoadMore: () => {
-        appState.plpVisibleCount += appState.plpItemsPerRow;
-        window.dispatchEvent(new CustomEvent("global:renderApp"));
-      },
-      canLoadMore,
       onProductClick: (productId) => navigate(`/product?productId=${productId}`),
       onAddToCart: dispatchAddToCartEvent,
       mountProductCard: modules.mountProductCard,
@@ -147,20 +114,17 @@ async function renderProductDetailsPage(appState, pageMount, modules, activeClea
   const currentUrl = new URL(window.location.href);
   const productId =
     currentUrl.searchParams.get("productId") || appState.products[0]?.id;
-  const selectedProduct = appState.productsById[productId];
-  const similarProducts = (selectedProduct?.similarProducts || [])
-    .map((similarProductId) => appState.productsById[similarProductId])
-    .filter(Boolean);
 
   activeCleanupFunctions.push(
     modules.mountProductDetails(pdpMount, {
-      product: selectedProduct,
-      similarProducts,
+      productId,
+      apiBaseUrl: MOCK_API_BASE_URL,
       onAddToCart: dispatchAddToCartEvent,
       mountSimilarProducts: (containerElement, similarProductsProps) =>
         modules.mountProductShowcase(containerElement, {
           title: similarProductsProps.title,
-          products: similarProductsProps.products,
+          productIds: similarProductsProps.productIds,
+          apiBaseUrl: similarProductsProps.apiBaseUrl,
           mountProductCard: modules.mountProductCard,
           onProductClick: (nextProductId) =>
             navigate(`/product?productId=${nextProductId}`),
@@ -465,29 +429,12 @@ async function renderOrderDetailsPage(appState, pageMount, modules, activeCleanu
     return;
   }
 
-  let userOrders = [];
-  try {
-    const ordersResponse = await fetchJson(`${MOCK_API_BASE_URL}/orders`, {
-      headers: {
-        Authorization: `Bearer ${appState.authToken}`,
-      },
-    });
-    userOrders = Array.isArray(ordersResponse?.items) ? ordersResponse.items : [];
-  } catch (error) {
-    console.warn("renderOrderDetailsPage - error");
-    console.warn(error);
-    orderDetailsMount.innerHTML = `<div class="notice-box">Unable to load order details.</div>`;
-    return;
-  }
-
-  const matchingOrder = userOrders.find((order) => order.id === requestedOrderId);
-  if (!matchingOrder) {
-    orderDetailsMount.innerHTML = `<div class="notice-box">Order ${requestedOrderId} was not found.</div>`;
-    return;
-  }
-
   activeCleanupFunctions.push(
-    modules.mountOrderDetails(orderDetailsMount, { order: matchingOrder }),
+    modules.mountOrderDetails(orderDetailsMount, {
+      orderId: requestedOrderId,
+      apiBaseUrl: MOCK_API_BASE_URL,
+      authToken: appState.authToken,
+    }),
   );
 }
 
