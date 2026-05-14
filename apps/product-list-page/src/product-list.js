@@ -86,6 +86,8 @@ async function fetchFilteredProducts(apiBaseUrl, filters, sortBy, signal) {
 }
 
 function ProductListView({
+  products,
+  categories,
   apiBaseUrl,
   initialFilters,
   initialSort,
@@ -99,9 +101,16 @@ function ProductListView({
     [initialFilters],
   );
 
+  const hasProvidedProducts = Array.isArray(products);
+  const hasProvidedCategories = Array.isArray(categories);
+
   const cardSlotsRef = useRef([]);
-  const [availableCategories, setAvailableCategories] = useState([]);
-  const [fetchedProducts, setFetchedProducts] = useState([]);
+  const [availableCategories, setAvailableCategories] = useState(
+    hasProvidedCategories ? categories : [],
+  );
+  const [fetchedProducts, setFetchedProducts] = useState(
+    hasProvidedProducts ? products : [],
+  );
   const [activeFilters, setActiveFilters] = useState(normalizedInitialFilters);
   const [activeSort, setActiveSort] = useState(initialSort || "");
   const [itemsPerRow, setItemsPerRow] = useState(() => calculateItemsPerRow());
@@ -114,6 +123,11 @@ function ProductListView({
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   useEffect(() => {
+    if (hasProvidedCategories) {
+      setAvailableCategories(categories);
+      return undefined;
+    }
+
     if (!apiBaseUrl) {
       return undefined;
     }
@@ -137,9 +151,16 @@ function ProductListView({
     return () => {
       abortController.abort();
     };
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, categories, hasProvidedCategories]);
 
   useEffect(() => {
+    if (hasProvidedProducts) {
+      setFetchedProducts(products);
+      setIsFetchingProducts(false);
+      setProductsLoadError(null);
+      return undefined;
+    }
+
     if (!apiBaseUrl) {
       return undefined;
     }
@@ -174,6 +195,8 @@ function ProductListView({
     };
   }, [
     apiBaseUrl,
+    products,
+    hasProvidedProducts,
     activeFilters.searchQuery,
     activeFilters.minPrice,
     activeFilters.maxPrice,
@@ -385,12 +408,11 @@ function ProductListView({
         return;
       }
 
-      const cleanup = mountProductCard(slotElement, {
-        productId: product.id,
-        apiBaseUrl,
-        onProductClick,
-        onAddToCart,
-      });
+      const cardProps = hasProvidedProducts
+        ? { product, onProductClick, onAddToCart }
+        : { productId: product.id, apiBaseUrl, onProductClick, onAddToCart };
+
+      const cleanup = mountProductCard(slotElement, cardProps);
       cleanupFunctions.push(cleanup);
     });
 
@@ -401,7 +423,14 @@ function ProductListView({
         }
       });
     };
-  }, [visibleProducts, mountProductCard, onProductClick, onAddToCart, apiBaseUrl]);
+  }, [
+    visibleProducts,
+    hasProvidedProducts,
+    mountProductCard,
+    onProductClick,
+    onAddToCart,
+    apiBaseUrl,
+  ]);
 
   return (
     <section className="product-list-shell">
@@ -580,6 +609,8 @@ export function mountProductList(containerElement, props) {
   const root = createRoot(containerElement);
   root.render(
     <ProductListView
+      products={props.products}
+      categories={props.categories}
       apiBaseUrl={props.apiBaseUrl}
       initialFilters={props.initialFilters}
       initialSort={props.initialSort}

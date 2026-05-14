@@ -43,6 +43,7 @@ type MountSimilarProducts = (
 ) => (() => void) | void;
 
 type ProductDetailsProps = {
+  product?: Product;
   productId?: string;
   apiBaseUrl?: string;
   onAddToCart?: (payload: AddToCartPayload) => void;
@@ -120,6 +121,8 @@ async function fetchProductById(
   `,
 })
 class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
+  @Input() inputProduct: Product | null = null;
+
   @Input() productId: string | null = null;
 
   @Input() apiBaseUrl: string | null = null;
@@ -155,7 +158,7 @@ class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes["productId"]) {
+    if (changes["productId"] || changes["inputProduct"]) {
       this.quantityValue = 1;
     }
 
@@ -198,6 +201,21 @@ class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   private loadProductIfNeeded(): void {
+    if (this.inputProduct) {
+      if (this.activeAbortController) {
+        this.activeAbortController.abort();
+        this.activeAbortController = undefined;
+      }
+      this.product = this.inputProduct;
+      this.isLoading = false;
+      this.lastLoadedProductId = undefined;
+      this.lastLoadedApiBaseUrl = undefined;
+      if (this.hasViewInitialized) {
+        queueMicrotask(() => this.renderSimilarProducts());
+      }
+      return;
+    }
+
     const currentProductId = this.productId;
     const currentApiBaseUrl = this.apiBaseUrl;
 
@@ -316,6 +334,7 @@ export function mountProductDetails(
 
     applicationRef = nextApplicationRef;
     componentRef = applicationRef.bootstrap(ProductDetailsComponent, containerElement);
+    componentRef.setInput("inputProduct", props.product ?? null);
     componentRef.setInput("productId", props.productId ?? null);
     componentRef.setInput("apiBaseUrl", props.apiBaseUrl ?? null);
     componentRef.setInput("mountSimilarProducts", props.mountSimilarProducts);

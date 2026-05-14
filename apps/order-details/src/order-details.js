@@ -54,6 +54,10 @@ async function fetchOrderById(apiBaseUrl, orderId, authToken, signal) {
 
 const OrderDetailsComponent = {
   props: {
+    order: {
+      type: Object,
+      default: null,
+    },
     orderId: {
       type: String,
       default: "",
@@ -68,12 +72,19 @@ const OrderDetailsComponent = {
     },
   },
   setup(props) {
-    const orderData = ref(null);
+    const orderData = ref(props.order || null);
     const isLoading = ref(false);
     const loadError = ref(null);
     let activeAbortController = null;
 
     const loadOrder = async () => {
+      if (props.order) {
+        orderData.value = props.order;
+        isLoading.value = false;
+        loadError.value = null;
+        return;
+      }
+
       if (!props.orderId || !props.apiBaseUrl) {
         orderData.value = null;
         return;
@@ -125,7 +136,7 @@ const OrderDetailsComponent = {
     });
 
     watch(
-      () => [props.orderId, props.apiBaseUrl, props.authToken],
+      () => [props.order, props.orderId, props.apiBaseUrl, props.authToken],
       () => {
         loadOrder();
       },
@@ -285,6 +296,7 @@ const OrderDetailsComponent = {
 
 export function mountOrderDetails(containerElement, props) {
   const orderDetailsApp = createApp(OrderDetailsComponent, {
+    order: props.order,
     orderId: props.orderId,
     apiBaseUrl: props.apiBaseUrl,
     authToken: props.authToken,

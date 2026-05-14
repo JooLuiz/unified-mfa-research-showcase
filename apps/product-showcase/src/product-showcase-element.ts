@@ -19,6 +19,13 @@ import { createApplication } from "@angular/platform-browser";
 import { Subscription } from "rxjs";
 import "./styles.css";
 
+type Product = {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+};
+
 type Showcase = {
   id: string;
   showcaseTitle: string;
@@ -31,8 +38,9 @@ type AddToCartPayload = {
 };
 
 type MountProductCardProps = {
-  productId: string;
-  apiBaseUrl: string;
+  product?: Product;
+  productId?: string;
+  apiBaseUrl?: string;
   actionLabel?: string;
   hideQuantity?: boolean;
   onProductClick?: (productId: string) => void;
@@ -45,7 +53,9 @@ type MountProductCard = (
 ) => (() => void) | void;
 
 type ProductShowcaseConfiguration = {
+  showcase?: Showcase;
   showcaseId?: string;
+  products?: Product[];
   productIds?: string[];
   title?: string;
   apiBaseUrl?: string;
@@ -102,7 +112,7 @@ async function fetchShowcaseById(
           <div class="showcase-grid">
             <div
               #productSlot
-              *ngFor="let productId of productIds; trackBy: trackByProductId"
+              *ngFor="let slotKey of slotKeys; trackBy: trackBySlotKey"
             ></div>
           </div>
         </ng-container>
@@ -135,26 +145,43 @@ class ProductShowcaseElementComponent
 
   constructor(private readonly changeDetectorRef: ChangeDetectorRef) {}
 
+  get fullProducts(): Product[] {
+    return Array.isArray(this.config.products) ? this.config.products : [];
+  }
+
   get productIds(): string[] {
+    if (this.fullProducts.length > 0) {
+      return this.fullProducts.map((product) => product.id);
+    }
     if (Array.isArray(this.config.productIds) && this.config.productIds.length > 0) {
       return this.config.productIds;
     }
-    return Array.isArray(this.showcaseData?.productIds)
-      ? this.showcaseData!.productIds
+    const showcaseSource = this.config.showcase || this.showcaseData;
+    return Array.isArray(showcaseSource?.productIds)
+      ? showcaseSource!.productIds
       : [];
+  }
+
+  get slotKeys(): string[] {
+    const fullProducts = this.fullProducts;
+    if (fullProducts.length > 0) {
+      return fullProducts.map((product) => product.id);
+    }
+    return this.productIds;
   }
 
   get titleText(): string {
     return (
       this.config.title ||
+      this.config.showcase?.showcaseTitle ||
       this.showcaseData?.showcaseTitle ||
       this.config.fallbackTitle ||
       "Showcase"
     );
   }
 
-  trackByProductId(_index: number, productId: string): string {
-    return productId;
+  trackBySlotKey(_index: number, slotKey: string): string {
+    return slotKey;
   }
 
   ngAfterViewInit(): void {
@@ -186,10 +213,19 @@ class ProductShowcaseElementComponent
   private loadShowcaseIfNeeded(): void {
     const showcaseId = this.config.showcaseId;
     const apiBaseUrl = this.config.apiBaseUrl;
+    const hasDirectProducts =
+      Array.isArray(this.config.products) && this.config.products.length > 0;
     const hasDirectProductIds =
       Array.isArray(this.config.productIds) && this.config.productIds.length > 0;
+    const hasDirectShowcase = Boolean(this.config.showcase);
 
-    if (hasDirectProductIds || !showcaseId || !apiBaseUrl) {
+    if (
+      hasDirectProducts ||
+      hasDirectProductIds ||
+      hasDirectShowcase ||
+      !showcaseId ||
+      !apiBaseUrl
+    ) {
       this.showcaseData = null;
       this.isLoading = false;
       this.hasLoadError = false;
@@ -260,26 +296,43 @@ class ProductShowcaseElementComponent
     }
 
     const mountProductCard = this.config.mountProductCard;
+    if (typeof mountProductCard !== "function") {
+      return;
+    }
+
+    const fullProducts = this.fullProducts;
+    const hasFullProducts = fullProducts.length > 0;
     const apiBaseUrl = this.config.apiBaseUrl;
-    if (typeof mountProductCard !== "function" || !apiBaseUrl) {
+
+    if (!hasFullProducts && !apiBaseUrl) {
       return;
     }
 
     const slotElements = this.productSlots.toArray();
     slotElements.forEach((slotElementRef, index) => {
-      const productId = this.productIds[index];
-      if (!productId) {
-        return;
-      }
-
-      const cleanupValue = mountProductCard(slotElementRef.nativeElement, {
-        productId,
-        apiBaseUrl,
+      const cardProps: MountProductCardProps = {
         actionLabel: this.config.actionLabel,
         hideQuantity: this.config.hideQuantity,
         onProductClick: this.config.onProductClick,
         onAddToCart: this.config.onAddToCart,
-      });
+      };
+
+      if (hasFullProducts) {
+        const product = fullProducts[index];
+        if (!product) {
+          return;
+        }
+        cardProps.product = product;
+      } else {
+        const productId = this.productIds[index];
+        if (!productId) {
+          return;
+        }
+        cardProps.productId = productId;
+        cardProps.apiBaseUrl = apiBaseUrl;
+      }
+
+      const cleanupValue = mountProductCard(slotElementRef.nativeElement, cardProps);
 
       if (typeof cleanupValue === "function") {
         this.cardCleanupFunctions.push(cleanupValue);

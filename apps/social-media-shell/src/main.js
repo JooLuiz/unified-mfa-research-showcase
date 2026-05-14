@@ -25,6 +25,8 @@ import {
 const appState = {
   posts: [],
   banners: [],
+  products: [],
+  productsById: {},
   showcases: [],
   authToken: null,
   currentUser: null,

@@ -12,12 +12,19 @@ async function fetchBannerById(apiBaseUrl, bannerId, signal) {
   return response.json();
 }
 
-function PromotionalBannerView({ bannerId, apiBaseUrl, onApplyPromotion }) {
-  const [bannerData, setBannerData] = useState(null);
+function PromotionalBannerView({ banner, bannerId, apiBaseUrl, onApplyPromotion }) {
+  const [bannerData, setBannerData] = useState(banner || null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
+    if (banner) {
+      setBannerData(banner);
+      setIsLoading(false);
+      setLoadError(null);
+      return undefined;
+    }
+
     if (!bannerId || !apiBaseUrl) {
       setBannerData(null);
       return undefined;
@@ -48,7 +55,7 @@ function PromotionalBannerView({ bannerId, apiBaseUrl, onApplyPromotion }) {
     return () => {
       abortController.abort();
     };
-  }, [bannerId, apiBaseUrl]);
+  }, [banner, bannerId, apiBaseUrl]);
 
   if (isLoading && !bannerData) {
     return <section className="banner-card">Loading banner...</section>;
@@ -85,6 +92,7 @@ export function mountPromotionalBanner(containerElement, props) {
   const root = createRoot(containerElement);
   root.render(
     <PromotionalBannerView
+      banner={props.banner}
       bannerId={props.bannerId}
       apiBaseUrl={props.apiBaseUrl}
       onApplyPromotion={props.onApplyPromotion}

@@ -21,6 +21,10 @@ async function fetchProductById(apiBaseUrl, productId, signal) {
 
 const ProductCardComponent = {
   props: {
+    product: {
+      type: Object,
+      default: null,
+    },
     productId: {
       type: String,
       default: "",
@@ -46,12 +50,19 @@ const ProductCardComponent = {
   },
   setup(props) {
     const quantityValue = ref(normalizeQuantity(props.defaultQuantity));
-    const productData = ref(null);
+    const productData = ref(props.product || null);
     const isLoading = ref(false);
     const loadError = ref(null);
     let activeAbortController = null;
 
     const loadProduct = async () => {
+      if (props.product) {
+        productData.value = props.product;
+        isLoading.value = false;
+        loadError.value = null;
+        return;
+      }
+
       if (!props.productId || !props.apiBaseUrl) {
         productData.value = null;
         return;
@@ -102,7 +113,7 @@ const ProductCardComponent = {
     });
 
     watch(
-      () => [props.productId, props.apiBaseUrl],
+      () => [props.product, props.productId, props.apiBaseUrl],
       () => {
         quantityValue.value = normalizeQuantity(props.defaultQuantity);
         loadProduct();
@@ -219,6 +230,7 @@ const ProductCardComponent = {
 
 export function mountProductCard(containerElement, props) {
   const productCardApp = createApp(ProductCardComponent, {
+    product: props.product,
     productId: props.productId,
     apiBaseUrl: props.apiBaseUrl,
     defaultQuantity: props.defaultQuantity,

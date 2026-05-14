@@ -76,9 +76,12 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
     }),
   );
 
-  const firstShowcaseId = appState.showcases[0]?.id;
+  const firstShowcase = appState.showcases[0];
+  const showcaseProducts = (firstShowcase?.productIds || [])
+    .map((productId) => appState.productsById[productId])
+    .filter(Boolean);
 
-  if (firstShowcaseId) {
+  if (showcaseProducts.length > 0) {
     const redirectToProductDetails = (productId) =>
       window.location.assign(
         `${ECOMMERCE_SHELL_BASE_URL}/product?productId=${productId}`,
@@ -86,9 +89,8 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
 
     activeCleanupFunctions.push(
       modules.mountProductShowcase(homeShowcaseMount, {
-        showcaseId: firstShowcaseId,
-        apiBaseUrl: MOCK_API_BASE_URL,
-        fallbackTitle: "Featured Products",
+        title: firstShowcase?.showcaseTitle || "Featured Products",
+        products: showcaseProducts,
         actionLabel: "See More",
         hideQuantity: true,
         mountProductCard: modules.mountProductCard,
@@ -229,8 +231,7 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
     postsListMount.appendChild(bannerContainer);
     activeCleanupFunctions.push(
       modules.mountPromotionalBanner(bannerContainer, {
-        bannerId: banner.id,
-        apiBaseUrl: MOCK_API_BASE_URL,
+        banner,
         onApplyPromotion: () => redirectToEcommerceForBanner(banner),
       }),
     );
