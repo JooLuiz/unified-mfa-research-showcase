@@ -1,0 +1,19 @@
+.vue-preview {
+  font-family: Arial, sans-serif;
+  padding: 1rem;
+}
+
+.formulary-sent-shell {
+  border: 1px solid #222;
+  background: #fff;
+  margin: 12px 0;
+  padding: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.formulary-sent-icon {
+  color: #10893e;
+}

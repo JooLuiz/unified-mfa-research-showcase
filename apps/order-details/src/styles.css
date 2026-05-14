@@ -1,0 +1,99 @@
+.vue-preview {
+  font-family: Arial, sans-serif;
+  padding: 1rem;
+}
+
+.order-details-shell {
+  border: 1px solid #222;
+  background: #fff;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  font-family: Arial, sans-serif;
+}
+
+.order-details-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 0.5rem;
+}
+
+.order-details-title {
+  margin: 0;
+}
+
+.order-details-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.order-details-meta li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.order-details-meta-label {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.order-details-meta-value {
+  font-weight: 600;
+}
+
+.order-details-items-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.order-details-items-table th,
+.order-details-items-table td {
+  border: 1px solid #ccc;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+.order-details-items-table th {
+  background: #f4f4f4;
+}
+
+.order-details-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-end;
+}
+
+.order-details-totals-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.order-details-totals-row.is-total {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.order-details-shipping address {
+  font-style: normal;
+  line-height: 1.4;
+}
+
+.order-details-empty {
+  border: 1px solid #222;
+  background: #fff;
+  padding: 1rem;
+  font-family: Arial, sans-serif;
+}

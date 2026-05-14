@@ -1,0 +1,149 @@
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f3f3f3;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.page-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.social-feed-page {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.social-feed-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: sticky;
+  top: 0.75rem;
+}
+
+.social-home-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.posts-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.posts-page-header {
+  border: 1px solid #222;
+  background: #fff;
+  padding: 1rem;
+}
+
+.posts-page-header h2 {
+  margin: 0 0 0.4rem 0;
+}
+
+.posts-page-header p {
+  margin: 0;
+}
+
+.new-post-section {
+  width: 100%;
+}
+
+.new-post-login-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.posts-list-mount {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.posts-group {
+  display: block;
+}
+
+.posts-banner-slot {
+  width: 100%;
+}
+
+.frame-container {
+  border: 1px solid #222;
+  width: 100%;
+  overflow: hidden;
+}
+
+.frame-container iframe {
+  width: 100%;
+  display: block;
+  height: 0;
+  border: 0;
+}
+
+.notice-box {
+  border: 1px solid #222;
+  background: #fff;
+  padding: 1rem;
+}
+
+.account-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.account-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #222;
+  background: #fff;
+  padding: 1rem;
+}
+
+.account-action-button {
+  border: 1px solid #333;
+  background: #f4f4f4;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+}
+
+.account-posts-section {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .social-feed-page {
+    grid-template-columns: 1fr;
+  }
+
+  .social-feed-aside {
+    position: static;
+  }
+}

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "u-01",
+    "username": "alice.parker",
+    "email": "alice@example.com",
+    "password": "password123",
+    "fullName": "Alice Parker",
+    "gender": "female",
+    "address": {
+      "street": "123 Maple Street",
+      "city": "Austin",
+      "state": "TX",
+      "postalCode": "73301",
+      "country": "USA"
+    },
+    "avatarUrl": "https://i.pravatar.cc/150?img=47"
+  },
+  {
+    "id": "u-02",
+    "username": "bruno.silva",
+    "email": "bruno@example.com",
+    "password": "password123",
+    "fullName": "Bruno Silva",
+    "gender": "male",
+    "address": {
+      "street": "Av. Paulista 1000",
+      "city": "São Paulo",
+      "state": "SP",
+      "postalCode": "01310-100",
+      "country": "Brazil"
+    },
+    "avatarUrl": "https://i.pravatar.cc/150?img=12"
+  },
+  {
+    "id": "u-03",
+    "username": "carla.nguyen",
+    "email": "carla@example.com",
+    "password": "password123",
+    "fullName": "Carla Nguyen",
+    "gender": "non-binary",
+    "address": {
+      "street": "45 Queen Street",
+      "city": "Toronto",
+      "state": "ON",
+      "postalCode": "M5H 2N2",
+      "country": "Canada"
+    },
+    "avatarUrl": "https://i.pravatar.cc/150?img=32"
+  }
+]

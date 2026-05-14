@@ -2,23 +2,39 @@
   "name": "unified-mfe-research-showcase",
   "version": "1.0.0",
   "workspaces": [
-    "apps/*"
+    "apps/mock-data-service",
+    "apps/ecommerce-shell",
+    "apps/social-media-shell",
+    "apps/global-layout/header",
+    "apps/global-layout/footer",
+    "apps/product-card",
+    "apps/product-showcase",
+    "apps/product-list-page",
+    "apps/product-details-page",
+    "apps/banners",
+    "apps/formulary",
+    "apps/checkout",
+    "apps/account",
+    "apps/login",
+    "apps/social-media-posts",
+    "apps/order-details"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace apps/mock-data-service\" \"npm run dev --workspace apps/angular-mfe\" \"npm run dev --workspace apps/react-mfe\" \"npm run dev --workspace apps/vue-mfe\" \"npm run dev --workspace apps/host-shell\"",
-    "build": "npm run build --workspaces",
-    "lint": "npm run lint --workspaces",
+    "dev": "concurrently \"npm run dev --workspace apps/mock-data-service\" \"npm run dev --workspace apps/global-layout/header\" \"npm run dev --workspace apps/global-layout/footer\" \"npm run dev --workspace apps/product-card\" \"npm run dev --workspace apps/product-showcase\" \"npm run dev --workspace apps/product-list-page\" \"npm run dev --workspace apps/product-details-page\" \"npm run dev --workspace apps/banners\" \"npm run dev --workspace apps/formulary\" \"npm run dev --workspace apps/checkout\" \"npm run dev --workspace apps/account\" \"npm run dev --workspace apps/login\" \"npm run dev --workspace apps/social-media-posts\" \"npm run dev --workspace apps/order-details\" \"npm run dev --workspace apps/ecommerce-shell\" \"npm run dev --workspace apps/social-media-shell\"",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
     "start": "npm run dev"
   },
   "keywords": [
     "micro-frontend",
     "module-federation",
     "web-components",
-    "iframes"
+    "iframes",
+    "domain-driven"
   ],
   "author": "",
   "license": "MIT",
-  "description": "Unified micro frontend research showcase",
+  "description": "Unified micro frontend research showcase organized by business domains.",
   "devDependencies": {
     "concurrently": "^9.1.2"
   }

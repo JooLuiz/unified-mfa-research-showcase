@@ -1,0 +1,137 @@
+.react-mfe-preview {
+  font-family: Arial, sans-serif;
+  padding: 1rem;
+}
+
+.header-shell {
+  border: 1px solid #222;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: #fff;
+}
+
+.header-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-left-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-desktop-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mobile-menu-toggle {
+  display: none;
+}
+
+.mobile-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  z-index: 1200;
+  min-width: 180px;
+  border: 1px solid #333;
+  background: #fff;
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.header-action {
+  border: 1px solid #333;
+  background: #f8f8f8;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+
+.header-logo-button {
+  border: 1px solid #333;
+  background: #f8f8f8;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  cursor: pointer;
+}
+
+.header-logo-svg {
+  width: 32px;
+  height: 32px;
+}
+
+.header-logo-title {
+  font-weight: 700;
+}
+
+.cart-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.cart-item-count {
+  min-width: 22px;
+  text-align: center;
+  border: 1px solid #333;
+  border-radius: 99px;
+  padding: 0.1rem 0.4rem;
+}
+
+@media (max-width: 768px) {
+  .header-shell {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    padding: 0.6rem;
+  }
+
+  .header-left-group,
+  .header-right-group {
+    width: 100%;
+  }
+
+  .header-left-group {
+    justify-content: space-between;
+  }
+
+  .header-desktop-nav {
+    display: none;
+  }
+
+  .mobile-menu-toggle {
+    display: inline-block;
+  }
+
+  .mobile-menu-dropdown {
+    left: auto;
+    right: 0;
+    width: min(220px, 92vw);
+  }
+
+  .header-logo-title {
+    font-size: 0.9rem;
+  }
+
+  .header-right-group {
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .header-right-group .header-action {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.9rem;
+  }
+}

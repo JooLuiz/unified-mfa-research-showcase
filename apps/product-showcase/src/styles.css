@@ -1,0 +1,20 @@
+.angular-preview {
+  font-family: Arial, sans-serif;
+  padding: 1rem;
+}
+
+.showcase-shell {
+  border: 1px solid #222;
+  padding: 1rem;
+}
+
+.showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.showcase-grid > div {
+  display: flex;
+}
