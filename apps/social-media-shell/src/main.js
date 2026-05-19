@@ -1,6 +1,14 @@
 import "./styles.css";
 
 import {
+  registerApplication,
+  start,
+  unloadApplication,
+  getAppStatus,
+  MOUNTED,
+} from "single-spa";
+
+import {
   readStoredAuth,
   clearAuthSession,
   isAuthenticated,
@@ -9,18 +17,17 @@ import {
   refreshCurrentUserFromApi,
 } from "./utils/authActions";
 
-import loadRemoteModules from "./utils/loadRemoteModules";
 import loadMockData from "./utils/loadData";
-
-import { mountHeaderAndFooter } from "./utils/mountActions";
+import loadRemoteModules from "./utils/loadRemoteModules";
 import { navigate } from "./utils/navigate";
+import { createHeaderApp, createFooterApp } from "./utils/mountActions";
 import {
-  renderFeedPage,
-  renderPostsPage,
-  renderLoginPage,
-  renderAccountPage,
-  persistNewPost,
-} from "./utils/renderActions";
+  feedPageApp,
+  postsPageApp,
+  loginPageApp,
+  accountPageApp,
+} from "./utils/pageApps";
+import { persistNewPost } from "./utils/renderActions";
 
 const appState = {
   posts: [],
@@ -32,105 +39,98 @@ const appState = {
   currentUser: null,
 };
 
-let currentRenderId = 0;
-let activeCleanupFunctions = [];
+const HEADER_APP_NAME = "@social-media/header";
+const FOOTER_APP_NAME = "@social-media/footer";
+const FEED_PAGE_APP_NAME = "@social-media/feed-page";
+const POSTS_PAGE_APP_NAME = "@social-media/posts-page";
+const LOGIN_PAGE_APP_NAME = "@social-media/login-page";
+const ACCOUNT_PAGE_APP_NAME = "@social-media/account-page";
 
-function clearCurrentPage() {
-  activeCleanupFunctions.forEach((cleanup) => {
-    if (typeof cleanup === "function") {
-      cleanup();
-    }
-  });
-  activeCleanupFunctions = [];
-}
+const PAGE_APP_NAMES = [
+  FEED_PAGE_APP_NAME,
+  POSTS_PAGE_APP_NAME,
+  LOGIN_PAGE_APP_NAME,
+  ACCOUNT_PAGE_APP_NAME,
+];
 
-function baseLayout() {
-  const appRoot = document.getElementById("appRoot");
-  appRoot.innerHTML = `
-    <div class="app-shell">
-      <div id="headerMount"></div>
-      <main id="pageMount" class="page-content"></main>
-      <div id="footerMount"></div>
-    </div>
-  `;
-
-  return {
-    headerMount: appRoot.querySelector("#headerMount"),
-    pageMount: appRoot.querySelector("#pageMount"),
-    footerMount: appRoot.querySelector("#footerMount"),
+function activeOnExactPath(targetPath) {
+  return function activeWhen(currentLocation) {
+    return currentLocation.pathname === targetPath;
   };
 }
 
-async function renderApp() {
-  const renderId = ++currentRenderId;
-  clearCurrentPage();
+function reloadMountedAppsByName(applicationNames) {
+  applicationNames.forEach((applicationName) => {
+    if (getAppStatus(applicationName) === MOUNTED) {
+      void unloadApplication(applicationName);
+    }
+  });
+}
 
-  let modules;
-  try {
-    modules = await loadRemoteModules;
-  } catch (error) {
-    const appRoot = document.getElementById("appRoot");
-    appRoot.innerHTML = `<pre>Unable to load remotes: ${error.message}</pre>`;
-    return;
-  }
+function reloadActivePageApp() {
+  reloadMountedAppsByName(PAGE_APP_NAMES);
+}
 
-  if (renderId !== currentRenderId) {
-    return;
-  }
+function registerLayoutApplications() {
+  registerApplication({
+    name: HEADER_APP_NAME,
+    app: () => Promise.resolve(createHeaderApp()),
+    activeWhen: () => true,
+    customProps: {
+      appState,
+      domElement: document.getElementById("headerMount"),
+    },
+  });
 
-  const pathName = window.location.pathname;
+  registerApplication({
+    name: FOOTER_APP_NAME,
+    app: () => Promise.resolve(createFooterApp()),
+    activeWhen: () => true,
+    customProps: {
+      appState,
+      domElement: document.getElementById("footerMount"),
+    },
+  });
+}
 
-  if (isProtectedRoute(pathName) && !isAuthenticated(appState)) {
-    rememberPostLoginRedirect(pathName + window.location.search);
-    history.replaceState({}, "", "/login");
-    window.dispatchEvent(new CustomEvent("global:renderApp"));
-    return;
-  }
+function registerPageApplications() {
+  const pageMountElement = document.getElementById("pageMount");
 
-  const layoutMounts = baseLayout();
-  mountHeaderAndFooter(appState, layoutMounts);
+  registerApplication({
+    name: FEED_PAGE_APP_NAME,
+    app: () => Promise.resolve(feedPageApp),
+    activeWhen: activeOnExactPath("/"),
+    customProps: { appState, domElement: pageMountElement },
+  });
 
-  if (pathName === "/") {
-    await renderFeedPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-    return;
-  }
+  registerApplication({
+    name: POSTS_PAGE_APP_NAME,
+    app: () => Promise.resolve(postsPageApp),
+    activeWhen: activeOnExactPath("/posts"),
+    customProps: { appState, domElement: pageMountElement },
+  });
 
-  if (pathName === "/posts") {
-    await renderPostsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-    return;
-  }
+  registerApplication({
+    name: LOGIN_PAGE_APP_NAME,
+    app: () => Promise.resolve(loginPageApp),
+    activeWhen: activeOnExactPath("/login"),
+    customProps: { appState, domElement: pageMountElement },
+  });
 
-  if (pathName === "/login") {
-    await renderLoginPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-    return;
-  }
-
-  if (pathName === "/account") {
-    await renderAccountPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-    return;
-  }
-
-  layoutMounts.pageMount.innerHTML = `
-    <section class="notice-box">
-      <h2>Page not found</h2>
-      <button id="goHomeButton">Back to feed</button>
-    </section>
-  `;
-  layoutMounts.pageMount
-    .querySelector("#goHomeButton")
-    .addEventListener("click", () => navigate("/"));
+  registerApplication({
+    name: ACCOUNT_PAGE_APP_NAME,
+    app: () => Promise.resolve(accountPageApp),
+    activeWhen: activeOnExactPath("/account"),
+    customProps: { appState, domElement: pageMountElement },
+  });
 }
 
 window.addEventListener("global:renderApp", () => {
-  renderApp();
-});
-
-window.addEventListener("popstate", () => {
-  renderApp();
+  reloadActivePageApp();
 });
 
 window.addEventListener("auth:changed", () => {
-  renderApp();
+  reloadActivePageApp();
 });
 
 window.addEventListener("auth:logout-request", () => {
@@ -169,11 +169,19 @@ window.addEventListener("message", (event) => {
       authorId: appState.currentUser?.id,
     }).then((createdPost) => {
       if (createdPost) {
-        renderApp();
+        reloadActivePageApp();
       }
     });
   }
 });
+
+function applyInitialAuthGuard() {
+  const currentPathName = window.location.pathname;
+  if (isProtectedRoute(currentPathName) && !isAuthenticated(appState)) {
+    rememberPostLoginRedirect(currentPathName + window.location.search);
+    history.replaceState({}, "", "/login");
+  }
+}
 
 async function bootstrap() {
   readStoredAuth(appState);
@@ -181,10 +189,16 @@ async function bootstrap() {
   if (appState.authToken) {
     void refreshCurrentUserFromApi(appState);
   }
-  await renderApp();
+
+  applyInitialAuthGuard();
+  await loadRemoteModules;
+
+  registerLayoutApplications();
+  registerPageApplications();
+  start();
 }
 
-bootstrap().catch((error) => {
+bootstrap().catch((bootstrapError) => {
   const appRoot = document.getElementById("appRoot");
-  appRoot.innerHTML = `<pre>Application bootstrap failed: ${error.message}</pre>`;
+  appRoot.innerHTML = `<pre>Application bootstrap failed: ${bootstrapError.message}</pre>`;
 });

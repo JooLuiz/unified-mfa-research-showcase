@@ -2,6 +2,7 @@ import "@angular/compiler";
 import {
   AfterViewInit,
   ApplicationRef,
+  ChangeDetectorRef,
   Component,
   ElementRef,
   Injector,
@@ -25,13 +26,21 @@ type Product = {
   image: string;
 };
 
+type Showcase = {
+  id: string;
+  showcaseTitle: string;
+  productIds: string[];
+};
+
 type AddToCartPayload = {
   productId: string;
   quantity: number;
 };
 
 type MountProductCardProps = {
-  product: Product;
+  product?: Product;
+  productId?: string;
+  apiBaseUrl?: string;
   actionLabel?: string;
   hideQuantity?: boolean;
   onProductClick?: (productId: string) => void;
@@ -44,8 +53,13 @@ type MountProductCard = (
 ) => (() => void) | void;
 
 type ProductShowcaseConfiguration = {
+  showcase?: Showcase;
+  showcaseId?: string;
   products?: Product[];
+  productIds?: string[];
   title?: string;
+  apiBaseUrl?: string;
+  fallbackTitle?: string;
   actionLabel?: string;
   hideQuantity?: boolean;
   mountProductCard?: MountProductCard;
@@ -69,40 +83,105 @@ const getShowcaseElementsApplication = (): Promise<ApplicationRef> => {
   return showcaseElementsApplicationPromise;
 };
 
+async function fetchShowcaseById(
+  apiBaseUrl: string,
+  showcaseId: string,
+  signal: AbortSignal,
+): Promise<Showcase> {
+  const response = await fetch(`${apiBaseUrl}/showcases/${showcaseId}`, { signal });
+  if (!response.ok) {
+    throw new Error(
+      `fetchShowcaseById - request failed: ${response.status} ${response.statusText}`,
+    );
+  }
+  return response.json();
+}
+
 @Component({
   standalone: true,
   selector: customElementName,
   imports: [CommonModule],
   template: `
     <section class="showcase-shell">
-      <h3>{{ title }}</h3>
-      <div class="showcase-grid">
-        <div #productSlot *ngFor="let product of products; trackBy: trackByProductId"></div>
-      </div>
+      <h3>{{ titleText }}</h3>
+      <ng-container *ngIf="isLoading; else loadedTemplate">
+        <p>Loading showcase...</p>
+      </ng-container>
+      <ng-template #loadedTemplate>
+        <ng-container *ngIf="!hasLoadError; else errorTemplate">
+          <div class="showcase-grid">
+            <div
+              #productSlot
+              *ngFor="let slotKey of slotKeys; trackBy: trackBySlotKey"
+            ></div>
+          </div>
+        </ng-container>
+        <ng-template #errorTemplate>
+          <p>Unable to load showcase.</p>
+        </ng-template>
+      </ng-template>
     </section>
   `,
 })
-class ProductShowcaseElementComponent implements AfterViewInit, OnChanges, OnDestroy {
+class ProductShowcaseElementComponent
+  implements AfterViewInit, OnChanges, OnDestroy
+{
   @Input() config: ProductShowcaseConfiguration = {};
 
   @ViewChildren("productSlot")
   productSlots?: QueryList<ElementRef<HTMLElement>>;
 
+  showcaseData: Showcase | null = null;
+  isLoading = false;
+  hasLoadError = false;
+
   private slotChangesSubscription?: Subscription;
   private cardCleanupFunctions: Array<() => void> = [];
   private hasViewInitialized = false;
   private isRenderScheduled = false;
+  private activeAbortController?: AbortController;
+  private lastLoadedShowcaseId?: string;
+  private lastLoadedApiBaseUrl?: string;
 
-  get products(): Product[] {
+  constructor(private readonly changeDetectorRef: ChangeDetectorRef) {}
+
+  get fullProducts(): Product[] {
     return Array.isArray(this.config.products) ? this.config.products : [];
   }
 
-  get title(): string {
-    return this.config.title || "Showcase Title";
+  get productIds(): string[] {
+    if (this.fullProducts.length > 0) {
+      return this.fullProducts.map((product) => product.id);
+    }
+    if (Array.isArray(this.config.productIds) && this.config.productIds.length > 0) {
+      return this.config.productIds;
+    }
+    const showcaseSource = this.config.showcase || this.showcaseData;
+    return Array.isArray(showcaseSource?.productIds)
+      ? showcaseSource!.productIds
+      : [];
   }
 
-  trackByProductId(_index: number, product: Product): string {
-    return product.id;
+  get slotKeys(): string[] {
+    const fullProducts = this.fullProducts;
+    if (fullProducts.length > 0) {
+      return fullProducts.map((product) => product.id);
+    }
+    return this.productIds;
+  }
+
+  get titleText(): string {
+    return (
+      this.config.title ||
+      this.config.showcase?.showcaseTitle ||
+      this.showcaseData?.showcaseTitle ||
+      this.config.fallbackTitle ||
+      "Showcase"
+    );
+  }
+
+  trackBySlotKey(_index: number, slotKey: string): string {
+    return slotKey;
   }
 
   ngAfterViewInit(): void {
@@ -114,6 +193,8 @@ class ProductShowcaseElementComponent implements AfterViewInit, OnChanges, OnDes
   }
 
   ngOnChanges(_changes: SimpleChanges): void {
+    this.loadShowcaseIfNeeded();
+
     if (!this.hasViewInitialized) {
       return;
     }
@@ -123,6 +204,76 @@ class ProductShowcaseElementComponent implements AfterViewInit, OnChanges, OnDes
   ngOnDestroy(): void {
     this.slotChangesSubscription?.unsubscribe();
     this.cleanupCardMounts();
+    if (this.activeAbortController) {
+      this.activeAbortController.abort();
+      this.activeAbortController = undefined;
+    }
+  }
+
+  private loadShowcaseIfNeeded(): void {
+    const showcaseId = this.config.showcaseId;
+    const apiBaseUrl = this.config.apiBaseUrl;
+    const hasDirectProducts =
+      Array.isArray(this.config.products) && this.config.products.length > 0;
+    const hasDirectProductIds =
+      Array.isArray(this.config.productIds) && this.config.productIds.length > 0;
+    const hasDirectShowcase = Boolean(this.config.showcase);
+
+    if (
+      hasDirectProducts ||
+      hasDirectProductIds ||
+      hasDirectShowcase ||
+      !showcaseId ||
+      !apiBaseUrl
+    ) {
+      this.showcaseData = null;
+      this.isLoading = false;
+      this.hasLoadError = false;
+      this.lastLoadedShowcaseId = undefined;
+      this.lastLoadedApiBaseUrl = undefined;
+      return;
+    }
+
+    if (
+      this.lastLoadedShowcaseId === showcaseId &&
+      this.lastLoadedApiBaseUrl === apiBaseUrl
+    ) {
+      return;
+    }
+
+    this.lastLoadedShowcaseId = showcaseId;
+    this.lastLoadedApiBaseUrl = apiBaseUrl;
+
+    if (this.activeAbortController) {
+      this.activeAbortController.abort();
+    }
+
+    const abortController = new AbortController();
+    this.activeAbortController = abortController;
+    this.isLoading = true;
+    this.hasLoadError = false;
+
+    fetchShowcaseById(apiBaseUrl, showcaseId, abortController.signal)
+      .then((fetchedShowcase) => {
+        if (abortController.signal.aborted) {
+          return;
+        }
+        this.showcaseData = fetchedShowcase;
+        this.isLoading = false;
+        this.changeDetectorRef.detectChanges();
+        this.scheduleRenderCards();
+      })
+      .catch((error: Error) => {
+        if (error.name === "AbortError") {
+          return;
+        }
+        console.warn("loadShowcaseIfNeeded - error");
+        console.warn(error);
+        this.hasLoadError = true;
+        this.showcaseData = null;
+        this.isLoading = false;
+        this.changeDetectorRef.detectChanges();
+      });
   }
 
   private scheduleRenderCards(): void {
@@ -149,20 +300,39 @@ class ProductShowcaseElementComponent implements AfterViewInit, OnChanges, OnDes
       return;
     }
 
+    const fullProducts = this.fullProducts;
+    const hasFullProducts = fullProducts.length > 0;
+    const apiBaseUrl = this.config.apiBaseUrl;
+
+    if (!hasFullProducts && !apiBaseUrl) {
+      return;
+    }
+
     const slotElements = this.productSlots.toArray();
     slotElements.forEach((slotElementRef, index) => {
-      const product = this.products[index];
-      if (!product) {
-        return;
-      }
-
-      const cleanupValue = mountProductCard(slotElementRef.nativeElement, {
-        product,
+      const cardProps: MountProductCardProps = {
         actionLabel: this.config.actionLabel,
         hideQuantity: this.config.hideQuantity,
         onProductClick: this.config.onProductClick,
         onAddToCart: this.config.onAddToCart,
-      });
+      };
+
+      if (hasFullProducts) {
+        const product = fullProducts[index];
+        if (!product) {
+          return;
+        }
+        cardProps.product = product;
+      } else {
+        const productId = this.productIds[index];
+        if (!productId) {
+          return;
+        }
+        cardProps.productId = productId;
+        cardProps.apiBaseUrl = apiBaseUrl;
+      }
+
+      const cleanupValue = mountProductCard(slotElementRef.nativeElement, cardProps);
 
       if (typeof cleanupValue === "function") {
         this.cardCleanupFunctions.push(cleanupValue);

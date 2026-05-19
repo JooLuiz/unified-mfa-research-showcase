@@ -1,6 +1,7 @@
+import { navigateToUrl } from "single-spa";
+
 function navigate(path) {
-  history.pushState({}, "", path);
-  window.dispatchEvent(new CustomEvent("global:renderApp"));
+  navigateToUrl(path);
 }
 
 export { navigate };

@@ -15,11 +15,6 @@ import loadMockData from "./utils/loadData";
 import fetchJson from "./utils/fetchJson";
 import { MOCK_API_BASE_URL } from "./utils/constants";
 
-import {
-  calculatePlpItemsPerRow,
-  getPlpInitialVisibleCount,
-} from "./utils/PLPProductsActions";
-
 import { mountHeaderAndFooter } from "./utils/mountActions";
 
 import { navigate } from "./utils/navigate";
@@ -38,7 +33,6 @@ import {
 const appState = {
   products: [],
   productsById: {},
-  categories: [],
   showcases: [],
   banners: [],
   cartItems: [],
@@ -49,8 +43,6 @@ const appState = {
     categoryIds: [],
   },
   plpSortBy: "",
-  plpVisibleCount: 8,
-  plpItemsPerRow: 4,
   appliedCoupon: null,
   lastIframeMessage: "",
   isFormularySubmitted: false,
@@ -195,24 +187,6 @@ window.addEventListener("auth:changed", () => {
 window.addEventListener("auth:logout-request", () => {
   clearAuthSession(appState);
   navigate("/");
-});
-
-window.addEventListener("resize", () => {
-  if (window.location.pathname !== "/products") {
-    return;
-  }
-
-  const recalculatedItemsPerRow = calculatePlpItemsPerRow();
-  if (recalculatedItemsPerRow === appState.plpItemsPerRow) {
-    return;
-  }
-
-  appState.plpItemsPerRow = recalculatedItemsPerRow;
-  appState.plpVisibleCount = Math.max(
-    appState.plpVisibleCount,
-    getPlpInitialVisibleCount(recalculatedItemsPerRow),
-  );
-  renderApp();
 });
 
 window.addEventListener("message", (event) => {

@@ -90,6 +90,11 @@ app.get("/api/products", async (request, response) => {
       .split(",")
       .map((productId) => productId.trim())
       .filter(Boolean);
+    const requestedCategoryIds = (request.query.categoryIds || "")
+      .toString()
+      .split(",")
+      .map((categoryId) => categoryId.trim())
+      .filter(Boolean);
 
     let filteredProducts = productsData.filter((product) => {
       const isInsidePriceRange = product.price >= minPrice && product.price <= maxPrice;
@@ -100,7 +105,10 @@ app.get("/api/products", async (request, response) => {
         normalizedProductName.includes(searchQuery) ||
         normalizedProductId.includes(searchQuery);
       const matchesIds = requestedIds.length === 0 || requestedIds.includes(product.id);
-      return isInsidePriceRange && matchesSearch && matchesIds;
+      const matchesCategory =
+        requestedCategoryIds.length === 0 ||
+        requestedCategoryIds.includes(product.categoryId);
+      return isInsidePriceRange && matchesSearch && matchesIds && matchesCategory;
     });
 
     if (sortBy === "price-asc") {
@@ -172,6 +180,27 @@ app.get("/api/showcases", async (_request, response) => {
   }
 });
 
+app.get("/api/showcases/:showcaseId", async (request, response) => {
+  try {
+    const showcasesData = await readJsonFile("showcases.json");
+    const selectedShowcase = showcasesData.find(
+      (showcase) => showcase.id === request.params.showcaseId,
+    );
+
+    if (!selectedShowcase) {
+      response.status(404).json({ message: "Showcase not found" });
+      return;
+    }
+
+    response.json(selectedShowcase);
+  } catch (error) {
+    response.status(500).json({
+      message: "Unable to load showcase",
+      details: error.message,
+    });
+  }
+});
+
 app.get("/api/banners", async (_request, response) => {
   try {
     const bannersData = await readJsonFile("banners.json");
@@ -179,6 +208,27 @@ app.get("/api/banners", async (_request, response) => {
   } catch (error) {
     response.status(500).json({
       message: "Unable to load banners",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/banners/:bannerId", async (request, response) => {
+  try {
+    const bannersData = await readJsonFile("banners.json");
+    const selectedBanner = bannersData.find(
+      (banner) => banner.id === request.params.bannerId,
+    );
+
+    if (!selectedBanner) {
+      response.status(404).json({ message: "Banner not found" });
+      return;
+    }
+
+    response.json(selectedBanner);
+  } catch (error) {
+    response.status(500).json({
+      message: "Unable to load banner",
       details: error.message,
     });
   }
@@ -471,6 +521,38 @@ app.get("/api/orders", async (request, response) => {
   } catch (error) {
     response.status(500).json({
       message: "Unable to load orders",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/api/orders/:orderId", async (request, response) => {
+  try {
+    const userIdFromToken = extractUserIdFromToken(request.headers.authorization);
+    if (!userIdFromToken) {
+      response.status(401).json({ message: "Missing or invalid token" });
+      return;
+    }
+
+    const ordersData = await readJsonFileWithDefault("orders.json", []);
+    const matchingOrder = ordersData.find(
+      (order) => order.id === request.params.orderId,
+    );
+
+    if (!matchingOrder) {
+      response.status(404).json({ message: "Order not found" });
+      return;
+    }
+
+    if (matchingOrder.userId !== userIdFromToken) {
+      response.status(403).json({ message: "Not allowed to access this order" });
+      return;
+    }
+
+    response.json(matchingOrder);
+  } catch (error) {
+    response.status(500).json({
+      message: "Unable to load order",
       details: error.message,
     });
   }

@@ -76,8 +76,8 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
     }),
   );
 
-  const showcaseConfiguration = appState.showcases[0];
-  const showcaseProducts = (showcaseConfiguration?.productIds || [])
+  const firstShowcase = appState.showcases[0];
+  const showcaseProducts = (firstShowcase?.productIds || [])
     .map((productId) => appState.productsById[productId])
     .filter(Boolean);
 
@@ -89,7 +89,7 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
 
     activeCleanupFunctions.push(
       modules.mountProductShowcase(homeShowcaseMount, {
-        title: showcaseConfiguration?.showcaseTitle || "Featured Products",
+        title: firstShowcase?.showcaseTitle || "Featured Products",
         products: showcaseProducts,
         actionLabel: "See More",
         hideQuantity: true,

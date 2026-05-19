@@ -152,6 +152,16 @@ function HeaderView({
 }
 
 class HeaderElement extends HTMLElement {
+  constructor() {
+    super();
+
+    if (Object.prototype.hasOwnProperty.call(this, "state")) {
+      const preUpgradeState = this.state;
+      delete this.state;
+      this.state = preUpgradeState;
+    }
+  }
+
   connectedCallback() {
     this.root = createRoot(this);
     this.renderComponent();
