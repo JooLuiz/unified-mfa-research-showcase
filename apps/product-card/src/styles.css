@@ -7,10 +7,17 @@
   border: 1px solid #222;
   padding: 0.75rem;
   width: 100%;
-  height: 100%;
+  min-height: 320px;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  box-sizing: border-box;
+}
+
+.card-shell-loading,
+.card-shell-error {
+  align-items: center;
+  justify-content: center;
 }
 
 .card-shell img {

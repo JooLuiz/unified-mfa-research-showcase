@@ -5,12 +5,7 @@ import {
   consumePostLoginRedirect,
   rememberPostLoginRedirect,
 } from "./authActions";
-import {
-  ECOMMERCE_SHELL_BASE_URL,
-  MOCK_API_BASE_URL,
-  NEW_POST_FRAME_ID,
-  NEW_POST_IFRAME_URL,
-} from "./constants";
+import { ECOMMERCE_SHELL_BASE_URL, MOCK_API_BASE_URL } from "./constants";
 import fetchJson from "./fetchJson";
 
 const TRENDING_LIKES_THRESHOLD = 100;
@@ -103,41 +98,27 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
   }
 }
 
-function buildNewPostIframeUrl(appState) {
-  const queryParams = new URLSearchParams({ type: "post" });
-  if (appState.currentUser?.fullName) {
-    queryParams.set("name", appState.currentUser.fullName);
-  } else if (appState.currentUser?.username) {
-    queryParams.set("name", appState.currentUser.username);
-  }
-  if (appState.currentUser?.email) {
-    queryParams.set("email", appState.currentUser.email);
-  }
-  if (appState.currentUser?.id) {
-    queryParams.set("authorId", appState.currentUser.id);
-  }
-  return `${NEW_POST_IFRAME_URL}?${queryParams.toString()}`;
-}
-
-function mountNewPostIframe(containerElement, appState) {
-  const iframeSource = buildNewPostIframeUrl(appState);
-  containerElement.innerHTML = `
-    <section class="frame-container">
-      <iframe
-        data-frame-id="${NEW_POST_FRAME_ID}"
-        title="Create new post"
-        src="${iframeSource}"
-        scrolling="no"
-      ></iframe>
-    </section>
-  `;
-  const iframeElement = containerElement.querySelector("iframe");
-  if (iframeElement) {
-    iframeElement.style.height = "0px";
-  }
-  return () => {
-    containerElement.innerHTML = "";
-  };
+function mountNewPostFormularyWithProps(containerElement, appState, modules) {
+  const currentUser = appState.currentUser;
+  return modules.mountNewPostFormulary(containerElement, {
+    userName: currentUser?.fullName || currentUser?.username || "",
+    userEmail: currentUser?.email || "",
+    authorId: currentUser?.id || "",
+    onFormSubmitted: (payload) => {
+      if (!isAuthenticated(appState)) {
+        return;
+      }
+      void persistNewPost(appState, {
+        content: payload.content,
+        imageUrl: payload.imageUrl,
+        authorId: appState.currentUser?.id,
+      }).then((createdPost) => {
+        if (createdPost) {
+          window.dispatchEvent(new CustomEvent("global:renderApp"));
+        }
+      });
+    },
+  });
 }
 
 function mountLoginPromptForNewPost(containerElement) {
@@ -182,7 +163,9 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
   const postsListMount = pageMount.querySelector("#postsListMount");
 
   if (isAuthenticated(appState)) {
-    activeCleanupFunctions.push(mountNewPostIframe(newPostMount, appState));
+    activeCleanupFunctions.push(
+      mountNewPostFormularyWithProps(newPostMount, appState, modules),
+    );
   } else {
     activeCleanupFunctions.push(mountLoginPromptForNewPost(newPostMount));
   }
@@ -414,5 +397,4 @@ export {
   renderPostsPage,
   renderLoginPage,
   renderAccountPage,
-  persistNewPost,
 };

@@ -49,6 +49,7 @@ module.exports = {
         "./CheckoutItems": "./src/checkout-items.ts",
         "./CheckoutSummary": "./src/checkout-summary.ts",
         "./ApplyCoupon": "./src/apply-coupon.ts",
+        "./CheckoutEmpty": "./src/checkout-empty.ts",
       },
       shared: {
         "@angular/common": { singleton: true },

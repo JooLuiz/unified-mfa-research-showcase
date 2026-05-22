@@ -4,6 +4,7 @@ const loadRemoteModules = Promise.all([
   import("product_card/ProductCard"),
   import("product_showcase/ProductShowcaseElement"),
   import("banners/PromotionalBanner"),
+  import("formulary/NewPostFormulary"),
   import("social_media_posts/PostFeed"),
   import("login/LoginForm"),
 ]).then(
@@ -13,6 +14,7 @@ const loadRemoteModules = Promise.all([
     productCardModule,
     productShowcaseModule,
     bannersModule,
+    newPostFormularyModule,
     postFeedModule,
     loginModule,
   ]) => {
@@ -24,6 +26,7 @@ const loadRemoteModules = Promise.all([
       mountProductCard: productCardModule.mountProductCard,
       mountProductShowcase: productShowcaseModule.mountProductShowcase,
       mountPromotionalBanner: bannersModule.mountPromotionalBanner,
+      mountNewPostFormulary: newPostFormularyModule.mountNewPostFormulary,
       mountPostFeed: postFeedModule.mountPostFeed,
       mountLoginForm: loginModule.mountLoginForm,
     };

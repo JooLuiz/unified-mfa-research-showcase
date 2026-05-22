@@ -1,9 +1,5 @@
 import { navigate } from "./navigate";
 import {
-  mountFaqIframe,
-  mountCheckoutEmptyIframe,
-} from "./mountActions";
-import {
   dispatchAddToCartEvent,
   getCartTotalValue,
   updateCartItem,
@@ -56,7 +52,19 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
   if (appState.isFormularySubmitted) {
     activeCleanupFunctions.push(modules.mountFormularySent(faqMount));
   } else {
-    activeCleanupFunctions.push(mountFaqIframe(faqMount, appState));
+    const currentUser = appState.currentUser;
+    activeCleanupFunctions.push(
+      modules.mountFaqFormulary(faqMount, {
+        userName: currentUser?.fullName || currentUser?.username || "",
+        userEmail: currentUser?.email || "",
+        onFormSubmitted: (payload) => {
+          appState.isFormularySubmitted = true;
+          appState.lastIframeMessage = `FAQ submitted by ${payload.name} (${payload.email})`;
+          void persistFaqAnswerToApi(appState, payload);
+          window.dispatchEvent(new CustomEvent("global:renderApp"));
+        },
+      }),
+    );
   }
 
   if (appState.lastIframeMessage) {
@@ -144,7 +152,11 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
   if (appState.cartItems.length === 0) {
     pageMount.innerHTML = `<section id="checkoutEmptyMount"></section>`;
     const checkoutEmptyMount = pageMount.querySelector("#checkoutEmptyMount");
-    activeCleanupFunctions.push(mountCheckoutEmptyIframe(checkoutEmptyMount));
+    activeCleanupFunctions.push(
+      modules.mountCheckoutEmpty(checkoutEmptyMount, {
+        onGoShopping: () => navigate("/products"),
+      }),
+    );
     return;
   }
 
@@ -457,6 +469,24 @@ async function persistAccountUpdate(appState, updatePayload) {
     });
   } catch (error) {
     console.warn("persistAccountUpdate - error");
+    console.warn(error);
+  }
+}
+
+async function persistFaqAnswerToApi(appState, faqPayload) {
+  try {
+    await fetchJson(`${MOCK_API_BASE_URL}/faq`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(appState.authToken
+          ? { Authorization: `Bearer ${appState.authToken}` }
+          : {}),
+      },
+      body: JSON.stringify(faqPayload),
+    });
+  } catch (error) {
+    console.warn("persistFaqAnswerToApi - error");
     console.warn(error);
   }
 }

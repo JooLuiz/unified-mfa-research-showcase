@@ -34,6 +34,8 @@ module.exports = {
       filename: "remoteEntry.js",
       exposes: {
         "./FormularySentElement": "./src/formulary-sent-element.js",
+        "./FaqFormulary": "./src/faq-formulary.js",
+        "./NewPostFormulary": "./src/new-post-formulary.js",
       },
       shared: {
         vue: {

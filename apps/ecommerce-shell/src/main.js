@@ -12,8 +12,6 @@ import {
 
 import loadRemoteModules from "./utils/loadRemoteModules";
 import loadMockData from "./utils/loadData";
-import fetchJson from "./utils/fetchJson";
-import { MOCK_API_BASE_URL } from "./utils/constants";
 
 import { mountHeaderAndFooter } from "./utils/mountActions";
 
@@ -189,39 +187,6 @@ window.addEventListener("auth:logout-request", () => {
   navigate("/");
 });
 
-window.addEventListener("message", (event) => {
-  const messageData = event.data;
-  if (!messageData || typeof messageData !== "object") {
-    return;
-  }
-
-  if (messageData.type === "iframe:resize") {
-    const frameId = messageData.payload?.frameId;
-    const rawHeight = Number(messageData.payload?.height);
-    if (typeof frameId === "string" && Number.isFinite(rawHeight)) {
-      const frameElement = document.querySelector(
-        `iframe[data-frame-id="${frameId}"]`,
-      );
-      if (frameElement) {
-        frameElement.style.height = `${Math.max(rawHeight, 80)}px`;
-      }
-    }
-    return;
-  }
-
-  if (messageData.type === "faq:form-submitted") {
-    appState.isFormularySubmitted = true;
-    appState.lastIframeMessage = `FAQ submitted by ${messageData.payload.name} (${messageData.payload.email})`;
-    void persistFaqAnswerToApi(appState, messageData.payload);
-    renderApp();
-    return;
-  }
-
-  if (messageData.type === "checkout:go-shopping") {
-    navigate("/products");
-  }
-});
-
 window.addEventListener("cart:add-item", (event) => {
   const payload = event.detail;
   if (!payload || !payload.productId) {
@@ -247,24 +212,6 @@ window.addEventListener("cart:add-item", (event) => {
   setGlobalCartVariable();
   renderApp();
 });
-
-async function persistFaqAnswerToApi(appState, faqPayload) {
-  try {
-    await fetchJson(`${MOCK_API_BASE_URL}/faq`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(appState.authToken
-          ? { Authorization: `Bearer ${appState.authToken}` }
-          : {}),
-      },
-      body: JSON.stringify(faqPayload),
-    });
-  } catch (error) {
-    console.warn("persistFaqAnswerToApi - error");
-    console.warn(error);
-  }
-}
 
 async function bootstrap() {
   readStoredPLPFilters(appState);

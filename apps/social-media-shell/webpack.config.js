@@ -37,6 +37,7 @@ module.exports = {
         product_card: "product_card@http://localhost:4303/remoteEntry.js",
         product_showcase: "product_showcase@http://localhost:4304/remoteEntry.js",
         banners: "banners@http://localhost:4307/remoteEntry.js",
+        formulary: "formulary@http://localhost:4308/remoteEntry.js",
         account: "account@http://localhost:4310/remoteEntry.js",
         login: "login@http://localhost:4311/remoteEntry.js",
         social_media_posts: "social_media_posts@http://localhost:4312/remoteEntry.js",
