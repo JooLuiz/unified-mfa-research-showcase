@@ -82,19 +82,25 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
         `${ECOMMERCE_SHELL_BASE_URL}/product?productId=${productId}`,
       );
 
-    activeCleanupFunctions.push(
-      modules.mountProductShowcase(homeShowcaseMount, {
-        title: firstShowcase?.showcaseTitle || "Featured Products",
-        products: showcaseProducts,
-        actionLabel: "See More",
-        hideQuantity: true,
-        mountProductCard: modules.mountProductCard,
-        onProductClick: redirectToProductDetails,
-        onAddToCart: (showcasePayload) => {
-          redirectToProductDetails(showcasePayload.productId);
-        },
-      }),
-    );
+    const showcaseElement = document.createElement("angular-product-showcase");
+    showcaseElement.config = {
+      title: firstShowcase?.showcaseTitle || "Featured Products",
+      products: showcaseProducts,
+      actionLabel: "See More",
+      hideQuantity: true,
+      onProductClick: redirectToProductDetails,
+      onAddToCart: (showcasePayload) => {
+        redirectToProductDetails(showcasePayload.productId);
+      },
+    };
+    homeShowcaseMount.appendChild(showcaseElement);
+
+    activeCleanupFunctions.push(() => {
+      if (showcaseElement.parentNode) {
+        showcaseElement.parentNode.removeChild(showcaseElement);
+      }
+      homeShowcaseMount.innerHTML = "";
+    });
   }
 }
 

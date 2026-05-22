@@ -34,7 +34,6 @@ module.exports = {
       remotes: {
         global_layout_header: "global_layout_header@http://localhost:4301/remoteEntry.js",
         global_layout_footer: "global_layout_footer@http://localhost:4302/remoteEntry.js",
-        product_card: "product_card@http://localhost:4303/remoteEntry.js",
         product_showcase: "product_showcase@http://localhost:4304/remoteEntry.js",
         banners: "banners@http://localhost:4307/remoteEntry.js",
         formulary: "formulary@http://localhost:4308/remoteEntry.js",

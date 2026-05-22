@@ -12,8 +12,10 @@ import {
   consumePostLoginRedirect,
   rememberPostLoginRedirect,
 } from "./authActions";
-import { MOCK_API_BASE_URL } from "./constants";
+import { MOCK_API_BASE_URL, FORMULARY_REMOTE_BASE_URL } from "./constants";
 import fetchJson from "./fetchJson";
+
+const FAQ_FRAME_ID = "faq-formulary";
 
 async function renderHomePage(appState, pageMount, modules, activeCleanupFunctions) {
   pageMount.innerHTML = `
@@ -53,18 +55,74 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
     activeCleanupFunctions.push(modules.mountFormularySent(faqMount));
   } else {
     const currentUser = appState.currentUser;
-    activeCleanupFunctions.push(
-      modules.mountFaqFormulary(faqMount, {
-        userName: currentUser?.fullName || currentUser?.username || "",
-        userEmail: currentUser?.email || "",
-        onFormSubmitted: (payload) => {
-          appState.isFormularySubmitted = true;
-          appState.lastIframeMessage = `FAQ submitted by ${payload.name} (${payload.email})`;
-          void persistFaqAnswerToApi(appState, payload);
-          window.dispatchEvent(new CustomEvent("global:renderApp"));
-        },
-      }),
-    );
+    const faqQueryParameters = new URLSearchParams({ type: "faq" });
+    const userName = currentUser?.fullName || currentUser?.username || "";
+    const userEmail = currentUser?.email || "";
+    if (userName) {
+      faqQueryParameters.set("name", userName);
+    }
+    if (userEmail) {
+      faqQueryParameters.set("email", userEmail);
+    }
+    const faqIframeSource = `${FORMULARY_REMOTE_BASE_URL}/faq-formulary.html?${faqQueryParameters.toString()}`;
+
+    faqMount.innerHTML = `
+      <section class="frame-container">
+        <iframe
+          data-frame-id="${FAQ_FRAME_ID}"
+          title="FAQ Formulary"
+          src="${faqIframeSource}"
+          scrolling="no"
+        ></iframe>
+      </section>
+    `;
+
+    const faqIframeElement = faqMount.querySelector("iframe");
+    if (faqIframeElement) {
+      faqIframeElement.style.height = "0px";
+    }
+
+    function handleFaqIframeResize(event) {
+      const messageData = event.data;
+      if (!messageData || typeof messageData !== "object") {
+        return;
+      }
+      if (messageData.type !== "iframe:resize") {
+        return;
+      }
+      const frameId = messageData.payload?.frameId;
+      const rawHeight = Number(messageData.payload?.height);
+      if (frameId !== FAQ_FRAME_ID || !Number.isFinite(rawHeight)) {
+        return;
+      }
+      const frameElement = faqMount.querySelector(`iframe[data-frame-id="${FAQ_FRAME_ID}"]`);
+      if (frameElement) {
+        frameElement.style.height = `${Math.max(rawHeight, 80)}px`;
+      }
+    }
+
+    function handleFaqFormSubmitted(event) {
+      const messageData = event.data;
+      if (!messageData || typeof messageData !== "object") {
+        return;
+      }
+      if (messageData.type === "faq:form-submitted") {
+        const payload = messageData.payload;
+        appState.isFormularySubmitted = true;
+        appState.lastIframeMessage = `FAQ submitted by ${payload.name} (${payload.email})`;
+        void persistFaqAnswerToApi(appState, payload);
+        window.dispatchEvent(new CustomEvent("global:renderApp"));
+      }
+    }
+
+    window.addEventListener("message", handleFaqIframeResize);
+    window.addEventListener("message", handleFaqFormSubmitted);
+
+    activeCleanupFunctions.push(() => {
+      window.removeEventListener("message", handleFaqIframeResize);
+      window.removeEventListener("message", handleFaqFormSubmitted);
+      faqMount.innerHTML = "";
+    });
   }
 
   if (appState.lastIframeMessage) {

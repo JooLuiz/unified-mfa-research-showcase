@@ -1,4 +1,5 @@
 const MOCK_API_BASE_URL = "http://localhost:4000/api";
+const FORMULARY_REMOTE_BASE_URL = "http://localhost:4308";
 
 const FILTER_STORAGE_KEY = "ecommerce-shell:plp-filters";
 const AUTH_TOKEN_STORAGE_KEY = "ecommerce-shell:auth-token";
@@ -7,6 +8,7 @@ const POST_LOGIN_REDIRECT_STORAGE_KEY = "ecommerce-shell:post-login-redirect";
 
 export {
   MOCK_API_BASE_URL,
+  FORMULARY_REMOTE_BASE_URL,
   FILTER_STORAGE_KEY,
   AUTH_TOKEN_STORAGE_KEY,
   AUTH_USER_STORAGE_KEY,
