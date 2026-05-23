@@ -10,6 +10,7 @@ const loadRemoteModules = Promise.all([
   import("checkout/CheckoutItems"),
   import("checkout/CheckoutSummary"),
   import("checkout/ApplyCoupon"),
+  import("checkout/CheckoutEmpty"),
   import("login/LoginForm"),
   import("order_details/OrderDetails"),
 ]).then(
@@ -25,6 +26,7 @@ const loadRemoteModules = Promise.all([
     checkoutItemsModule,
     checkoutSummaryModule,
     applyCouponModule,
+    checkoutEmptyModule,
     loginModule,
     orderDetailsModule,
   ]) => {
@@ -43,6 +45,7 @@ const loadRemoteModules = Promise.all([
       mountCheckoutItems: checkoutItemsModule.mountCheckoutItems,
       mountCheckoutSummary: checkoutSummaryModule.mountCheckoutSummary,
       mountApplyCoupon: applyCouponModule.mountApplyCoupon,
+      mountCheckoutEmpty: checkoutEmptyModule.mountCheckoutEmpty,
       mountLoginForm: loginModule.mountLoginForm,
       mountOrderDetails: orderDetailsModule.mountOrderDetails,
     };

@@ -27,7 +27,6 @@ import {
   loginPageApp,
   accountPageApp,
 } from "./utils/pageApps";
-import { persistNewPost } from "./utils/renderActions";
 
 const appState = {
   posts: [],
@@ -136,43 +135,6 @@ window.addEventListener("auth:changed", () => {
 window.addEventListener("auth:logout-request", () => {
   clearAuthSession(appState);
   navigate("/");
-});
-
-window.addEventListener("message", (event) => {
-  const messageData = event.data;
-  if (!messageData || typeof messageData !== "object") {
-    return;
-  }
-
-  if (messageData.type === "iframe:resize") {
-    const frameId = messageData.payload?.frameId;
-    const rawHeight = Number(messageData.payload?.height);
-    if (typeof frameId === "string" && Number.isFinite(rawHeight)) {
-      const frameElement = document.querySelector(
-        `iframe[data-frame-id="${frameId}"]`,
-      );
-      if (frameElement) {
-        frameElement.style.height = `${Math.max(rawHeight, 80)}px`;
-      }
-    }
-    return;
-  }
-
-  if (messageData.type === "post:form-submitted") {
-    if (!isAuthenticated(appState)) {
-      return;
-    }
-    const submittedPost = messageData.payload || {};
-    void persistNewPost(appState, {
-      content: submittedPost.content,
-      imageUrl: submittedPost.imageUrl,
-      authorId: appState.currentUser?.id,
-    }).then((createdPost) => {
-      if (createdPost) {
-        reloadActivePageApp();
-      }
-    });
-  }
 });
 
 function applyInitialAuthGuard() {

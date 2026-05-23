@@ -1,3 +1,7 @@
+import "zone.js";
+import "@angular/compiler";
+import { Component } from "@angular/core";
+import { bootstrapApplication } from "@angular/platform-browser";
 import "./styles.css";
 
 const CHECKOUT_EMPTY_FRAME_ID = "checkout-empty";
@@ -19,36 +23,30 @@ function notifyHostHeight(): void {
   );
 }
 
-function handleGoBackToShopping(): void {
-  window.parent.postMessage({ type: "checkout:go-shopping" }, "*");
-}
-
-function renderCheckoutEmptyPage(): void {
-  const rootElement = document.querySelector("checkout-empty-root");
-  if (!rootElement) {
-    return;
-  }
-
-  rootElement.innerHTML = `
+@Component({
+  standalone: true,
+  selector: "checkout-empty-root",
+  template: `
     <section class="checkout-empty-shell">
       <h2>There are no items in your cart</h2>
       <p>Please add some items to your cart to proceed</p>
-      <button type="button" class="checkout-empty-go-back-button">
+      <button
+        type="button"
+        class="checkout-empty-go-back-button"
+        (click)="handleGoBackToShopping()"
+      >
         Go Back to Shopping
       </button>
     </section>
-  `;
-
-  const goBackButton = rootElement.querySelector<HTMLButtonElement>(
-    ".checkout-empty-go-back-button",
-  );
-  if (goBackButton) {
-    goBackButton.addEventListener("click", handleGoBackToShopping);
+  `,
+})
+class CheckoutEmptyPageComponent {
+  handleGoBackToShopping(): void {
+    window.parent.postMessage({ type: "checkout:go-shopping" }, "*");
   }
-
-  notifyHostHeight();
-  window.addEventListener("load", notifyHostHeight);
-  window.addEventListener("resize", notifyHostHeight);
 }
 
-renderCheckoutEmptyPage();
+bootstrapApplication(CheckoutEmptyPageComponent).then(() => {
+  notifyHostHeight();
+  window.addEventListener("resize", notifyHostHeight);
+});

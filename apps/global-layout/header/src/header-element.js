@@ -52,7 +52,11 @@ function HeaderView({
     <header className="header-shell">
       <div className="header-left-group">
         <button className="header-logo-button" onClick={() => onNavigate("/")}>
-          <svg className="header-logo-svg" viewBox="0 0 64 64" aria-hidden="true">
+          <svg
+            className="header-logo-svg"
+            viewBox="0 0 64 64"
+            aria-hidden="true"
+          >
             <path
               d="M8 25l24-12 24 12-24 12L8 25z"
               fill="none"
@@ -110,7 +114,10 @@ function HeaderView({
               </button>
             ))}
             {isAuthenticated && (
-              <button className="header-action" onClick={() => navigateFromMenu("/account")}>
+              <button
+                className="header-action"
+                onClick={() => navigateFromMenu("/account")}
+              >
                 Account
               </button>
             )}
@@ -120,15 +127,24 @@ function HeaderView({
       <div className="header-group header-right-group">
         {isAuthenticated ? (
           <>
-            <button className="header-action" onClick={() => onNavigate("/account")}>
+            <button
+              className="header-action"
+              onClick={() => onNavigate("/account")}
+            >
               {currentUserName || "Account"}
             </button>
-            <button className="header-action" onClick={() => onLogout && onLogout()}>
+            <button
+              className="header-action"
+              onClick={() => onLogout && onLogout()}
+            >
               Log out
             </button>
           </>
         ) : (
-          <button className="header-action" onClick={() => onNavigate("/login")}>
+          <button
+            className="header-action"
+            onClick={() => onNavigate("/login")}
+          >
             Log in
           </button>
         )}
@@ -141,7 +157,10 @@ function HeaderView({
               <PrettyIcons icon="cart" width={20} height={20} />
               <span className="cart-item-count">{itemCount}</span>
             </button>
-            <button className="header-action" onClick={() => onNavigate("/checkout")}>
+            <button
+              className="header-action"
+              onClick={() => onNavigate("/checkout")}
+            >
               Total: ${totalPrice.toFixed(2)}
             </button>
           </>

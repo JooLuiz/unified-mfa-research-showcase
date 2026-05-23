@@ -284,18 +284,33 @@ class ProductShowcaseElementComponent
     this.isRenderScheduled = true;
     queueMicrotask(() => {
       this.isRenderScheduled = false;
-      this.renderCards();
+      void this.renderCards();
     });
   }
 
-  private renderCards(): void {
+  private async resolveMountProductCard(): Promise<MountProductCard | null> {
+    if (typeof this.config.mountProductCard === "function") {
+      return this.config.mountProductCard;
+    }
+
+    try {
+      const productCardModule = await import("product_card/ProductCard");
+      return productCardModule.mountProductCard;
+    } catch (importError) {
+      console.warn("resolveMountProductCard - importError");
+      console.warn(importError);
+      return null;
+    }
+  }
+
+  private async renderCards(): Promise<void> {
     this.cleanupCardMounts();
 
     if (!this.productSlots) {
       return;
     }
 
-    const mountProductCard = this.config.mountProductCard;
+    const mountProductCard = await this.resolveMountProductCard();
     if (typeof mountProductCard !== "function") {
       return;
     }

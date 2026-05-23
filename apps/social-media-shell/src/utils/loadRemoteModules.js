@@ -1,18 +1,18 @@
 const loadRemoteModules = Promise.all([
   import("global_layout_header/HeaderElement"),
   import("global_layout_footer/FooterElement"),
-  import("product_card/ProductCard"),
   import("product_showcase/ProductShowcaseElement"),
   import("banners/PromotionalBanner"),
+  import("formulary/NewPostFormulary"),
   import("social_media_posts/PostFeed"),
   import("login/LoginForm"),
 ]).then(
   ([
     headerModule,
     footerModule,
-    productCardModule,
     productShowcaseModule,
     bannersModule,
+    newPostFormularyModule,
     postFeedModule,
     loginModule,
   ]) => {
@@ -21,9 +21,8 @@ const loadRemoteModules = Promise.all([
     productShowcaseModule.registerProductShowcaseElement();
 
     return {
-      mountProductCard: productCardModule.mountProductCard,
-      mountProductShowcase: productShowcaseModule.mountProductShowcase,
       mountPromotionalBanner: bannersModule.mountPromotionalBanner,
+      mountNewPostFormulary: newPostFormularyModule.mountNewPostFormulary,
       mountPostFeed: postFeedModule.mountPostFeed,
       mountLoginForm: loginModule.mountLoginForm,
     };
