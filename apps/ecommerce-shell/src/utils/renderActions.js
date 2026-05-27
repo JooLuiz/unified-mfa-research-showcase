@@ -455,7 +455,14 @@ async function renderMyOrdersList(appState, ordersContainer, activeCleanupFuncti
       <span class="my-orders-row-items">${itemCount} item${itemCount === 1 ? "" : "s"}</span>
       <span class="my-orders-row-total">${totalAmountLabel}</span>
     `;
-    const handleOrderClick = () => navigate(`/order-details?orderId=${order.id}`);
+    const handleOrderClick = () => {
+      const orderId = String(order.id || "").trim();
+      if (!orderId) {
+        return;
+      }
+      const encodedOrderId = encodeURIComponent(orderId);
+      navigate(`/order-details/${encodedOrderId}`);
+    };
     orderRow.addEventListener("click", handleOrderClick);
     orderRowClickHandlers.push({ orderRow, handleOrderClick });
     myOrdersListMount.appendChild(orderRow);
@@ -470,7 +477,7 @@ async function renderMyOrdersList(appState, ordersContainer, activeCleanupFuncti
 
 async function renderOrderDetailsPage(appState, pageMount, modules, activeCleanupFunctions) {
   if (!isAuthenticated(appState)) {
-    rememberPostLoginRedirect(`/order-details${window.location.search}`);
+    rememberPostLoginRedirect(window.location.pathname + window.location.search);
     navigate("/login");
     return;
   }
@@ -491,8 +498,20 @@ async function renderOrderDetailsPage(appState, pageMount, modules, activeCleanu
   }
 
   const orderDetailsMount = pageMount.querySelector("#orderDetailsMount");
-  const currentUrl = new URL(window.location.href);
-  const requestedOrderId = currentUrl.searchParams.get("orderId");
+  const orderDetailsRoutePrefix = "/order-details/";
+  const pathName = window.location.pathname;
+  let requestedOrderId = "";
+
+  if (pathName.startsWith(orderDetailsRoutePrefix)) {
+    const rawOrderIdSegment = pathName.slice(orderDetailsRoutePrefix.length);
+    if (rawOrderIdSegment && !rawOrderIdSegment.includes("/")) {
+      try {
+        requestedOrderId = decodeURIComponent(rawOrderIdSegment);
+      } catch {
+        requestedOrderId = "";
+      }
+    }
+  }
 
   if (!requestedOrderId) {
     orderDetailsMount.innerHTML = `<div class="notice-box">No order id was provided.</div>`;

@@ -50,6 +50,7 @@ const appState = {
 
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
+const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
 
 function setGlobalCartVariable() {
   window.__APP_SHELL_CART__ = appState.cartItems;
@@ -81,6 +82,14 @@ function baseLayout() {
   };
 }
 
+function isOrderDetailsPath(pathName) {
+  if (!pathName.startsWith(ORDER_DETAILS_ROUTE_PREFIX)) {
+    return false;
+  }
+  const orderIdSegment = pathName.slice(ORDER_DETAILS_ROUTE_PREFIX.length);
+  return Boolean(orderIdSegment) && !orderIdSegment.includes("/");
+}
+
 async function renderApp() {
   const renderId = ++currentRenderId;
   clearCurrentPage();
@@ -99,6 +108,17 @@ async function renderApp() {
   }
 
   const pathName = window.location.pathname;
+  const currentUrl = new URL(window.location.href);
+
+  if (pathName === "/order-details") {
+    const legacyOrderId = currentUrl.searchParams.get("orderId");
+    if (legacyOrderId) {
+      const encodedOrderId = encodeURIComponent(legacyOrderId);
+      history.replaceState({}, "", `/order-details/${encodedOrderId}`);
+      window.dispatchEvent(new CustomEvent("global:renderApp"));
+      return;
+    }
+  }
 
   if (isProtectedRoute(pathName) && !isAuthenticated(appState)) {
     rememberPostLoginRedirect(pathName + window.location.search);
@@ -150,7 +170,7 @@ async function renderApp() {
     return;
   }
 
-  if (pathName === "/order-details") {
+  if (isOrderDetailsPath(pathName)) {
     await renderOrderDetailsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
     return;
   }

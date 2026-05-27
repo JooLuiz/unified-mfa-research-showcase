@@ -99,7 +99,7 @@
 | Triggering App | Entity | What Is Communicated | Method | Affected App(s) |
 |---|---|---|---|---|
 | Ecommerce Shell (`renderActions.js`) | Products | `?productId=X` — which product to display | URL query param on `/product` route | Ecommerce Shell reads it and passes `productId` to Product Details Page MFE |
-| Ecommerce Shell (`renderActions.js`) | Orders | `?orderId=X` — which order to display | URL query param on `/order-details` route | Ecommerce Shell reads it and passes `orderId` to Order Details MFE |
+| Ecommerce Shell (`renderActions.js`) | Orders | `orderId` path param (`/order-details/{orderId}`) — which order to display | URL path param on `/order-details/{orderId}` route | Ecommerce Shell parses it from pathname and passes `orderId` to Order Details MFE |
 | Social Media Shell → Ecommerce Shell | Products | `?searchQuery=X&minPrice=Y&maxPrice=Z&categoryIds=A,B` — promotional filters | URL query params on cross-shell redirect to `/products` | Ecommerce Shell (reads these on PLP page load via PLPFilterActions or URL) |
 | Social Media Shell → Ecommerce Shell | Products | `?productId=X` — product to view | URL query param on cross-shell redirect to `/product` | Ecommerce Shell (reads it for Product Details Page) |
 | Formulary mount function (internal) | FAQ / Posts | `?type=faq&name=X&email=Y` or `?type=post&name=X&email=Y&authorId=Z` | Query params on iframe src URL | Formulary iframe page (reads params for form autofill and form-type selection) |
@@ -125,7 +125,7 @@
 
 | App / Component | Events | API-based | Web Storage | Global State | Query Params | URL Changes |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Ecommerce Shell** | Dispatches & listens to 6 event types | 9 API interactions | localStorage (3 keys) + sessionStorage (1 key) | Writes `window.__APP_SHELL_CART__` | Reads `productId`, `orderId` | `pushState`, `replaceState` |
+| **Ecommerce Shell** | Dispatches & listens to 6 event types | 9 API interactions | localStorage (3 keys) + sessionStorage (1 key) | Writes `window.__APP_SHELL_CART__` | Reads `productId` query param; reads `orderId` path param from `/order-details/{orderId}` | `pushState`, `replaceState` |
 | **Social Media Shell** | Dispatches & listens to 4 event types | 7 API interactions | localStorage (2 keys) + sessionStorage (1 key) | -- | Builds cross-shell query params | `navigateToUrl`, `replaceState`, `location.assign/href` |
 | **Header** | Dispatches `host:navigate`, `host:logout` | -- | -- | -- | -- | -- |
 | **Footer** | -- | -- | -- | -- | -- | -- |
