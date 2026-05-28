@@ -44,7 +44,6 @@ type MountSimilarProducts = (
 
 type ProductDetailsProps = {
   product?: Product;
-  productId?: string;
   apiBaseUrl?: string;
   onAddToCart?: (payload: AddToCartPayload) => void;
   mountSimilarProducts: MountSimilarProducts;
@@ -57,6 +56,13 @@ const normalizeQuantity = (nextQuantity: number): number => {
   }
   return Math.floor(parsedQuantity);
 };
+
+function readProductIdFromQueryParams(): string | null {
+  const queryParameters = new URLSearchParams(window.location.search);
+  const rawValue = queryParameters.get("productId");
+  const normalizedValue = typeof rawValue === "string" ? rawValue.trim() : "";
+  return normalizedValue ? normalizedValue : null;
+}
 
 async function fetchProductById(
   apiBaseUrl: string,
@@ -115,15 +121,18 @@ async function fetchProductById(
 
     <ng-template #productNotFoundTemplate>
       <section class="pdp-shell">
-        <p>Product not found.</p>
+        <p *ngIf="isMissingProductId; else missingProductTemplate">
+          No product id was provided.
+        </p>
+        <ng-template #missingProductTemplate>
+          <p>Product not found.</p>
+        </ng-template>
       </section>
     </ng-template>
   `,
 })
 class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() inputProduct: Product | null = null;
-
-  @Input() productId: string | null = null;
 
   @Input() apiBaseUrl: string | null = null;
 
@@ -137,6 +146,8 @@ class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
   product: Product | null = null;
 
   isLoading = false;
+
+  isMissingProductId = false;
 
   quantityValue = 1;
 
@@ -158,7 +169,7 @@ class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes["productId"] || changes["inputProduct"]) {
+    if (changes["inputProduct"]) {
       this.quantityValue = 1;
     }
 
@@ -208,6 +219,7 @@ class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
       }
       this.product = this.inputProduct;
       this.isLoading = false;
+      this.isMissingProductId = false;
       this.lastLoadedProductId = undefined;
       this.lastLoadedApiBaseUrl = undefined;
       if (this.hasViewInitialized) {
@@ -216,12 +228,13 @@ class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
       return;
     }
 
-    const currentProductId = this.productId;
+    const currentProductId = readProductIdFromQueryParams();
     const currentApiBaseUrl = this.apiBaseUrl;
 
     if (!currentProductId || !currentApiBaseUrl) {
       this.product = null;
       this.isLoading = false;
+      this.isMissingProductId = !currentProductId;
       this.lastLoadedProductId = undefined;
       this.lastLoadedApiBaseUrl = undefined;
       if (this.hasViewInitialized) {
@@ -248,6 +261,7 @@ class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.activeAbortController = abortController;
     this.isLoading = true;
     this.product = null;
+    this.isMissingProductId = false;
     this.cleanupSimilarProductsView();
 
     fetchProductById(currentApiBaseUrl, currentProductId, abortController.signal)
@@ -335,7 +349,6 @@ export function mountProductDetails(
     applicationRef = nextApplicationRef;
     componentRef = applicationRef.bootstrap(ProductDetailsComponent, containerElement);
     componentRef.setInput("inputProduct", props.product ?? null);
-    componentRef.setInput("productId", props.productId ?? null);
     componentRef.setInput("apiBaseUrl", props.apiBaseUrl ?? null);
     componentRef.setInput("mountSimilarProducts", props.mountSimilarProducts);
 

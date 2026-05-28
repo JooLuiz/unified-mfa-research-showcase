@@ -32,6 +32,7 @@ function updateCartItem(appState, productId, quantity) {
   } else {
     appState.cartItems.push({ productId, quantity });
   }
+  window.__APP_SHELL_CART__ = appState.cartItems;
   window.dispatchEvent(new CustomEvent("cart:updateGlobalCart"));
 }
 
@@ -39,6 +40,7 @@ function removeCartItem(appState, productId) {
   appState.cartItems = appState.cartItems.filter(
     (cartItem) => cartItem.productId !== productId,
   );
+  window.__APP_SHELL_CART__ = appState.cartItems;
   window.dispatchEvent(new CustomEvent("cart:updateGlobalCart"));
 }
 

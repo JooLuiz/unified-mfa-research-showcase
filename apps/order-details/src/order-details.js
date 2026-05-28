@@ -52,21 +52,43 @@ async function fetchOrderById(apiBaseUrl, orderId, authToken, signal) {
   return response.json();
 }
 
+const AUTH_TOKEN_STORAGE_KEY = "ecommerce-shell:auth-token";
+const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
+
+function readAuthTokenFromLocalStorage() {
+  try {
+    const storedToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+    return typeof storedToken === "string" ? storedToken : "";
+  } catch {
+    return "";
+  }
+}
+
+function readOrderIdFromPathname() {
+  const pathName = window.location.pathname || "";
+  if (!pathName.startsWith(ORDER_DETAILS_ROUTE_PREFIX)) {
+    return "";
+  }
+
+  const rawOrderIdSegment = pathName.slice(ORDER_DETAILS_ROUTE_PREFIX.length);
+  if (!rawOrderIdSegment || rawOrderIdSegment.includes("/")) {
+    return "";
+  }
+
+  try {
+    return decodeURIComponent(rawOrderIdSegment);
+  } catch {
+    return "";
+  }
+}
+
 const OrderDetailsComponent = {
   props: {
     order: {
       type: Object,
       default: null,
     },
-    orderId: {
-      type: String,
-      default: "",
-    },
     apiBaseUrl: {
-      type: String,
-      default: "",
-    },
-    authToken: {
       type: String,
       default: "",
     },
@@ -75,6 +97,7 @@ const OrderDetailsComponent = {
     const orderData = ref(props.order || null);
     const isLoading = ref(false);
     const loadError = ref(null);
+    const isMissingOrderId = ref(false);
     let activeAbortController = null;
 
     const loadOrder = async () => {
@@ -82,11 +105,21 @@ const OrderDetailsComponent = {
         orderData.value = props.order;
         isLoading.value = false;
         loadError.value = null;
+        isMissingOrderId.value = false;
         return;
       }
 
-      if (!props.orderId || !props.apiBaseUrl) {
+      if (!props.apiBaseUrl) {
         orderData.value = null;
+        return;
+      }
+
+      const orderId = readOrderIdFromPathname();
+      if (!orderId) {
+        isMissingOrderId.value = true;
+        orderData.value = null;
+        isLoading.value = false;
+        loadError.value = null;
         return;
       }
 
@@ -98,12 +131,14 @@ const OrderDetailsComponent = {
       activeAbortController = abortController;
       isLoading.value = true;
       loadError.value = null;
+      isMissingOrderId.value = false;
 
       try {
+        const authToken = readAuthTokenFromLocalStorage();
         const fetchedOrder = await fetchOrderById(
           props.apiBaseUrl,
-          props.orderId,
-          props.authToken,
+          orderId,
+          authToken,
           abortController.signal,
         );
         if (!abortController.signal.aborted) {
@@ -136,7 +171,7 @@ const OrderDetailsComponent = {
     });
 
     watch(
-      () => [props.order, props.orderId, props.apiBaseUrl, props.authToken],
+      () => [props.order, props.apiBaseUrl],
       () => {
         loadOrder();
       },
@@ -196,6 +231,14 @@ const OrderDetailsComponent = {
           "section",
           { class: "order-details-empty" },
           "Loading order...",
+        );
+      }
+
+      if (isMissingOrderId.value) {
+        return h(
+          "section",
+          { class: "order-details-empty" },
+          "No order id was provided.",
         );
       }
 
@@ -297,9 +340,7 @@ const OrderDetailsComponent = {
 export function mountOrderDetails(containerElement, props) {
   const orderDetailsApp = createApp(OrderDetailsComponent, {
     order: props.order,
-    orderId: props.orderId,
     apiBaseUrl: props.apiBaseUrl,
-    authToken: props.authToken,
   });
   orderDetailsApp.mount(containerElement);
 

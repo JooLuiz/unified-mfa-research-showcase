@@ -177,13 +177,9 @@ async function renderProductListPage(appState, pageMount, modules, activeCleanup
 async function renderProductDetailsPage(appState, pageMount, modules, activeCleanupFunctions) {
   pageMount.innerHTML = `<section id="pdpMount"></section>`;
   const pdpMount = pageMount.querySelector("#pdpMount");
-  const currentUrl = new URL(window.location.href);
-  const productId =
-    currentUrl.searchParams.get("productId") || appState.products[0]?.id;
 
   activeCleanupFunctions.push(
     modules.mountProductDetails(pdpMount, {
-      productId,
       apiBaseUrl: MOCK_API_BASE_URL,
       onAddToCart: dispatchAddToCartEvent,
       mountSimilarProducts: (containerElement, similarProductsProps) =>
@@ -238,7 +234,6 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
 
   activeCleanupFunctions.push(
     modules.mountCheckoutItems(checkoutItemsMount, {
-      cartItems: appState.cartItems,
       productsById: appState.productsById,
       onQuantityChange: (productId, quantity) => {
         updateCartItem(appState, productId, quantity);
@@ -498,31 +493,10 @@ async function renderOrderDetailsPage(appState, pageMount, modules, activeCleanu
   }
 
   const orderDetailsMount = pageMount.querySelector("#orderDetailsMount");
-  const orderDetailsRoutePrefix = "/order-details/";
-  const pathName = window.location.pathname;
-  let requestedOrderId = "";
-
-  if (pathName.startsWith(orderDetailsRoutePrefix)) {
-    const rawOrderIdSegment = pathName.slice(orderDetailsRoutePrefix.length);
-    if (rawOrderIdSegment && !rawOrderIdSegment.includes("/")) {
-      try {
-        requestedOrderId = decodeURIComponent(rawOrderIdSegment);
-      } catch {
-        requestedOrderId = "";
-      }
-    }
-  }
-
-  if (!requestedOrderId) {
-    orderDetailsMount.innerHTML = `<div class="notice-box">No order id was provided.</div>`;
-    return;
-  }
 
   activeCleanupFunctions.push(
     modules.mountOrderDetails(orderDetailsMount, {
-      orderId: requestedOrderId,
       apiBaseUrl: MOCK_API_BASE_URL,
-      authToken: appState.authToken,
     }),
   );
 }

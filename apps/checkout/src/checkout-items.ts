@@ -28,11 +28,16 @@ type CartItem = {
 type ProductsById = Record<string, Product>;
 
 type CheckoutItemsProps = {
-  cartItems: CartItem[];
   productsById: ProductsById;
   onQuantityChange?: (productId: string, quantity: number) => void;
   onRemoveItem?: (productId: string) => void;
 };
+
+declare global {
+  interface Window {
+    __APP_SHELL_CART__?: unknown;
+  }
+}
 
 const normalizeQuantity = (nextQuantity: number): number => {
   const parsedQuantity = Number(nextQuantity);
@@ -41,6 +46,34 @@ const normalizeQuantity = (nextQuantity: number): number => {
   }
   return Math.floor(parsedQuantity);
 };
+
+function isCartItem(value: unknown): value is CartItem {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as { productId?: unknown; quantity?: unknown };
+  if (typeof candidate.productId !== "string" || candidate.productId.trim() === "") {
+    return false;
+  }
+
+  const parsedQuantity = Number(candidate.quantity);
+  return Number.isFinite(parsedQuantity) && parsedQuantity >= 1;
+}
+
+function readCartItemsFromGlobalState(): CartItem[] {
+  const globalCart = window.__APP_SHELL_CART__;
+  if (!Array.isArray(globalCart)) {
+    return [];
+  }
+
+  return globalCart
+    .filter(isCartItem)
+    .map((cartItem) => ({
+      productId: cartItem.productId,
+      quantity: normalizeQuantity(cartItem.quantity),
+    }));
+}
 
 @Component({
   standalone: true,
@@ -152,6 +185,19 @@ export function mountCheckoutItems(
   let componentRef: ComponentRef<CheckoutItemsComponent> | null = null;
   let isUnmounted = false;
 
+  const syncCartItemsFromGlobalState = (): void => {
+    if (!componentRef) {
+      return;
+    }
+    componentRef.setInput("cartItems", readCartItemsFromGlobalState());
+  };
+
+  const handleGlobalCartUpdated = (): void => {
+    syncCartItemsFromGlobalState();
+  };
+
+  window.addEventListener("cart:updateGlobalCart", handleGlobalCartUpdated);
+
   const bootstrapPromise = createApplication().then((nextApplicationRef) => {
     if (isUnmounted) {
       nextApplicationRef.destroy();
@@ -160,7 +206,7 @@ export function mountCheckoutItems(
 
     applicationRef = nextApplicationRef;
     componentRef = applicationRef.bootstrap(CheckoutItemsComponent, containerElement);
-    componentRef.setInput("cartItems", props.cartItems ?? []);
+    syncCartItemsFromGlobalState();
     componentRef.setInput("productsById", props.productsById ?? {});
 
     componentRef.instance.quantityChange.subscribe((payload) => {
@@ -173,6 +219,7 @@ export function mountCheckoutItems(
 
   return () => {
     isUnmounted = true;
+    window.removeEventListener("cart:updateGlobalCart", handleGlobalCartUpdated);
     void bootstrapPromise.then(() => {
       componentRef?.destroy();
       applicationRef?.destroy();
