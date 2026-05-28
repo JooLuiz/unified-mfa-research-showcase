@@ -5,7 +5,16 @@ import {
   MOCK_API_BASE_URL,
 } from "./constants";
 
-const PROTECTED_ROUTE_PATHS = ["/checkout", "/account", "/order-details"];
+const PROTECTED_ROUTE_PATHS = ["/checkout", "/account"];
+const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
+
+function isOrderDetailsRoute(pathName) {
+  if (!pathName.startsWith(ORDER_DETAILS_ROUTE_PREFIX)) {
+    return false;
+  }
+  const orderIdSegment = pathName.slice(ORDER_DETAILS_ROUTE_PREFIX.length);
+  return Boolean(orderIdSegment) && !orderIdSegment.includes("/");
+}
 
 function readStoredAuth(appState) {
   try {
@@ -61,7 +70,7 @@ function isAuthenticated(appState) {
 }
 
 function isProtectedRoute(pathName) {
-  return PROTECTED_ROUTE_PATHS.includes(pathName);
+  return PROTECTED_ROUTE_PATHS.includes(pathName) || isOrderDetailsRoute(pathName);
 }
 
 function rememberPostLoginRedirect(redirectPath) {

@@ -31,7 +31,7 @@ The workspaces are organized by **business domain**, not by technology stack. A 
 | `apps/account` | Vue | 4310 | `account` | Account Profile and Address components, reused across both shells. |
 | `apps/login` | React | 4311 | `login` | Login form, used to authenticate against the mock service. |
 | `apps/social-media-posts` | React | 4312 | `social_media_posts` | Post feed for the social media shell. |
-| `apps/order-details` | Vue | 4313 | `order_details` | Order details viewer used by the e-commerce shell `/order-details` route. |
+| `apps/order-details` | Vue | 4313 | `order_details` | Order details viewer used by the e-commerce shell `/order-details/{orderId}` route. |
 
 ## Mock Data Service (`apps/mock-data-service`, port `4000`)
 
@@ -96,7 +96,7 @@ E-commerce shell (`http://localhost:4200`):
 - `/order-placed` - Order confirmation.
 - `/login` - Login form.
 - `/account` - Profile, address, and "My Orders" list. Auth-guarded.
-- `/order-details?orderId=...` - Vue Order Details MFE for an individual order. Auth-guarded.
+- `/order-details/{orderId}` - Vue Order Details MFE for an individual order. Auth-guarded.
 
 Social media shell (`http://localhost:4500`):
 
