@@ -5,6 +5,7 @@ import {
   ChangeDetectorRef,
   Component,
   ElementRef,
+  HostBinding,
   Injector,
   Input,
   OnChanges,
@@ -18,58 +19,14 @@ import { createCustomElement } from "@angular/elements";
 import { createApplication } from "@angular/platform-browser";
 import { Subscription } from "rxjs";
 import "./styles.css";
-
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-};
-
-type Showcase = {
-  id: string;
-  showcaseTitle: string;
-  productIds: string[];
-};
-
-type AddToCartPayload = {
-  productId: string;
-  quantity: number;
-};
-
-type MountProductCardProps = {
-  product?: Product;
-  productId?: string;
-  apiBaseUrl?: string;
-  actionLabel?: string;
-  hideQuantity?: boolean;
-  onProductClick?: (productId: string) => void;
-  onAddToCart?: (payload: AddToCartPayload) => void;
-};
-
-type MountProductCard = (
-  containerElement: HTMLElement,
-  props: MountProductCardProps,
-) => (() => void) | void;
-
-type ProductShowcaseConfiguration = {
-  showcase?: Showcase;
-  showcaseId?: string;
-  products?: Product[];
-  productIds?: string[];
-  title?: string;
-  apiBaseUrl?: string;
-  fallbackTitle?: string;
-  actionLabel?: string;
-  hideQuantity?: boolean;
-  mountProductCard?: MountProductCard;
-  onProductClick?: (productId: string) => void;
-  onAddToCart?: (payload: AddToCartPayload) => void;
-};
-
-type ProductShowcaseElementInstance = HTMLElement & {
-  config?: ProductShowcaseConfiguration;
-};
+import type {
+  MountProductCard,
+  MountProductCardProps,
+  Product,
+  ProductShowcaseConfiguration,
+  ProductShowcaseElementInstance,
+  Showcase,
+} from "./showcase-types";
 
 const customElementName = "angular-product-showcase";
 
@@ -103,23 +60,38 @@ async function fetchShowcaseById(
   imports: [CommonModule],
   template: `
     <section class="showcase-shell">
-      <h3>{{ titleText }}</h3>
-      <ng-container *ngIf="isLoading; else loadedTemplate">
-        <p>Loading showcase...</p>
-      </ng-container>
-      <ng-template #loadedTemplate>
-        <ng-container *ngIf="!hasLoadError; else errorTemplate">
-          <div class="showcase-grid">
-            <div
-              #productSlot
-              *ngFor="let slotKey of slotKeys; trackBy: trackBySlotKey"
-            ></div>
-          </div>
+      <div class="showcase-header">
+        <h3>{{ titleText }}</h3>
+        <button
+          *ngIf="isModal"
+          type="button"
+          class="showcase-collapse-toggle"
+          (click)="toggleCollapsed()"
+        >
+          {{ isCollapsed ? "Show" : "Hide" }}
+        </button>
+      </div>
+      <div
+        class="showcase-body"
+        [class.showcase-body--collapsed]="isModal && isCollapsed"
+      >
+        <ng-container *ngIf="isLoading; else loadedTemplate">
+          <p>Loading showcase...</p>
         </ng-container>
-        <ng-template #errorTemplate>
-          <p>Unable to load showcase.</p>
+        <ng-template #loadedTemplate>
+          <ng-container *ngIf="!hasLoadError; else errorTemplate">
+            <div class="showcase-grid">
+              <div
+                #productSlot
+                *ngFor="let slotKey of slotKeys; trackBy: trackBySlotKey"
+              ></div>
+            </div>
+          </ng-container>
+          <ng-template #errorTemplate>
+            <p>Unable to load showcase.</p>
+          </ng-template>
         </ng-template>
-      </ng-template>
+      </div>
     </section>
   `,
 })
@@ -134,6 +106,9 @@ class ProductShowcaseElementComponent
   showcaseData: Showcase | null = null;
   isLoading = false;
   hasLoadError = false;
+  isCollapsed = false;
+
+  private hasInitializedCollapsedState = false;
 
   private slotChangesSubscription?: Subscription;
   private cardCleanupFunctions: Array<() => void> = [];
@@ -144,6 +119,15 @@ class ProductShowcaseElementComponent
   private lastLoadedApiBaseUrl?: string;
 
   constructor(private readonly changeDetectorRef: ChangeDetectorRef) {}
+
+  @HostBinding("class.product-showcase--modal")
+  get isModal(): boolean {
+    return this.config.displayMode === "modal";
+  }
+
+  toggleCollapsed(): void {
+    this.isCollapsed = !this.isCollapsed;
+  }
 
   get fullProducts(): Product[] {
     return Array.isArray(this.config.products) ? this.config.products : [];
@@ -193,6 +177,11 @@ class ProductShowcaseElementComponent
   }
 
   ngOnChanges(_changes: SimpleChanges): void {
+    if (!this.hasInitializedCollapsedState) {
+      this.isCollapsed = Boolean(this.config.defaultCollapsed);
+      this.hasInitializedCollapsedState = true;
+    }
+
     this.loadShowcaseIfNeeded();
 
     if (!this.hasViewInitialized) {
@@ -328,6 +317,7 @@ class ProductShowcaseElementComponent
       const cardProps: MountProductCardProps = {
         actionLabel: this.config.actionLabel,
         hideQuantity: this.config.hideQuantity,
+        variant: this.isModal ? "compact" : "default",
         onProductClick: this.config.onProductClick,
         onAddToCart: this.config.onAddToCart,
       };

@@ -91,7 +91,7 @@ function createFooterApp() {
     footerElement = document.createElement("vue-footer-mfe");
     footerElement.setAttribute(
       "message",
-      "© 2026 Unified MFE Research - Social Channel.",
+      "© 2026 Benchmark Micro Frontend Environment - Social Channel.",
     );
     domElement.appendChild(footerElement);
     return Promise.resolve();

@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
@@ -92,7 +98,6 @@ function ProductListView({
   initialFilters,
   initialSort,
   onFiltersChange,
-  mountProductCard,
   onProductClick,
   onAddToCart,
 }) {
@@ -121,6 +126,26 @@ function ProductListView({
   const [productsLoadError, setProductsLoadError] = useState(null);
   const [draftFilters, setDraftFilters] = useState(normalizedInitialFilters);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [isCardElementReady, setIsCardElementReady] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+    import("product_card/ProductCardElement")
+      .then((productCardElementModule) => {
+        productCardElementModule.registerProductCardElement();
+        if (isActive) {
+          setIsCardElementReady(true);
+        }
+      })
+      .catch((importError) => {
+        console.warn("ProductListView - product card element importError");
+        console.warn(importError);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (hasProvidedCategories) {
@@ -168,7 +193,12 @@ function ProductListView({
     setIsFetchingProducts(true);
     setProductsLoadError(null);
 
-    fetchFilteredProducts(apiBaseUrl, activeFilters, activeSort, abortController.signal)
+    fetchFilteredProducts(
+      apiBaseUrl,
+      activeFilters,
+      activeSort,
+      abortController.signal,
+    )
       .then((productsResponse) => {
         if (abortController.signal.aborted) {
           return;
@@ -212,7 +242,10 @@ function ProductListView({
           return currentItemsPerRow;
         }
         setVisibleCount((currentVisibleCount) =>
-          Math.max(currentVisibleCount, getInitialVisibleCount(nextItemsPerRow)),
+          Math.max(
+            currentVisibleCount,
+            getInitialVisibleCount(nextItemsPerRow),
+          ),
         );
         return nextItemsPerRow;
       });
@@ -380,7 +413,8 @@ function ProductListView({
     const isCategoryRemoval = filterKey.startsWith("category:");
     const remainingCategoryIds = isCategoryRemoval
       ? activeFilters.categoryIds.filter(
-          (selectedCategoryId) => `category:${selectedCategoryId}` !== filterKey,
+          (selectedCategoryId) =>
+            `category:${selectedCategoryId}` !== filterKey,
         )
       : activeFilters.categoryIds;
 
@@ -400,33 +434,24 @@ function ProductListView({
   const activeFilterTags = buildActiveFilterTags();
 
   useEffect(() => {
-    const cleanupFunctions = [];
+    if (!isCardElementReady) {
+      return;
+    }
 
     visibleProducts.forEach((product, index) => {
-      const slotElement = cardSlotsRef.current[index];
-      if (!slotElement) {
+      const cardElement = cardSlotsRef.current[index];
+      if (!cardElement) {
         return;
       }
 
-      const cardProps = hasProvidedProducts
+      cardElement.props = hasProvidedProducts
         ? { product, onProductClick, onAddToCart }
         : { productId: product.id, apiBaseUrl, onProductClick, onAddToCart };
-
-      const cleanup = mountProductCard(slotElement, cardProps);
-      cleanupFunctions.push(cleanup);
     });
-
-    return () => {
-      cleanupFunctions.forEach((cleanup) => {
-        if (typeof cleanup === "function") {
-          cleanup();
-        }
-      });
-    };
   }, [
+    isCardElementReady,
     visibleProducts,
     hasProvidedProducts,
-    mountProductCard,
     onProductClick,
     onAddToCart,
     apiBaseUrl,
@@ -442,7 +467,9 @@ function ProductListView({
           <button
             className="mobile-filter-toggle-button"
             type="button"
-            onClick={() => setIsMobileFiltersOpen((currentState) => !currentState)}
+            onClick={() =>
+              setIsMobileFiltersOpen((currentState) => !currentState)
+            }
           >
             {isMobileFiltersOpen ? "Minimize" : "Expand"}
           </button>
@@ -482,7 +509,9 @@ function ProductListView({
               type="number"
               min="0"
               value={draftFilters.minPrice}
-              onChange={(event) => handleFilterInputChange("minPrice", event.target.value)}
+              onChange={(event) =>
+                handleFilterInputChange("minPrice", event.target.value)
+              }
             />
             <button
               className="filter-quantity-button"
@@ -510,7 +539,9 @@ function ProductListView({
               type="number"
               min="0"
               value={draftFilters.maxPrice}
-              onChange={(event) => handleFilterInputChange("maxPrice", event.target.value)}
+              onChange={(event) =>
+                handleFilterInputChange("maxPrice", event.target.value)
+              }
             />
             <button
               className="filter-quantity-button"
@@ -524,7 +555,11 @@ function ProductListView({
           <span className="filter-label">Categories</span>
           <div className="category-filter-list">
             {availableCategories.map((category) => (
-              <label key={category.id} className="category-filter-option" htmlFor={`category-${category.id}`}>
+              <label
+                key={category.id}
+                className="category-filter-option"
+                htmlFor={`category-${category.id}`}
+              >
                 <input
                   id={`category-${category.id}`}
                   type="checkbox"
@@ -536,10 +571,18 @@ function ProductListView({
             ))}
           </div>
 
-          <button className="filter-action filter-clear-button" type="button" onClick={clearFilters}>
+          <button
+            className="filter-action filter-clear-button"
+            type="button"
+            onClick={clearFilters}
+          >
             Clear filters
           </button>
-          <button className="filter-action filter-apply-button" type="button" onClick={applyFilters}>
+          <button
+            className="filter-action filter-apply-button"
+            type="button"
+            onClick={applyFilters}
+          >
             Apply filters
           </button>
         </div>
@@ -548,7 +591,9 @@ function ProductListView({
         <div className="product-list-controls">
           <h2>Products</h2>
           <div className="product-list-actions">
-            <span className="total-quantity-label">Total Quantity: {totalProducts}</span>
+            <span className="total-quantity-label">
+              Total Quantity: {totalProducts}
+            </span>
             <select
               className="product-sort-select"
               value={activeSort}
@@ -585,9 +630,9 @@ function ProductListView({
         ) : (
           <div className="product-grid">
             {visibleProducts.map((product, index) => (
-              <div
+              <vue-product-card
                 key={product.id}
-                className="product-card-slot"
+                class="product-card-slot"
                 ref={(element) => {
                   cardSlotsRef.current[index] = element;
                 }}
@@ -596,7 +641,10 @@ function ProductListView({
           </div>
         )}
         {canLoadMore && (
-          <button className="filter-action product-load-more-button" onClick={handleLoadMore}>
+          <button
+            className="filter-action product-load-more-button"
+            onClick={handleLoadMore}
+          >
             Load More
           </button>
         )}
@@ -615,7 +663,6 @@ export function mountProductList(containerElement, props) {
       initialFilters={props.initialFilters}
       initialSort={props.initialSort}
       onFiltersChange={props.onFiltersChange}
-      mountProductCard={props.mountProductCard}
       onProductClick={props.onProductClick}
       onAddToCart={props.onAddToCart}
     />,

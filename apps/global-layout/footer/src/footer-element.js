@@ -5,7 +5,7 @@ const FooterElementComponent = {
   props: {
     message: {
       type: String,
-      default: "© 2026 Unified MFE Research. All rights reserved.",
+      default: "© 2026 Benchmark Micro Frontend Environment. All rights reserved.",
     },
   },
   setup(props) {

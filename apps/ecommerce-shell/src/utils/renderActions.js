@@ -169,7 +169,6 @@ async function renderProductListPage(appState, pageMount, modules, activeCleanup
       },
       onProductClick: (productId) => navigate(`/product?productId=${productId}`),
       onAddToCart: dispatchAddToCartEvent,
-      mountProductCard: modules.mountProductCard,
     }),
   );
 }
