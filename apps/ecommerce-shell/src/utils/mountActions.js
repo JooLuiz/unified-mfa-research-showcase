@@ -23,7 +23,7 @@ function mountHeaderAndFooter(appState, layoutMounts) {
   const footerElement = document.createElement("vue-footer-mfe");
   footerElement.setAttribute(
     "message",
-    "© 2026 Unified MFE Research. All rights reserved.",
+    "© 2026 Benchmark Micro Frontend Environment. All rights reserved.",
   );
   layoutMounts.footerMount.appendChild(footerElement);
 }

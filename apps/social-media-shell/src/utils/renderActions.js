@@ -44,12 +44,10 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
   pageMount.innerHTML = `
     <section class="social-home-page">
       <div id="trendingPostsMount"></div>
-      <div id="homeShowcaseMount"></div>
     </section>
   `;
 
   const trendingPostsMount = pageMount.querySelector("#trendingPostsMount");
-  const homeShowcaseMount = pageMount.querySelector("#homeShowcaseMount");
 
   const trendingPosts = getTrendingPosts(appState.posts);
 
@@ -88,18 +86,19 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
       products: showcaseProducts,
       actionLabel: "See More",
       hideQuantity: true,
+      displayMode: "modal",
+      defaultCollapsed: false,
       onProductClick: redirectToProductDetails,
       onAddToCart: (showcasePayload) => {
         redirectToProductDetails(showcasePayload.productId);
       },
     };
-    homeShowcaseMount.appendChild(showcaseElement);
+    pageMount.appendChild(showcaseElement);
 
     activeCleanupFunctions.push(() => {
       if (showcaseElement.parentNode) {
         showcaseElement.parentNode.removeChild(showcaseElement);
       }
-      homeShowcaseMount.innerHTML = "";
     });
   }
 }

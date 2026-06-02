@@ -17,6 +17,13 @@ function getNavigationLinks(appType) {
   return ECOMMERCE_NAV_LINKS;
 }
 
+function getShellLabel(appType) {
+  if (appType === "social") {
+    return "Social Media";
+  }
+  return "E-commerce";
+}
+
 function HeaderView({
   appType,
   totalPrice,
@@ -80,7 +87,7 @@ function HeaderView({
             />
             <circle cx="52" cy="46" r="2.5" fill="currentColor" />
           </svg>
-          <span className="header-logo-title">MFE Lab</span>
+          <span className="header-logo-title">{getShellLabel(appType)}</span>
         </button>
 
         <div className="header-desktop-nav">

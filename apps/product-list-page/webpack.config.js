@@ -45,6 +45,9 @@ module.exports = {
     new ModuleFederationPlugin({
       name: "product_list_page",
       filename: "remoteEntry.js",
+      remotes: {
+        product_card: "product_card@http://localhost:4303/remoteEntry.js",
+      },
       exposes: {
         "./ProductList": "./src/product-list.js",
       },

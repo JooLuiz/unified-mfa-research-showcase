@@ -88,3 +88,28 @@
 .add-cart-button {
   margin-top: 0;
 }
+
+.card-shell-compact {
+  flex-direction: row;
+  align-items: center;
+  min-height: 0;
+  gap: 0.75rem;
+}
+
+.card-shell-compact .card-compact-image {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+
+.card-compact-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.card-compact-name {
+  font-size: 0.85rem;
+  min-height: 0;
+}

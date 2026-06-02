@@ -74,6 +74,7 @@
 | Ecommerce Shell (`authActions.js`) | Account | Auth token (JWT string) | Write to `ecommerce-shell:auth-token` | Ecommerce Shell (`authActions.js` reads on bootstrap to restore session) |
 | Ecommerce Shell (`authActions.js`) | Account | User object (JSON: id, username, fullName, email, address) | Write to `ecommerce-shell:auth-user` | Ecommerce Shell (`authActions.js` reads on bootstrap) |
 | Ecommerce Shell (`PLPFilterActions.js`) | Products | PLP filters (JSON: `{ searchQuery, minPrice, maxPrice, categoryIds }`) | Write to `ecommerce-shell:plp-filters` | Ecommerce Shell (`PLPFilterActions.js` reads on bootstrap to restore last-used filters) |
+| Order Details MFE (`order-details.js`) | Account / Orders | Auth token (JWT string) | Read from `ecommerce-shell:auth-token` | Order Details MFE (uses token to request `GET /api/orders/:id`) |
 | Social Media Shell (`authActions.js`) | Account | Auth token (JWT string) | Write to `social-media-shell:auth-token` | Social Media Shell (`authActions.js` reads on bootstrap) |
 | Social Media Shell (`authActions.js`) | Account | User object (JSON: id, username, fullName, email, address) | Write to `social-media-shell:auth-user` | Social Media Shell (`authActions.js` reads on bootstrap) |
 
@@ -90,7 +91,7 @@
 
 | Triggering App | Entity | What Is Communicated | Method | Affected App(s) |
 |---|---|---|---|---|
-| Ecommerce Shell (`main.js`) | Cart | Full cart array: `[{ productId, quantity }, ...]` | Write to `window.__APP_SHELL_CART__` | Any MFE running inside the ecommerce shell that reads this global (currently no observed reader — likely an escape hatch for future integrations) |
+| Ecommerce Shell (`main.js`) | Cart | Full cart array: `[{ productId, quantity }, ...]` | Write to `window.__APP_SHELL_CART__` | Checkout Items MFE (`checkout-items.ts`) reads it for rendering |
 
 ---
 
@@ -98,10 +99,10 @@
 
 | Triggering App | Entity | What Is Communicated | Method | Affected App(s) |
 |---|---|---|---|---|
-| Ecommerce Shell (`renderActions.js`) | Products | `?productId=X` — which product to display | URL query param on `/product` route | Ecommerce Shell reads it and passes `productId` to Product Details Page MFE |
-| Ecommerce Shell (`renderActions.js`) | Orders | `orderId` path param (`/order-details/{orderId}`) — which order to display | URL path param on `/order-details/{orderId}` route | Ecommerce Shell parses it from pathname and passes `orderId` to Order Details MFE |
+| Product Details Page MFE (`product-details.ts`) | Products | `?productId=X` — which product to display | URL query param on `/product` route | Product Details Page MFE reads it from `window.location.search` to fetch and render product |
+| Order Details MFE (`order-details.js`) | Orders | `orderId` path param (`/order-details/{orderId}`) — which order to display | URL path param on `/order-details/{orderId}` route | Order Details MFE parses it from `window.location.pathname` to fetch and render order |
 | Social Media Shell → Ecommerce Shell | Products | `?searchQuery=X&minPrice=Y&maxPrice=Z&categoryIds=A,B` — promotional filters | URL query params on cross-shell redirect to `/products` | Ecommerce Shell (reads these on PLP page load via PLPFilterActions or URL) |
-| Social Media Shell → Ecommerce Shell | Products | `?productId=X` — product to view | URL query param on cross-shell redirect to `/product` | Ecommerce Shell (reads it for Product Details Page) |
+| Social Media Shell → Ecommerce Shell | Products | `?productId=X` — product to view | URL query param on cross-shell redirect to `/product` | Product Details Page MFE reads it from `window.location.search` |
 | Formulary mount function (internal) | FAQ / Posts | `?type=faq&name=X&email=Y` or `?type=post&name=X&email=Y&authorId=Z` | Query params on iframe src URL | Formulary iframe page (reads params for form autofill and form-type selection) |
 | Product List Page MFE (internal) | Products | `?search=X&minPrice=Y&maxPrice=Z&categoryIds=A,B&sort=field` | Query params on API request URL | Mock Data Service (filters and sorts product response) |
 
@@ -125,20 +126,20 @@
 
 | App / Component | Events | API-based | Web Storage | Global State | Query Params | URL Changes |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Ecommerce Shell** | Dispatches & listens to 6 event types | 9 API interactions | localStorage (3 keys) + sessionStorage (1 key) | Writes `window.__APP_SHELL_CART__` | Reads `productId` query param; reads `orderId` path param from `/order-details/{orderId}` | `pushState`, `replaceState` |
+| **Ecommerce Shell** | Dispatches & listens to 6 event types | 9 API interactions | localStorage (3 keys) + sessionStorage (1 key) | Writes `window.__APP_SHELL_CART__` | Builds `productId` query params for navigation; does not parse ids for MFEs | `pushState`, `replaceState` |
 | **Social Media Shell** | Dispatches & listens to 4 event types | 7 API interactions | localStorage (2 keys) + sessionStorage (1 key) | -- | Builds cross-shell query params | `navigateToUrl`, `replaceState`, `location.assign/href` |
 | **Header** | Dispatches `host:navigate`, `host:logout` | -- | -- | -- | -- | -- |
 | **Footer** | -- | -- | -- | -- | -- | -- |
 | **Product Card** | -- | `GET /products/:id` | -- | -- | -- | -- |
 | **Product Showcase** | -- | `GET /showcases/:id` | -- | -- | -- | -- |
 | **Product List Page** | -- | `GET /products?...`, `GET /categories` | -- | -- | Builds API query params | -- |
-| **Product Details Page** | -- | `GET /products/:id` | -- | -- | -- | -- |
+| **Product Details Page** | -- | `GET /products/:id` | -- | -- | Reads `productId` from `window.location.search` | -- |
 | **Banners** | -- | `GET /banners/:id` | -- | -- | -- | -- |
 | **Formulary (iframe)** | postMessage (resize + form-submitted) | -- | -- | -- | Reads `type`, `name`, `email`, `authorId` from URL | -- |
 | **Checkout Empty (iframe)** | postMessage (resize + go-shopping) | -- | -- | -- | -- | -- |
-| **Checkout Items/Summary/Coupon** | -- | -- | -- | -- | -- | -- |
+| **Checkout Items/Summary/Coupon** | -- | -- | -- | Checkout Items reads `window.__APP_SHELL_CART__` | -- | -- |
 | **Login** | -- | `POST /auth/login` | -- | -- | -- | -- |
 | **Account** | -- | -- | -- | -- | -- | -- |
-| **Order Details** | -- | `GET /orders/:id` | -- | -- | -- | -- |
+| **Order Details** | -- | `GET /orders/:id` | Reads `ecommerce-shell:auth-token` | -- | Reads `orderId` from `window.location.pathname` | -- |
 | **Post Feed** | -- | -- | -- | -- | -- | -- |
 | **Mock Data Service** | -- | Serves all API endpoints | -- | -- | Reads filter/sort query params | -- |

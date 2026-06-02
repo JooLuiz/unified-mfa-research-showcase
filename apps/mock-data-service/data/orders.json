@@ -73,5 +73,41 @@
       "country": "USA"
     },
     "placedAt": "2026-05-14T02:29:18.973Z"
+  },
+  {
+    "id": "order-mpq0wylv-j2mdx0",
+    "userId": "u-01",
+    "items": [
+      {
+        "productId": "p-02",
+        "name": "Ergonomic Office Chair",
+        "quantity": 1,
+        "unitPrice": 289.99
+      },
+      {
+        "productId": "p-03",
+        "name": "Mechanical Wireless Keyboard",
+        "quantity": 1,
+        "unitPrice": 120.5
+      },
+      {
+        "productId": "p-07",
+        "name": "4K Ultra-Wide Monitor",
+        "quantity": 1,
+        "unitPrice": 450
+      }
+    ],
+    "subtotal": 860.49,
+    "discountAmount": 0,
+    "totalAmount": 860.49,
+    "appliedCoupon": null,
+    "shippingAddress": {
+      "street": "123 Maple Street",
+      "city": "Austin",
+      "state": "TX",
+      "postalCode": "73301",
+      "country": "USA"
+    },
+    "placedAt": "2026-05-28T21:47:06.931Z"
   }
 ]

@@ -34,6 +34,7 @@ module.exports = {
       filename: "remoteEntry.js",
       exposes: {
         "./ProductCard": "./src/product-card.js",
+        "./ProductCardElement": "./src/product-card-element.js",
       },
       shared: {
         vue: {
