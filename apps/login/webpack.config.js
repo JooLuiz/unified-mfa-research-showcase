@@ -57,6 +57,10 @@ module.exports = {
           singleton: true,
           requiredVersion: "^18.3.1",
         },
+        "event-mesh/mesh": {
+          singleton: true,
+          requiredVersion: false,
+        },
       },
     }),
     new HtmlWebpackPlugin({

@@ -9,6 +9,7 @@ import {
   rememberPostLoginRedirect,
   refreshCurrentUserFromApi,
 } from "./utils/authActions";
+import { configureMesh } from "event-mesh/mesh";
 
 import loadRemoteModules from "./utils/loadRemoteModules";
 import loadMockData from "./utils/loadData";
@@ -51,6 +52,14 @@ const appState = {
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
 const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
+
+function configureApplicationMesh() {
+  configureMesh({
+    gatewayUrl: "ws://localhost",
+    gatewayPort: 3004,
+    enableWebSocket: true,
+  });
+}
 
 function setGlobalCartVariable() {
   window.__APP_SHELL_CART__ = appState.cartItems;
@@ -234,6 +243,7 @@ window.addEventListener("cart:add-item", (event) => {
 });
 
 async function bootstrap() {
+  configureApplicationMesh();
   readStoredPLPFilters(appState);
   readStoredAuth(appState);
   await loadMockData(appState);

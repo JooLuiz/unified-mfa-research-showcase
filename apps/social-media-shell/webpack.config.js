@@ -4,7 +4,7 @@ const { ModuleFederationPlugin } = require("webpack").container;
 
 module.exports = {
   mode: "development",
-  entry: path.resolve(__dirname, "src/main.js"),
+  entry: path.resolve(__dirname, "src/index.js"),
   output: {
     publicPath: "auto",
     clean: true,
@@ -40,6 +40,12 @@ module.exports = {
         account: "account@http://localhost:4310/remoteEntry.js",
         login: "login@http://localhost:4311/remoteEntry.js",
         social_media_posts: "social_media_posts@http://localhost:4312/remoteEntry.js",
+      },
+      shared: {
+        "event-mesh/mesh": {
+          singleton: true,
+          requiredVersion: false,
+        },
       },
     }),
     new HtmlWebpackPlugin({

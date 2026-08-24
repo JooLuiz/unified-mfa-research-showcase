@@ -55,6 +55,10 @@ module.exports = {
         "@angular/platform-browser": { singleton: true },
         rxjs: { singleton: true },
         "zone.js": { singleton: true },
+        "event-mesh/mesh": {
+          singleton: true,
+          requiredVersion: false,
+        },
       },
     }),
     new AngularWebpackPlugin({

@@ -10,6 +10,17 @@ const dataDirectory = path.resolve(__dirname, "../data");
 app.use(cors());
 app.use(express.json());
 
+async function configureAndStartEventGateway() {
+  const gatewayModule = await import("event-mesh/gateway");
+  const gateway = gatewayModule.default;
+  const { configureGateway } = gatewayModule;
+  configureGateway({
+    gatewayPort: 3004,
+    peerRebroadcastPolicy: "perMessage",
+  });
+  return gateway.start();
+}
+
 async function readJsonFile(fileName) {
   const filePath = path.join(dataDirectory, fileName);
   const fileContent = await fs.readFile(filePath, "utf8");
@@ -558,8 +569,17 @@ app.get("/api/orders/:orderId", async (request, response) => {
   }
 });
 
-app.listen(port, () => {
-  const startupMessage = `mock-data-service running on http://localhost:${port}`;
-  console.log("startupMessage");
-  console.log(startupMessage);
+async function startServer() {
+  await configureAndStartEventGateway();
+  app.listen(port, () => {
+    const startupMessage = `mock-data-service running on http://localhost:${port}`;
+    console.log("startupMessage");
+    console.log(startupMessage);
+  });
+}
+
+startServer().catch((error) => {
+  console.error("startServer - error");
+  console.error(error);
+  process.exitCode = 1;
 });

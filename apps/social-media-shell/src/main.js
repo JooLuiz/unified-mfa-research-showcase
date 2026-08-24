@@ -27,6 +27,7 @@ import {
   loginPageApp,
   accountPageApp,
 } from "./utils/pageApps";
+import { configureMesh } from "event-mesh/mesh";
 
 const appState = {
   posts: [],
@@ -51,6 +52,14 @@ const PAGE_APP_NAMES = [
   LOGIN_PAGE_APP_NAME,
   ACCOUNT_PAGE_APP_NAME,
 ];
+
+function configureApplicationMesh() {
+  configureMesh({
+    gatewayUrl: "ws://localhost",
+    gatewayPort: 3004,
+    enableWebSocket: true,
+  });
+}
 
 function activeOnExactPath(targetPath) {
   return function activeWhen(currentLocation) {
@@ -146,6 +155,7 @@ function applyInitialAuthGuard() {
 }
 
 async function bootstrap() {
+  configureApplicationMesh();
   readStoredAuth(appState);
   await loadMockData(appState);
   if (appState.authToken) {
