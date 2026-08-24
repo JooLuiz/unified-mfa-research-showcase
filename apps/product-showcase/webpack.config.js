@@ -45,7 +45,7 @@ module.exports = {
         product_card: "product_card@http://localhost:4303/remoteEntry.js",
       },
       exposes: {
-        "./ProductShowcaseElement": "./src/product-showcase-element.ts",
+        "./ProductShowcaseElement": "./src/custom-element-adapter.ts",
       },
       shared: {
         "@angular/common": { singleton: true },

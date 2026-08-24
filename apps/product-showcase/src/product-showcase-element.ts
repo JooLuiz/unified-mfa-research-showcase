@@ -1,12 +1,19 @@
+/**
+ * Angular component behind the angular-product-showcase custom element.
+ * Role: Owns showcase display state (loading, error, collapse) and delegates loading and card mounting.
+ * Not in this file: Showcase HTTP (src/showcase-loader.ts), card slot mounting (src/product-card-mounter.ts),
+ *   or custom element registration (src/custom-element-adapter.ts).
+ * Key dependencies: src/showcase-types.ts.
+ * See also: src/custom-element-adapter.ts (host-facing mount API).
+ */
+
 import "@angular/compiler";
 import {
   AfterViewInit,
-  ApplicationRef,
   ChangeDetectorRef,
   Component,
   ElementRef,
   HostBinding,
-  Injector,
   Input,
   OnChanges,
   OnDestroy,
@@ -15,48 +22,19 @@ import {
   ViewChildren,
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { createCustomElement } from "@angular/elements";
-import { createApplication } from "@angular/platform-browser";
 import { Subscription } from "rxjs";
 import "./styles.css";
 import type {
-  MountProductCard,
-  MountProductCardProps,
   Product,
   ProductShowcaseConfiguration,
-  ProductShowcaseElementInstance,
   Showcase,
 } from "./showcase-types";
-
-const customElementName = "angular-product-showcase";
-
-let showcaseElementsApplicationPromise: Promise<ApplicationRef> | null = null;
-let showcaseRegistrationPromise: Promise<void> | null = null;
-
-const getShowcaseElementsApplication = (): Promise<ApplicationRef> => {
-  if (!showcaseElementsApplicationPromise) {
-    showcaseElementsApplicationPromise = createApplication();
-  }
-  return showcaseElementsApplicationPromise;
-};
-
-async function fetchShowcaseById(
-  apiBaseUrl: string,
-  showcaseId: string,
-  signal: AbortSignal,
-): Promise<Showcase> {
-  const response = await fetch(`${apiBaseUrl}/showcases/${showcaseId}`, { signal });
-  if (!response.ok) {
-    throw new Error(
-      `fetchShowcaseById - request failed: ${response.status} ${response.statusText}`,
-    );
-  }
-  return response.json();
-}
+import { fetchShowcaseById, ShowcaseRequestTracker } from "./showcase-loader";
+import { ProductCardSlotMounter } from "./product-card-mounter";
 
 @Component({
   standalone: true,
-  selector: customElementName,
+  selector: "angular-product-showcase",
   imports: [CommonModule],
   template: `
     <section class="showcase-shell">
@@ -95,7 +73,7 @@ async function fetchShowcaseById(
     </section>
   `,
 })
-class ProductShowcaseElementComponent
+export class ProductShowcaseElementComponent
   implements AfterViewInit, OnChanges, OnDestroy
 {
   @Input() config: ProductShowcaseConfiguration = {};
@@ -111,12 +89,10 @@ class ProductShowcaseElementComponent
   private hasInitializedCollapsedState = false;
 
   private slotChangesSubscription?: Subscription;
-  private cardCleanupFunctions: Array<() => void> = [];
+  private readonly cardSlotMounter = new ProductCardSlotMounter();
+  private readonly requestTracker = new ShowcaseRequestTracker();
   private hasViewInitialized = false;
   private isRenderScheduled = false;
-  private activeAbortController?: AbortController;
-  private lastLoadedShowcaseId?: string;
-  private lastLoadedApiBaseUrl?: string;
 
   constructor(private readonly changeDetectorRef: ChangeDetectorRef) {}
 
@@ -192,11 +168,8 @@ class ProductShowcaseElementComponent
 
   ngOnDestroy(): void {
     this.slotChangesSubscription?.unsubscribe();
-    this.cleanupCardMounts();
-    if (this.activeAbortController) {
-      this.activeAbortController.abort();
-      this.activeAbortController = undefined;
-    }
+    this.cardSlotMounter.cleanup();
+    this.requestTracker.abort();
   }
 
   private loadShowcaseIfNeeded(): void {
@@ -218,27 +191,15 @@ class ProductShowcaseElementComponent
       this.showcaseData = null;
       this.isLoading = false;
       this.hasLoadError = false;
-      this.lastLoadedShowcaseId = undefined;
-      this.lastLoadedApiBaseUrl = undefined;
+      this.requestTracker.reset();
       return;
     }
 
-    if (
-      this.lastLoadedShowcaseId === showcaseId &&
-      this.lastLoadedApiBaseUrl === apiBaseUrl
-    ) {
+    if (this.requestTracker.hasLoaded(showcaseId, apiBaseUrl)) {
       return;
     }
 
-    this.lastLoadedShowcaseId = showcaseId;
-    this.lastLoadedApiBaseUrl = apiBaseUrl;
-
-    if (this.activeAbortController) {
-      this.activeAbortController.abort();
-    }
-
-    const abortController = new AbortController();
-    this.activeAbortController = abortController;
+    const abortController = this.requestTracker.begin(showcaseId, apiBaseUrl);
     this.isLoading = true;
     this.hasLoadError = false;
 
@@ -277,127 +238,27 @@ class ProductShowcaseElementComponent
     });
   }
 
-  private async resolveMountProductCard(): Promise<MountProductCard | null> {
-    if (typeof this.config.mountProductCard === "function") {
-      return this.config.mountProductCard;
-    }
-
-    try {
-      const productCardModule = await import("product_card/ProductCard");
-      return productCardModule.mountProductCard;
-    } catch (importError) {
-      console.warn("resolveMountProductCard - importError");
-      console.warn(importError);
-      return null;
-    }
-  }
-
   private async renderCards(): Promise<void> {
-    this.cleanupCardMounts();
-
     if (!this.productSlots) {
+      this.cardSlotMounter.cleanup();
       return;
     }
 
-    const mountProductCard = await this.resolveMountProductCard();
-    if (typeof mountProductCard !== "function") {
-      return;
-    }
-
-    const fullProducts = this.fullProducts;
-    const hasFullProducts = fullProducts.length > 0;
-    const apiBaseUrl = this.config.apiBaseUrl;
-
-    if (!hasFullProducts && !apiBaseUrl) {
-      return;
-    }
-
-    const slotElements = this.productSlots.toArray();
-    slotElements.forEach((slotElementRef, index) => {
-      const cardProps: MountProductCardProps = {
+    await this.cardSlotMounter.mountCards(
+      this.productSlots
+        .toArray()
+        .map((slotElementRef) => slotElementRef.nativeElement),
+      {
+        products: this.fullProducts,
+        productIds: this.productIds,
+        apiBaseUrl: this.config.apiBaseUrl,
         actionLabel: this.config.actionLabel,
         hideQuantity: this.config.hideQuantity,
         variant: this.isModal ? "compact" : "default",
+        mountProductCard: this.config.mountProductCard,
         onProductClick: this.config.onProductClick,
         onAddToCart: this.config.onAddToCart,
-      };
-
-      if (hasFullProducts) {
-        const product = fullProducts[index];
-        if (!product) {
-          return;
-        }
-        cardProps.product = product;
-      } else {
-        const productId = this.productIds[index];
-        if (!productId) {
-          return;
-        }
-        cardProps.productId = productId;
-        cardProps.apiBaseUrl = apiBaseUrl;
-      }
-
-      const cleanupValue = mountProductCard(slotElementRef.nativeElement, cardProps);
-
-      if (typeof cleanupValue === "function") {
-        this.cardCleanupFunctions.push(cleanupValue);
-      }
-    });
+      },
+    );
   }
-
-  private cleanupCardMounts(): void {
-    this.cardCleanupFunctions.forEach((cleanupFunction) => {
-      cleanupFunction();
-    });
-    this.cardCleanupFunctions = [];
-  }
-}
-
-const ensureProductShowcaseElementRegistered = (): Promise<void> => {
-  if (customElements.get(customElementName)) {
-    return Promise.resolve();
-  }
-
-  if (!showcaseRegistrationPromise) {
-    showcaseRegistrationPromise = getShowcaseElementsApplication().then((applicationRef) => {
-      if (customElements.get(customElementName)) {
-        return;
-      }
-
-      const customElementConstructor = createCustomElement(ProductShowcaseElementComponent, {
-        injector: applicationRef.injector as Injector,
-      });
-      customElements.define(customElementName, customElementConstructor);
-    });
-  }
-
-  return showcaseRegistrationPromise;
-};
-
-export function registerProductShowcaseElement(): void {
-  void ensureProductShowcaseElementRegistered();
-}
-
-export function mountProductShowcase(
-  containerElement: HTMLElement,
-  props: ProductShowcaseConfiguration,
-): () => void {
-  let isUnmounted = false;
-
-  const mountPromise = ensureProductShowcaseElementRegistered().then(() => {
-    if (isUnmounted) {
-      return;
-    }
-
-    const showcaseElement = document.createElement(customElementName) as ProductShowcaseElementInstance;
-    containerElement.appendChild(showcaseElement);
-    showcaseElement.config = props;
-  });
-
-  return () => {
-    isUnmounted = true;
-    void mountPromise.finally(() => {
-      containerElement.innerHTML = "";
-    });
-  };
 }

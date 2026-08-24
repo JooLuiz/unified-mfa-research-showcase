@@ -1,10 +1,17 @@
+/**
+ * Angular component behind the product details page.
+ * Role: Owns product display state (loading, missing id, quantity) and the similar-products mount lifecycle.
+ * Not in this file: Product HTTP and abort bookkeeping (src/product-loader.ts) or the mount adapter
+ *   (src/product-details-adapter.ts).
+ * Key dependencies: src/product-details.types.ts.
+ * See also: src/product-details-adapter.ts (host-facing mount API).
+ */
+
 import "@angular/compiler";
 import {
   AfterViewInit,
-  ApplicationRef,
   ChangeDetectorRef,
   Component,
-  ComponentRef,
   ElementRef,
   EventEmitter,
   Input,
@@ -15,39 +22,17 @@ import {
   ViewChild,
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { createApplication } from "@angular/platform-browser";
 import "./styles.css";
-
-type Product = {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  similarProducts?: string[];
-};
-
-type AddToCartPayload = {
-  productId: string;
-  quantity: number;
-};
-
-type MountSimilarProductsProps = {
-  title: string;
-  productIds: string[];
-  apiBaseUrl: string;
-};
-
-type MountSimilarProducts = (
-  containerElement: HTMLElement,
-  props: MountSimilarProductsProps,
-) => (() => void) | void;
-
-type ProductDetailsProps = {
-  product?: Product;
-  apiBaseUrl?: string;
-  onAddToCart?: (payload: AddToCartPayload) => void;
-  mountSimilarProducts: MountSimilarProducts;
-};
+import type {
+  AddToCartPayload,
+  MountSimilarProducts,
+  Product,
+} from "./product-details.types";
+import {
+  fetchProductById,
+  ProductRequestTracker,
+  readProductIdFromQueryParams,
+} from "./product-loader";
 
 const normalizeQuantity = (nextQuantity: number): number => {
   const parsedQuantity = Number(nextQuantity);
@@ -56,27 +41,6 @@ const normalizeQuantity = (nextQuantity: number): number => {
   }
   return Math.floor(parsedQuantity);
 };
-
-function readProductIdFromQueryParams(): string | null {
-  const queryParameters = new URLSearchParams(window.location.search);
-  const rawValue = queryParameters.get("productId");
-  const normalizedValue = typeof rawValue === "string" ? rawValue.trim() : "";
-  return normalizedValue ? normalizedValue : null;
-}
-
-async function fetchProductById(
-  apiBaseUrl: string,
-  productId: string,
-  signal: AbortSignal,
-): Promise<Product> {
-  const response = await fetch(`${apiBaseUrl}/products/${productId}`, { signal });
-  if (!response.ok) {
-    throw new Error(
-      `fetchProductById - request failed: ${response.status} ${response.statusText}`,
-    );
-  }
-  return response.json();
-}
 
 @Component({
   standalone: true,
@@ -131,7 +95,7 @@ async function fetchProductById(
     </ng-template>
   `,
 })
-class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
+export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() inputProduct: Product | null = null;
 
   @Input() apiBaseUrl: string | null = null;
@@ -155,11 +119,7 @@ class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   private cleanupSimilarProducts?: () => void;
 
-  private activeAbortController?: AbortController;
-
-  private lastLoadedProductId?: string;
-
-  private lastLoadedApiBaseUrl?: string;
+  private readonly requestTracker = new ProductRequestTracker();
 
   constructor(private readonly changeDetectorRef: ChangeDetectorRef) {}
 
@@ -178,10 +138,7 @@ class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   ngOnDestroy(): void {
     this.cleanupSimilarProductsView();
-    if (this.activeAbortController) {
-      this.activeAbortController.abort();
-      this.activeAbortController = undefined;
-    }
+    this.requestTracker.abort();
   }
 
   decreaseQuantity(): void {
@@ -213,15 +170,11 @@ class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   private loadProductIfNeeded(): void {
     if (this.inputProduct) {
-      if (this.activeAbortController) {
-        this.activeAbortController.abort();
-        this.activeAbortController = undefined;
-      }
+      this.requestTracker.abort();
+      this.requestTracker.reset();
       this.product = this.inputProduct;
       this.isLoading = false;
       this.isMissingProductId = false;
-      this.lastLoadedProductId = undefined;
-      this.lastLoadedApiBaseUrl = undefined;
       if (this.hasViewInitialized) {
         queueMicrotask(() => this.renderSimilarProducts());
       }
@@ -235,30 +188,18 @@ class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
       this.product = null;
       this.isLoading = false;
       this.isMissingProductId = !currentProductId;
-      this.lastLoadedProductId = undefined;
-      this.lastLoadedApiBaseUrl = undefined;
+      this.requestTracker.reset();
       if (this.hasViewInitialized) {
         queueMicrotask(() => this.renderSimilarProducts());
       }
       return;
     }
 
-    if (
-      this.lastLoadedProductId === currentProductId &&
-      this.lastLoadedApiBaseUrl === currentApiBaseUrl
-    ) {
+    if (this.requestTracker.hasLoaded(currentProductId, currentApiBaseUrl)) {
       return;
     }
 
-    this.lastLoadedProductId = currentProductId;
-    this.lastLoadedApiBaseUrl = currentApiBaseUrl;
-
-    if (this.activeAbortController) {
-      this.activeAbortController.abort();
-    }
-
-    const abortController = new AbortController();
-    this.activeAbortController = abortController;
+    const abortController = this.requestTracker.begin(currentProductId, currentApiBaseUrl);
     this.isLoading = true;
     this.product = null;
     this.isMissingProductId = false;
@@ -330,39 +271,4 @@ class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.cleanupSimilarProducts();
     this.cleanupSimilarProducts = undefined;
   }
-}
-
-export function mountProductDetails(
-  containerElement: HTMLElement,
-  props: ProductDetailsProps,
-): () => void {
-  let applicationRef: ApplicationRef | null = null;
-  let componentRef: ComponentRef<ProductDetailsComponent> | null = null;
-  let isUnmounted = false;
-
-  const bootstrapPromise = createApplication().then((nextApplicationRef) => {
-    if (isUnmounted) {
-      nextApplicationRef.destroy();
-      return;
-    }
-
-    applicationRef = nextApplicationRef;
-    componentRef = applicationRef.bootstrap(ProductDetailsComponent, containerElement);
-    componentRef.setInput("inputProduct", props.product ?? null);
-    componentRef.setInput("apiBaseUrl", props.apiBaseUrl ?? null);
-    componentRef.setInput("mountSimilarProducts", props.mountSimilarProducts);
-
-    componentRef.instance.addToCart.subscribe((payload) => {
-      props.onAddToCart?.(payload);
-    });
-  });
-
-  return () => {
-    isUnmounted = true;
-    void bootstrapPromise.then(() => {
-      componentRef?.destroy();
-      applicationRef?.destroy();
-      containerElement.innerHTML = "";
-    });
-  };
 }
