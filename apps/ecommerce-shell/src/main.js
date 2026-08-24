@@ -12,6 +12,7 @@ import {
 
 import loadRemoteModules from "./utils/loadRemoteModules";
 import loadMockData from "./utils/loadData";
+import { mountNotificationCenter } from "./notifications/notificationCenter";
 
 import { mountHeaderAndFooter } from "./utils/mountActions";
 
@@ -234,6 +235,11 @@ window.addEventListener("cart:add-item", (event) => {
 });
 
 async function bootstrap() {
+  const notificationMount = document.getElementById("notificationMount");
+  if (notificationMount) {
+    mountNotificationCenter(notificationMount);
+  }
+
   readStoredPLPFilters(appState);
   readStoredAuth(appState);
   await loadMockData(appState);

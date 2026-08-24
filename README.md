@@ -111,6 +111,7 @@ Social media shell (`http://localhost:4500`):
 - **Web Components** - Header (React), Footer (Vue), Product Showcase (Angular), Formulary Sent (Vue) are exposed as custom HTML elements.
 - **Iframes** - FAQ formulary (Vue) and Empty Checkout (Angular) are isolated in iframe pages and communicate via `window.postMessage`.
 - **Event-Emitter** - Shells dispatch and listen to native `CustomEvent` channels (`cart:add-item`, `cart:updateGlobalCart`, `auth:changed`, `auth:logout-request`, `host:navigate`, `host:logout`, `global:renderApp`).
+- **Local Notifications** - Each shell owns a page-local `CustomEvent` notification bus and persistent toast center for HTTP command outcomes. These notifications do not cross browser tabs or reach the backend.
 - **API-Based** - Both shells fetch data from the mock service via the native `fetch` API.
 - **Web Storage** - PLP filters, auth tokens, and post-login redirects are persisted in `localStorage`/`sessionStorage`.
 - **Global State** - Each shell keeps an in-memory `appState` object and mirrors the cart to `window.__APP_SHELL_CART__`.

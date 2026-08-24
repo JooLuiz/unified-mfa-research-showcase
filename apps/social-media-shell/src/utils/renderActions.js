@@ -7,6 +7,7 @@ import {
 } from "./authActions";
 import { ECOMMERCE_SHELL_BASE_URL, MOCK_API_BASE_URL } from "./constants";
 import fetchJson from "./fetchJson";
+import { notify } from "../notifications/notificationBus";
 
 const TRENDING_LIKES_THRESHOLD = 100;
 const POSTS_PER_BANNER_GROUP = 4;
@@ -117,8 +118,13 @@ function mountNewPostFormularyWithProps(containerElement, appState, modules) {
         content: payload.content,
         imageUrl: payload.imageUrl,
         authorId: appState.currentUser?.id,
-      }).then((createdPost) => {
-        if (createdPost) {
+      }).then((postResult) => {
+        if (postResult.ok) {
+          notify({
+            type: "success",
+            title: "Post published",
+            message: "Your post is now visible in the community feed.",
+          });
           window.dispatchEvent(new CustomEvent("global:renderApp"));
         }
       });
@@ -226,9 +232,22 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
   }
 }
 
+/**
+ * Persists a new post and retains the current feed when the command fails.
+ *
+ * @param {object} appState - Shell state containing the authenticated session and posts.
+ * @param {object} postPayload - Content values accepted by the post endpoint.
+ * @returns {Promise<{ ok: boolean, post?: object }>} Created post result.
+ * @sideEffects Adds the created post to shell state and emits a local failure notification.
+ */
 async function persistNewPost(appState, postPayload) {
   if (!appState.authToken) {
-    return null;
+    notify({
+      type: "error",
+      title: "Post not published",
+      message: "Please sign in and try again.",
+    });
+    return { ok: false };
   }
   try {
     const createdPost = await fetchJson(`${MOCK_API_BASE_URL}/posts`, {
@@ -240,11 +259,16 @@ async function persistNewPost(appState, postPayload) {
       body: JSON.stringify(postPayload),
     });
     appState.posts = [createdPost, ...appState.posts];
-    return createdPost;
+    return { ok: true, post: createdPost };
   } catch (error) {
     console.warn("persistNewPost - error");
     console.warn(error);
-    return null;
+    notify({
+      type: "error",
+      title: "Post not published",
+      message: "Your post was not saved. Please try again.",
+    });
+    return { ok: false };
   }
 }
 
@@ -264,6 +288,11 @@ async function renderLoginPage(appState, pageMount, modules, activeCleanupFuncti
       redirectAfterLogin: consumePostLoginRedirect(),
       onLoginSuccess: ({ token, user, redirectAfterLogin }) => {
         setAuthSession(appState, { token, user });
+        notify({
+          type: "success",
+          title: "Signed in",
+          message: `Welcome back, ${user.fullName || user.username}.`,
+        });
         const targetPath = redirectAfterLogin || "/account";
         navigate(targetPath);
       },
@@ -374,9 +403,17 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
   );
 }
 
+/**
+ * Persists an account update and reports its HTTP outcome to the shell notifier.
+ *
+ * @param {object} appState - Shell state containing the authenticated session.
+ * @param {object} updatePayload - Profile or address fields accepted by the account endpoint.
+ * @returns {Promise<{ ok: boolean }>} Whether the server accepted the update.
+ * @sideEffects Updates the persisted session and emits a local notification.
+ */
 async function persistAccountUpdate(appState, updatePayload) {
   if (!appState.authToken) {
-    return;
+    return { ok: false };
   }
   try {
     const updatedUser = await fetchJson(`${MOCK_API_BASE_URL}/users/me`, {
@@ -391,9 +428,22 @@ async function persistAccountUpdate(appState, updatePayload) {
       token: appState.authToken,
       user: updatedUser,
     });
+    const isAddressUpdate = Object.hasOwn(updatePayload, "address");
+    notify({
+      type: "success",
+      title: isAddressUpdate ? "Address updated" : "Profile updated",
+      message: "Your account changes have been saved.",
+    });
+    return { ok: true };
   } catch (error) {
     console.warn("persistAccountUpdate - error");
     console.warn(error);
+    notify({
+      type: "error",
+      title: "Account update failed",
+      message: "Your changes were not saved. Please try again.",
+    });
+    return { ok: false };
   }
 }
 

@@ -14,6 +14,7 @@ import {
 } from "./authActions";
 import { MOCK_API_BASE_URL, FORMULARY_REMOTE_BASE_URL } from "./constants";
 import fetchJson from "./fetchJson";
+import { notify } from "../notifications/notificationBus";
 
 const FAQ_FRAME_ID = "faq-formulary";
 
@@ -249,7 +250,7 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
     modules.mountCheckoutSummary(checkoutSummaryMount, {
       subtotal,
       discountAmount,
-      onPlaceOrder: () => {
+      onPlaceOrder: async () => {
         const orderItems = appState.cartItems.map((cartItem) => {
           const product = appState.productsById[cartItem.productId];
           return {
@@ -261,7 +262,7 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
         });
         const totalAmount = subtotal - discountAmount;
 
-        void persistOrder(appState, {
+        const orderResult = await persistOrder(appState, {
           items: orderItems,
           subtotal,
           discountAmount,
@@ -270,9 +271,23 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
           shippingAddress: appState.currentUser?.address || null,
         });
 
+        if (!orderResult.ok) {
+          notify({
+            type: "error",
+            title: "Order not placed",
+            message: "Your cart is still available. Please try again.",
+          });
+          return;
+        }
+
         appState.cartItems = [];
         appState.appliedCoupon = null;
         window.dispatchEvent(new CustomEvent("cart:updateGlobalCart"));
+        notify({
+          type: "success",
+          title: "Order placed",
+          message: "Your order has been created successfully.",
+        });
         navigate("/order-placed");
       },
     }),
@@ -320,6 +335,11 @@ async function renderLoginPage(appState, pageMount, modules, activeCleanupFuncti
       redirectAfterLogin: consumePostLoginRedirect(),
       onLoginSuccess: ({ token, user, redirectAfterLogin }) => {
         setAuthSession(appState, { token, user });
+        notify({
+          type: "success",
+          title: "Signed in",
+          message: `Welcome back, ${user.fullName || user.username}.`,
+        });
         const targetPath = redirectAfterLogin || "/";
         navigate(targetPath);
       },
@@ -500,9 +520,17 @@ async function renderOrderDetailsPage(appState, pageMount, modules, activeCleanu
   );
 }
 
+/**
+ * Persists an account update and reports its HTTP outcome to the shell notifier.
+ *
+ * @param {object} appState - Shell state containing the authenticated session.
+ * @param {object} updatePayload - Profile or address fields accepted by the account endpoint.
+ * @returns {Promise<{ ok: boolean }>} Whether the server accepted the update.
+ * @sideEffects Updates the persisted session and emits a local notification.
+ */
 async function persistAccountUpdate(appState, updatePayload) {
   if (!appState.authToken) {
-    return;
+    return { ok: false };
   }
   try {
     const updatedUser = await fetchJson(`${MOCK_API_BASE_URL}/users/me`, {
@@ -517,9 +545,22 @@ async function persistAccountUpdate(appState, updatePayload) {
       token: appState.authToken,
       user: updatedUser,
     });
+    const isAddressUpdate = Object.hasOwn(updatePayload, "address");
+    notify({
+      type: "success",
+      title: isAddressUpdate ? "Address updated" : "Profile updated",
+      message: "Your account changes have been saved.",
+    });
+    return { ok: true };
   } catch (error) {
     console.warn("persistAccountUpdate - error");
     console.warn(error);
+    notify({
+      type: "error",
+      title: "Account update failed",
+      message: "Your changes were not saved. Please try again.",
+    });
+    return { ok: false };
   }
 }
 
@@ -541,9 +582,17 @@ async function persistFaqAnswerToApi(appState, faqPayload) {
   }
 }
 
+/**
+ * Persists an order before checkout clears local cart state.
+ *
+ * @param {object} appState - Shell state containing the authenticated session.
+ * @param {object} orderPayload - Order values accepted by the order endpoint.
+ * @returns {Promise<{ ok: boolean }>} Whether the server accepted the order.
+ * @sideEffects Performs the HTTP order command.
+ */
 async function persistOrder(appState, orderPayload) {
   if (!appState.authToken) {
-    return;
+    return { ok: false };
   }
   try {
     await fetchJson(`${MOCK_API_BASE_URL}/orders`, {
@@ -554,9 +603,11 @@ async function persistOrder(appState, orderPayload) {
       },
       body: JSON.stringify(orderPayload),
     });
+    return { ok: true };
   } catch (error) {
     console.warn("persistOrder - error");
     console.warn(error);
+    return { ok: false };
   }
 }
 
