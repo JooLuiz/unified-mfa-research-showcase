@@ -19,6 +19,7 @@ function buildPublicUser(userRecord) {
     email: userRecord.email,
     fullName: userRecord.fullName,
     gender: userRecord.gender,
+    role: userRecord.role || "customer",
     address: userRecord.address,
     avatarUrl: userRecord.avatarUrl,
   };
@@ -55,4 +56,14 @@ function extractUserIdFromToken(authorizationHeader) {
   return tokenSegments[1] || null;
 }
 
-module.exports = { buildPublicUser, buildAuthToken, extractUserIdFromToken };
+/**
+ * Reports whether a stored user record has the admin role.
+ *
+ * @param {object} userRecord - Full user record from users.json.
+ * @returns {boolean} True when the user is an admin.
+ */
+function isAdminUser(userRecord) {
+  return userRecord?.role === "admin";
+}
+
+module.exports = { buildPublicUser, buildAuthToken, extractUserIdFromToken, isAdminUser };
