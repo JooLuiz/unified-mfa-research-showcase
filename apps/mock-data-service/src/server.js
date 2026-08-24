@@ -17,6 +17,7 @@ const { createUserRouter } = require("./routes/userRoutes");
 const { createPostRouter } = require("./routes/postRoutes");
 const { createFaqRouter } = require("./routes/faqRoutes");
 const { createOrderRouter } = require("./routes/orderRoutes");
+const { createExportRouter } = require("./routes/exportRoutes");
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -36,6 +37,7 @@ app.use("/api", createUserRouter(jsonStore));
 app.use("/api", createPostRouter(jsonStore));
 app.use("/api", createFaqRouter(jsonStore));
 app.use("/api", createOrderRouter(jsonStore));
+app.use("/api", createExportRouter(jsonStore));
 
 app.listen(port, () => {
   const startupMessage = `mock-data-service running on http://localhost:${port}`;

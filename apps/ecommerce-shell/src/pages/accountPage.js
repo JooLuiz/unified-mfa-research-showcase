@@ -14,6 +14,8 @@ import {
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import fetchJson from "../utils/fetchJson";
 import { persistAccountUpdate } from "../commands/accountCommands";
+import { requestCsvExport } from "../exports/requestCsvExport";
+import { notify } from "../notifications/notificationBus";
 
 /**
  * Renders the account page with profile, address, and order list sections.
@@ -94,6 +96,9 @@ async function renderMyOrdersList(appState, ordersContainer, activeCleanupFuncti
           <h2 class="account-card-title">My Orders</h2>
           <p class="account-card-subtitle">Loading your orders...</p>
         </div>
+        <button id="exportOrdersButton" class="account-action-button" type="button">
+          Export CSV
+        </button>
       </header>
       <div id="myOrdersListMount"></div>
     </section>
@@ -101,6 +106,33 @@ async function renderMyOrdersList(appState, ordersContainer, activeCleanupFuncti
 
   const myOrdersListMount = ordersContainer.querySelector("#myOrdersListMount");
   const subtitleElement = ordersContainer.querySelector(".account-card-subtitle");
+  const exportOrdersButton = ordersContainer.querySelector("#exportOrdersButton");
+  const handleOrdersExport = async () => {
+    const exportResult = await requestCsvExport({
+      endpointPath: "/exports/orders.csv",
+      fileName: "my-orders.csv",
+      authToken: appState.authToken,
+    });
+    notify(
+      exportResult.ok
+        ? {
+            type: "success",
+            title: "Orders exported",
+            message: "Your order history has been downloaded as a CSV file.",
+          }
+        : {
+            type: "error",
+            title: "Order export failed",
+            message: "Your order history could not be exported. Please try again.",
+          },
+    );
+  };
+  if (exportOrdersButton) {
+    exportOrdersButton.addEventListener("click", handleOrdersExport);
+    activeCleanupFunctions.push(() => {
+      exportOrdersButton.removeEventListener("click", handleOrdersExport);
+    });
+  }
 
   let userOrders = [];
   try {

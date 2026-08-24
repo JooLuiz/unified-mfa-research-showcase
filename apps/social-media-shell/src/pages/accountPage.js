@@ -12,6 +12,8 @@ import {
   rememberPostLoginRedirect,
 } from "../utils/authActions";
 import { persistAccountUpdate } from "../commands/accountCommands";
+import { requestCsvExport } from "../exports/requestCsvExport";
+import { notify } from "../notifications/notificationBus";
 
 /**
  * Renders the account page with profile, address, and "My Posts" sections.
@@ -76,31 +78,56 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
     (post) => post.authorId === currentUserId,
   );
 
-  if (currentUserPosts.length === 0) {
-    accountPostsMount.innerHTML = `
-      <section class="account-card">
-        <header class="account-card-header">
-          <div>
-            <h2 class="account-card-title">My Posts</h2>
-            <p class="account-card-subtitle">You have not shared any posts yet.</p>
-          </div>
-        </header>
-      </section>
-    `;
-    return;
-  }
-
   accountPostsMount.innerHTML = `
     <section class="account-card">
       <header class="account-card-header">
         <div>
           <h2 class="account-card-title">My Posts</h2>
-          <p class="account-card-subtitle">${currentUserPosts.length} post${currentUserPosts.length === 1 ? "" : "s"} shared.</p>
+          <p class="account-card-subtitle">${
+            currentUserPosts.length === 0
+              ? "You have not shared any posts yet."
+              : `${currentUserPosts.length} post${currentUserPosts.length === 1 ? "" : "s"} shared.`
+          }</p>
         </div>
+        <button id="exportPostsButton" class="account-action-button" type="button">
+          Export CSV
+        </button>
       </header>
-      <div id="accountPostsFeedMount"></div>
+      ${currentUserPosts.length > 0 ? '<div id="accountPostsFeedMount"></div>' : ""}
     </section>
   `;
+  const exportPostsButton = accountPostsMount.querySelector("#exportPostsButton");
+  const handlePostsExport = async () => {
+    const exportResult = await requestCsvExport({
+      endpointPath: "/exports/posts.csv",
+      fileName: "my-posts.csv",
+      authToken: appState.authToken,
+    });
+    notify(
+      exportResult.ok
+        ? {
+            type: "success",
+            title: "Posts exported",
+            message: "Your posts have been downloaded as a CSV file.",
+          }
+        : {
+            type: "error",
+            title: "Post export failed",
+            message: "Your posts could not be exported. Please try again.",
+          },
+    );
+  };
+  if (exportPostsButton) {
+    exportPostsButton.addEventListener("click", handlePostsExport);
+    activeCleanupFunctions.push(() => {
+      exportPostsButton.removeEventListener("click", handlePostsExport);
+    });
+  }
+
+  if (currentUserPosts.length === 0) {
+    return;
+  }
+
   const accountPostsFeedMount = accountPostsMount.querySelector(
     "#accountPostsFeedMount",
   );
