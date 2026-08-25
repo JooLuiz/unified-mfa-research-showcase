@@ -6,6 +6,7 @@
     "password": "password123",
     "fullName": "Alice Parker",
     "gender": "female",
+    "role": "admin",
     "address": {
       "street": "123 Maple Street",
       "city": "Austin",
@@ -22,6 +23,7 @@
     "password": "password123",
     "fullName": "Bruno Silva",
     "gender": "male",
+    "role": "customer",
     "address": {
       "street": "Av. Paulista 1000",
       "city": "São Paulo",
@@ -38,6 +40,7 @@
     "password": "password123",
     "fullName": "Carla Nguyen",
     "gender": "non-binary",
+    "role": "customer",
     "address": {
       "street": "45 Queen Street",
       "city": "Toronto",

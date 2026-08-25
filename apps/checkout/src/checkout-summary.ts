@@ -17,6 +17,11 @@ type CheckoutSummaryProps = {
   onPlaceOrder?: () => void;
 };
 
+type CheckoutSummaryHandle = {
+  update: (totals: { subtotal: number; discountAmount: number }) => void;
+  unmount: () => void;
+};
+
 @Component({
   standalone: true,
   selector: "angular-checkout-summary",
@@ -69,7 +74,7 @@ class CheckoutSummaryComponent {
 export function mountCheckoutSummary(
   containerElement: HTMLElement,
   props: CheckoutSummaryProps,
-): () => void {
+): CheckoutSummaryHandle {
   let applicationRef: ApplicationRef | null = null;
   let componentRef: ComponentRef<CheckoutSummaryComponent> | null = null;
   let isUnmounted = false;
@@ -90,12 +95,23 @@ export function mountCheckoutSummary(
     });
   });
 
-  return () => {
-    isUnmounted = true;
-    void bootstrapPromise.then(() => {
-      componentRef?.destroy();
-      applicationRef?.destroy();
-      containerElement.innerHTML = "";
-    });
+  return {
+    update: ({ subtotal, discountAmount }) => {
+      void bootstrapPromise.then(() => {
+        if (!componentRef || isUnmounted) {
+          return;
+        }
+        componentRef.setInput("subtotal", subtotal);
+        componentRef.setInput("discountAmount", discountAmount);
+      });
+    },
+    unmount: () => {
+      isUnmounted = true;
+      void bootstrapPromise.then(() => {
+        componentRef?.destroy();
+        applicationRef?.destroy();
+        containerElement.innerHTML = "";
+      });
+    },
   };
 }

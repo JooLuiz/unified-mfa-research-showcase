@@ -7,7 +7,7 @@ module.exports = {
   mode: "development",
   entry: {
     main: path.resolve(__dirname, "src/index.ts"),
-    "checkout-empty": path.resolve(__dirname, "src/checkout-empty-page.ts"),
+    "checkout-empty": path.resolve(__dirname, "src/checkout-empty-entry.ts"),
   },
   output: {
     publicPath: "auto",

@@ -17,10 +17,12 @@
     "apps/account",
     "apps/login",
     "apps/social-media-posts",
-    "apps/order-details"
+    "apps/order-details",
+    "apps/admin-shell",
+    "packages/notifications"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace apps/mock-data-service\" \"npm run dev --workspace apps/global-layout/header\" \"npm run dev --workspace apps/global-layout/footer\" \"npm run dev --workspace apps/product-card\" \"npm run dev --workspace apps/product-showcase\" \"npm run dev --workspace apps/product-list-page\" \"npm run dev --workspace apps/product-details-page\" \"npm run dev --workspace apps/banners\" \"npm run dev --workspace apps/formulary\" \"npm run dev --workspace apps/checkout\" \"npm run dev --workspace apps/account\" \"npm run dev --workspace apps/login\" \"npm run dev --workspace apps/social-media-posts\" \"npm run dev --workspace apps/order-details\" \"npm run dev --workspace apps/ecommerce-shell\" \"npm run dev --workspace apps/social-media-shell\"",
+    "dev": "concurrently \"npm run dev --workspace apps/mock-data-service\" \"npm run dev --workspace apps/global-layout/header\" \"npm run dev --workspace apps/global-layout/footer\" \"npm run dev --workspace apps/product-card\" \"npm run dev --workspace apps/product-showcase\" \"npm run dev --workspace apps/product-list-page\" \"npm run dev --workspace apps/product-details-page\" \"npm run dev --workspace apps/banners\" \"npm run dev --workspace apps/formulary\" \"npm run dev --workspace apps/checkout\" \"npm run dev --workspace apps/account\" \"npm run dev --workspace apps/login\" \"npm run dev --workspace apps/social-media-posts\" \"npm run dev --workspace apps/order-details\" \"npm run dev --workspace apps/ecommerce-shell\" \"npm run dev --workspace apps/social-media-shell\" \"npm run dev --workspace apps/admin-shell\"",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "start": "npm run dev"

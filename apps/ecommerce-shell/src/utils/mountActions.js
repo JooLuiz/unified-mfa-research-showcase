@@ -2,9 +2,8 @@ import { getCartTotalValue, getCartItemCount } from "./cartActions";
 import { isAuthenticated } from "./authActions";
 import { navigate } from "./navigate";
 
-function mountHeaderAndFooter(appState, layoutMounts) {
-  const headerElement = document.createElement("react-header-mfe");
-  headerElement.state = {
+function buildHeaderState(appState) {
+  return {
     appType: "ecommerce",
     totalPrice: getCartTotalValue(appState),
     itemCount: getCartItemCount(appState),
@@ -12,6 +11,18 @@ function mountHeaderAndFooter(appState, layoutMounts) {
     currentUserName:
       appState.currentUser?.fullName || appState.currentUser?.username || "",
   };
+}
+
+function updateHeaderState(appState, headerElement) {
+  if (!headerElement) {
+    return;
+  }
+  headerElement.state = buildHeaderState(appState);
+}
+
+function mountHeaderAndFooter(appState, layoutMounts) {
+  const headerElement = document.createElement("react-header-mfe");
+  updateHeaderState(appState, headerElement);
   headerElement.addEventListener("host:navigate", (event) => {
     navigate(event.detail.path);
   });
@@ -26,6 +37,8 @@ function mountHeaderAndFooter(appState, layoutMounts) {
     "© 2026 Benchmark Micro Frontend Environment. All rights reserved.",
   );
   layoutMounts.footerMount.appendChild(footerElement);
+
+  return headerElement;
 }
 
-export { mountHeaderAndFooter };
+export { mountHeaderAndFooter, updateHeaderState };

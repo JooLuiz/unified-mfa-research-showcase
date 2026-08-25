@@ -9,8 +9,15 @@ const ECOMMERCE_NAV_LINKS = [
 ];
 
 const SOCIAL_NAV_LINKS = [{ path: "/posts", label: "Posts" }];
+const ADMIN_NAV_LINKS = [
+  { path: "/orders", label: "Orders" },
+  { path: "/posts", label: "Posts" },
+];
 
 function getNavigationLinks(appType) {
+  if (appType === "admin") {
+    return ADMIN_NAV_LINKS;
+  }
   if (appType === "social") {
     return SOCIAL_NAV_LINKS;
   }
@@ -18,6 +25,9 @@ function getNavigationLinks(appType) {
 }
 
 function getShellLabel(appType) {
+  if (appType === "admin") {
+    return "Admin";
+  }
   if (appType === "social") {
     return "Social Media";
   }
@@ -35,7 +45,7 @@ function HeaderView({
 }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const navigationLinks = getNavigationLinks(appType);
-  const isSocialShell = appType === "social";
+  const showsCartSummary = appType === "ecommerce";
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -155,7 +165,7 @@ function HeaderView({
             Log in
           </button>
         )}
-        {!isSocialShell && (
+        {showsCartSummary && (
           <>
             <button
               className="header-action cart-action"

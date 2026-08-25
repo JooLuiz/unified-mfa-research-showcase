@@ -21,6 +21,7 @@ import loadMockData from "./utils/loadData";
 import loadRemoteModules from "./utils/loadRemoteModules";
 import { navigate } from "./utils/navigate";
 import { createHeaderApp, createFooterApp } from "./utils/mountActions";
+import { mountNotificationCenter } from "./notifications/notificationCenter";
 import {
   feedPageApp,
   postsPageApp,
@@ -146,6 +147,11 @@ function applyInitialAuthGuard() {
 }
 
 async function bootstrap() {
+  const notificationMount = document.getElementById("notificationMount");
+  if (notificationMount) {
+    mountNotificationCenter(notificationMount);
+  }
+
   readStoredAuth(appState);
   await loadMockData(appState);
   if (appState.authToken) {
