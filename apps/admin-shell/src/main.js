@@ -1,4 +1,13 @@
+/**
+ * Boots the admin shell, its page routing, and local integration services.
+ * Role: Owns admin host lifecycle, authentication guards, mesh configuration, and page orchestration.
+ * Not in this file: Remote MFE implementation, API request details, or toast rendering.
+ * Key dependencies: event-mesh/mesh; notification and remote-module adapters.
+ * See also: src/utils/loadRemoteModules.js; src/notifications/notificationBus.js.
+ */
+
 import "./styles.css";
+import { configureMesh } from "event-mesh/mesh";
 
 import {
   readStoredAuth,
@@ -29,6 +38,20 @@ const appState = {
 
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
+
+/**
+ * Configures the admin host's mesh singleton before any consumer accesses it.
+ *
+ * @returns {void}
+ * @sideEffects Configures the browser WebSocket client for the local mesh gateway.
+ */
+function configureApplicationMesh() {
+  configureMesh({
+    gatewayUrl: "ws://localhost",
+    gatewayPort: 3004,
+    enableWebSocket: true,
+  });
+}
 
 function clearCurrentPage() {
   activeCleanupFunctions.forEach((cleanup) => {
@@ -156,6 +179,7 @@ window.addEventListener("auth:logout-request", () => {
 });
 
 async function bootstrap() {
+  configureApplicationMesh();
   const notificationMount = document.getElementById("notificationMount");
   if (notificationMount) {
     mountNotificationCenter(notificationMount);

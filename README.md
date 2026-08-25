@@ -18,26 +18,26 @@ The workspaces are organized by **business domain**, not by technology stack. A 
 
 ## Domain Micro Frontends
 
-| Domain | Stack | Port | Module Federation Name | Notes |
-| --- | --- | --- | --- | --- |
-| `apps/global-layout/header` | React | 4301 | `global_layout_header` | Header Web Component (`react-header-mfe`). |
-| `apps/global-layout/footer` | Vue | 4302 | `global_layout_footer` | Footer Web Component (`vue-footer-mfe`). |
-| `apps/product-card` | Vue | 4303 | `product_card` | Reusable card mounted by Product List, Showcase and PDP. |
-| `apps/product-showcase` | Angular | 4304 | `product_showcase` | Showcase Web Component that mounts Vue Product Cards. |
-| `apps/product-list-page` | React | 4305 | `product_list_page` | PLP with filters; mounts Vue Product Cards. |
-| `apps/product-details-page` | Angular | 4306 | `product_details_page` | PDP that mounts the Angular Product Showcase. |
-| `apps/banners` | React | 4307 | `banners` | Promotional Banner remote, reused across both shells. |
-| `apps/formulary` | Vue | 4308 | `formulary` | Agnostic iframe formulary (Vue) configured via `?type=faq` or `?type=post`, plus `vue-formulary-sent` Web Component. |
-| `apps/checkout` | Angular | 4309 | `checkout` | Checkout Items, Summary, Apply Coupon, plus Empty Checkout iframe page. |
-| `apps/account` | Vue | 4310 | `account` | Account Profile and Address components, reused across both shells. |
-| `apps/login` | React | 4311 | `login` | Login form, used to authenticate against the mock service. |
-| `apps/social-media-posts` | React | 4312 | `social_media_posts` | Post feed for the social media shell. |
-| `apps/order-details` | Vue | 4313 | `order_details` | Order details viewer used by the e-commerce shell `/order-details/{orderId}` route. |
+| Domain                      | Stack   | Port | Module Federation Name | Notes                                                                                                                |
+| --------------------------- | ------- | ---- | ---------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `apps/global-layout/header` | React   | 4301 | `global_layout_header` | Header Web Component (`react-header-mfe`).                                                                           |
+| `apps/global-layout/footer` | Vue     | 4302 | `global_layout_footer` | Footer Web Component (`vue-footer-mfe`).                                                                             |
+| `apps/product-card`         | Vue     | 4303 | `product_card`         | Reusable card mounted by Product List, Showcase and PDP.                                                             |
+| `apps/product-showcase`     | Angular | 4304 | `product_showcase`     | Showcase Web Component that mounts Vue Product Cards.                                                                |
+| `apps/product-list-page`    | React   | 4305 | `product_list_page`    | PLP with filters; mounts Vue Product Cards.                                                                          |
+| `apps/product-details-page` | Angular | 4306 | `product_details_page` | PDP that mounts the Angular Product Showcase.                                                                        |
+| `apps/banners`              | React   | 4307 | `banners`              | Promotional Banner remote, reused across both shells.                                                                |
+| `apps/formulary`            | Vue     | 4308 | `formulary`            | Agnostic iframe formulary (Vue) configured via `?type=faq` or `?type=post`, plus `vue-formulary-sent` Web Component. |
+| `apps/checkout`             | Angular | 4309 | `checkout`             | Checkout Items, Summary, Apply Coupon, plus Empty Checkout iframe page.                                              |
+| `apps/account`              | Vue     | 4310 | `account`              | Account Profile and Address components, reused across both shells.                                                   |
+| `apps/login`                | React   | 4311 | `login`                | Login form, used to authenticate against the mock service.                                                           |
+| `apps/social-media-posts`   | React   | 4312 | `social_media_posts`   | Post feed for the social media shell.                                                                                |
+| `apps/order-details`        | Vue     | 4313 | `order_details`        | Order details viewer used by the e-commerce shell `/order-details/{orderId}` route.                                  |
 
 ## Shared Packages
 
-| Package | Path | Notes |
-| --- | --- | --- |
+| Package                 | Path                     | Notes                                                                                         |
+| ----------------------- | ------------------------ | --------------------------------------------------------------------------------------------- |
 | `@shared/notifications` | `packages/notifications` | Shell-local notification bus and toast center, bound per shell to a namespaced event channel. |
 
 ## Mock Data Service (`apps/mock-data-service`, port `4000`)
@@ -62,10 +62,10 @@ Base URL: `http://localhost:4000/api`
 
 ### Demo accounts
 
-| Username | Password | Role |
-| --- | --- | --- |
-| `alice.parker` | `password123` | admin |
-| `bruno.silva` | `password123` | customer |
+| Username       | Password      | Role     |
+| -------------- | ------------- | -------- |
+| `alice.parker` | `password123` | admin    |
+| `bruno.silva`  | `password123` | customer |
 | `carla.nguyen` | `password123` | customer |
 
 ## Local Setup

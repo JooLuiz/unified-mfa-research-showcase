@@ -37,6 +37,12 @@ module.exports = {
         login: "login@http://localhost:4311/remoteEntry.js",
         account: "account@http://localhost:4310/remoteEntry.js",
       },
+      shared: {
+        "event-mesh/mesh": {
+          singleton: true,
+          requiredVersion: false,
+        },
+      },
     }),
     new HtmlWebpackPlugin({
       template: path.resolve(__dirname, "public/index.html"),

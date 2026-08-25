@@ -11,5 +11,13 @@
   "scripts": {
     "build": "node -e \"process.stdout.write('notifications build not required\\n')\"",
     "lint": "node -e \"process.stdout.write('notifications lint not configured\\n')\""
+  },
+  "peerDependencies": {
+    "event-mesh": "*"
+  },
+  "peerDependenciesMeta": {
+    "event-mesh": {
+      "optional": true
+    }
   }
 }
