@@ -14,6 +14,7 @@ The workspaces are organized by **business domain**, not by technology stack. A 
 
 - `apps/ecommerce-shell` (Vanilla JS host, port `4200`) - The e-commerce experience.
 - `apps/social-media-shell` (Vanilla JS host, port `4500`) - The social media experience that reuses domain MFEs (account, banners) and adds a posts feed.
+- `apps/admin-shell` (Vanilla JS host, port `4600`) - The admin experience with a read-only view of all orders and all posts.
 
 ## Domain Micro Frontends
 
@@ -33,6 +34,12 @@ The workspaces are organized by **business domain**, not by technology stack. A 
 | `apps/social-media-posts` | React | 4312 | `social_media_posts` | Post feed for the social media shell. |
 | `apps/order-details` | Vue | 4313 | `order_details` | Order details viewer used by the e-commerce shell `/order-details/{orderId}` route. |
 
+## Shared Packages
+
+| Package | Path | Notes |
+| --- | --- | --- |
+| `@shared/notifications` | `packages/notifications` | Shell-local notification bus and toast center, bound per shell to a namespaced event channel. |
+
 ## Mock Data Service (`apps/mock-data-service`, port `4000`)
 
 Base URL: `http://localhost:4000/api`
@@ -47,15 +54,19 @@ Base URL: `http://localhost:4000/api`
 - `POST /faq` - persists FAQ answers to `faq-answers.json`.
 - `POST /orders` - persists an order for the authenticated user to `orders.json`.
 - `GET /orders` - returns the orders placed by the authenticated user.
+- `GET /exports/orders.csv` - downloads the authenticated user's order history as CSV.
+- `GET /exports/posts.csv` - downloads the authenticated user's posts as CSV.
+- `GET /admin/orders` - returns all users' orders with embedded customers. Requires an admin Bearer token.
+- `GET /admin/posts` - returns all users' posts with embedded authors. Requires an admin Bearer token.
 - `GET /health`
 
 ### Demo accounts
 
-| Username | Password |
-| --- | --- |
-| `alice.parker` | `password123` |
-| `bruno.silva` | `password123` |
-| `carla.nguyen` | `password123` |
+| Username | Password | Role |
+| --- | --- | --- |
+| `alice.parker` | `password123` | admin |
+| `bruno.silva` | `password123` | customer |
+| `carla.nguyen` | `password123` | customer |
 
 ## Local Setup
 
@@ -76,7 +87,7 @@ npm install
 npm run dev
 ```
 
-This starts every domain MFE, the mock data service and both shells in parallel.
+This starts every domain MFE, the mock data service and all three shells in parallel.
 
 ### Build all apps
 
@@ -105,13 +116,24 @@ Social media shell (`http://localhost:4500`):
 - `/login` - Login form.
 - `/account` - Profile, address, and "My Posts" list (grid of the logged-in user's posts). Auth-guarded.
 
+Admin shell (`http://localhost:4600`):
+
+- `/` - Dashboard with total orders, total posts, and total revenue. Admin-guarded.
+- `/orders` - Read-only table of all users' orders. Admin-guarded.
+- `/posts` - Read-only table of all users' posts. Admin-guarded.
+- `/account` - Editable personal profile and address data only. Admin-guarded.
+- `/login` - Login form; only accounts with the admin role can proceed.
+
 ## Communication Methods
 
 - **Module Federation** - all domain MFEs are exposed via Webpack's `ModuleFederationPlugin` and consumed by the two shells.
 - **Web Components** - Header (React), Footer (Vue), Product Showcase (Angular), Formulary Sent (Vue) are exposed as custom HTML elements.
 - **Iframes** - FAQ formulary (Vue) and Empty Checkout (Angular) are isolated in iframe pages and communicate via `window.postMessage`.
 - **Event-Emitter** - Shells dispatch and listen to native `CustomEvent` channels (`cart:add-item`, `cart:updateGlobalCart`, `auth:changed`, `auth:logout-request`, `host:navigate`, `host:logout`, `global:renderApp`).
+- **Local Notifications** - Each shell owns a page-local `CustomEvent` notification bus and persistent toast center for HTTP command outcomes. The bus and toast center come from the shared `packages/notifications` workspace (`@shared/notifications`), but each shell binds it to its own namespaced event channel (`ecommerce-shell:notification`, `social-media-shell:notification`, `admin-shell:notification`), so notifications do not cross shells, browser tabs, or reach the backend. A future event-mesh integration should adapt completion events into each shell's bus rather than being handled inside the toast UI.
 - **API-Based** - Both shells fetch data from the mock service via the native `fetch` API.
+- **CSV Exports** - The account pages request authenticated CSV attachments directly over HTTP; this is the no-event-mesh control group for a future event-driven export completion flow.
+- **Admin Reads** - The admin shell reads all orders and posts over HTTP with an admin Bearer token; this is also part of the no-event-mesh control group.
 - **Web Storage** - PLP filters, auth tokens, and post-login redirects are persisted in `localStorage`/`sessionStorage`.
 - **Global State** - Each shell keeps an in-memory `appState` object and mirrors the cart to `window.__APP_SHELL_CART__`.
 - **Query Params** - PDP uses `?productId=`; cross-host banner redirects pass filters as query params.
@@ -119,8 +141,8 @@ Social media shell (`http://localhost:4500`):
 
 ## Authentication & Cross-Host Routing
 
-- Login state lives in `localStorage` under `ecommerce-shell:auth-token` and `social-media-shell:auth-token`.
-- Each shell exposes its own auth-guarded `/checkout` and `/account` routes. Direct URL access without a token redirects to `/login`, then back to the requested page.
+- Login state lives in `localStorage` under `ecommerce-shell:auth-token`, `social-media-shell:auth-token`, and `admin-shell:auth-token`.
+- Each shell exposes its own auth-guarded routes. Direct URL access without a token redirects to `/login`, then back to the requested page. The admin shell additionally requires the admin role; customer logins are rejected with a toast.
 - Banners on the social media shell use `window.location.href` to hard-redirect users to `http://localhost:4200/products` with the banner's filters as query parameters.
 
 ## License

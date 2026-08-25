@@ -13,8 +13,10 @@ import { configureMesh } from "event-mesh/mesh";
 
 import loadRemoteModules from "./utils/loadRemoteModules";
 import loadMockData from "./utils/loadData";
+import { mountNotificationCenter } from "./notifications/notificationCenter";
+import { notify } from "./notifications/notificationBus";
 
-import { mountHeaderAndFooter } from "./utils/mountActions";
+import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
 
 import { navigate } from "./utils/navigate";
 import {
@@ -51,6 +53,7 @@ const appState = {
 
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
+let activeHeaderElement = null;
 const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
 
 function configureApplicationMesh() {
@@ -72,6 +75,7 @@ function clearCurrentPage() {
     }
   });
   activeCleanupFunctions = [];
+  activeHeaderElement = null;
 }
 
 function baseLayout() {
@@ -137,7 +141,7 @@ async function renderApp() {
   }
 
   const layoutMounts = baseLayout();
-  mountHeaderAndFooter(appState, layoutMounts);
+  activeHeaderElement = mountHeaderAndFooter(appState, layoutMounts);
 
   if (pathName === "/") {
     await renderHomePage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
@@ -197,6 +201,7 @@ async function renderApp() {
 
 window.addEventListener("cart:updateGlobalCart", () => {
   setGlobalCartVariable();
+  updateHeaderState(appState, activeHeaderElement);
 });
 
 window.addEventListener("global:renderApp", () => {
@@ -239,11 +244,23 @@ window.addEventListener("cart:add-item", (event) => {
     });
   }
   setGlobalCartVariable();
-  renderApp();
+  updateHeaderState(appState, activeHeaderElement);
+  const productName =
+    appState.productsById[payload.productId]?.name || "Item";
+  notify({
+    type: "success",
+    title: "Item added",
+    message: `${productName} was added to your cart.`,
+  });
 });
 
 async function bootstrap() {
   configureApplicationMesh();
+  const notificationMount = document.getElementById("notificationMount");
+  if (notificationMount) {
+    mountNotificationCenter(notificationMount);
+  }
+
   readStoredPLPFilters(appState);
   readStoredAuth(appState);
   await loadMockData(appState);

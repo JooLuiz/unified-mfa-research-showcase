@@ -42,7 +42,7 @@ module.exports = {
       name: "product_details_page",
       filename: "remoteEntry.js",
       exposes: {
-        "./ProductDetails": "./src/product-details.ts",
+        "./ProductDetails": "./src/product-details-adapter.ts",
       },
       shared: {
         "@angular/common": { singleton: true },
