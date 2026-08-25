@@ -1,14 +1,14 @@
 /**
- * Renders and manages the ecommerce shell's persistent toast queue.
- * Role: Converts page-local notification requests into accessible, auto-dismissing toast elements.
+ * Mounts the ecommerce shell's persistent toast queue.
+ * Role: Delegates toast rendering to the shared notification center with this shell's bus.
  * Not in this file: Business outcome decisions, backend transport, or route-specific UI.
- * Key dependencies: src/notifications/notificationBus.js.
+ * Key dependencies: @shared/notifications; src/notifications/notificationBus.js.
  * See also: src/notifications/notificationBus.js.
  */
 
+import "@shared/notifications/styles.css";
+import { mountNotificationCenter as mountSharedNotificationCenter } from "@shared/notifications";
 import { subscribeToNotifications } from "./notificationBus";
-
-const DEFAULT_DURATION_MS = 5000;
 
 /**
  * Mounts the notification center in a persistent shell-level container.
@@ -18,60 +18,9 @@ const DEFAULT_DURATION_MS = 5000;
  * @sideEffects Subscribes to notification events and mutates the supplied container.
  */
 function mountNotificationCenter(containerElement) {
-  const dismissalTimers = new Set();
-
-  containerElement.className = "notification-center";
-  containerElement.setAttribute("aria-live", "polite");
-  containerElement.setAttribute("aria-atomic", "false");
-
-  function dismissNotification(notificationElement, timerId) {
-    if (timerId) {
-      window.clearTimeout(timerId);
-      dismissalTimers.delete(timerId);
-    }
-    notificationElement.remove();
-  }
-
-  const unsubscribe = subscribeToNotifications((notification) => {
-    const notificationElement = document.createElement("section");
-    notificationElement.className = `notification-toast notification-toast--${notification.type}`;
-    notificationElement.setAttribute(
-      "role",
-      notification.type === "error" ? "alert" : "status",
-    );
-
-    const titleElement = document.createElement("strong");
-    titleElement.textContent = notification.title;
-
-    const messageElement = document.createElement("p");
-    messageElement.textContent = notification.message;
-
-    const dismissButton = document.createElement("button");
-    dismissButton.type = "button";
-    dismissButton.className = "notification-toast-dismiss";
-    dismissButton.setAttribute("aria-label", `Dismiss ${notification.title}`);
-    dismissButton.textContent = "Dismiss";
-
-    notificationElement.append(titleElement, messageElement, dismissButton);
-    containerElement.appendChild(notificationElement);
-
-    const durationMs = notification.durationMs ?? DEFAULT_DURATION_MS;
-    const timerId = window.setTimeout(
-      () => dismissNotification(notificationElement, timerId),
-      durationMs,
-    );
-    dismissalTimers.add(timerId);
-    dismissButton.addEventListener("click", () =>
-      dismissNotification(notificationElement, timerId),
-    );
+  return mountSharedNotificationCenter(containerElement, {
+    subscribeToNotifications,
   });
-
-  return () => {
-    unsubscribe();
-    dismissalTimers.forEach((timerId) => window.clearTimeout(timerId));
-    dismissalTimers.clear();
-    containerElement.replaceChildren();
-  };
 }
 
 export { mountNotificationCenter };

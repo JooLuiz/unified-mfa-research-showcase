@@ -34,6 +34,12 @@ The workspaces are organized by **business domain**, not by technology stack. A 
 | `apps/social-media-posts` | React | 4312 | `social_media_posts` | Post feed for the social media shell. |
 | `apps/order-details` | Vue | 4313 | `order_details` | Order details viewer used by the e-commerce shell `/order-details/{orderId}` route. |
 
+## Shared Packages
+
+| Package | Path | Notes |
+| --- | --- | --- |
+| `@shared/notifications` | `packages/notifications` | Shell-local notification bus and toast center, bound per shell to a namespaced event channel. |
+
 ## Mock Data Service (`apps/mock-data-service`, port `4000`)
 
 Base URL: `http://localhost:4000/api`
@@ -124,7 +130,7 @@ Admin shell (`http://localhost:4600`):
 - **Web Components** - Header (React), Footer (Vue), Product Showcase (Angular), Formulary Sent (Vue) are exposed as custom HTML elements.
 - **Iframes** - FAQ formulary (Vue) and Empty Checkout (Angular) are isolated in iframe pages and communicate via `window.postMessage`.
 - **Event-Emitter** - Shells dispatch and listen to native `CustomEvent` channels (`cart:add-item`, `cart:updateGlobalCart`, `auth:changed`, `auth:logout-request`, `host:navigate`, `host:logout`, `global:renderApp`).
-- **Local Notifications** - Each shell owns a page-local `CustomEvent` notification bus and persistent toast center for HTTP command outcomes. These notifications do not cross browser tabs or reach the backend.
+- **Local Notifications** - Each shell owns a page-local `CustomEvent` notification bus and persistent toast center for HTTP command outcomes. The bus and toast center come from the shared `packages/notifications` workspace (`@shared/notifications`), but each shell binds it to its own namespaced event channel (`ecommerce-shell:notification`, `social-media-shell:notification`, `admin-shell:notification`), so notifications do not cross shells, browser tabs, or reach the backend. A future event-mesh integration should adapt completion events into each shell's bus rather than being handled inside the toast UI.
 - **API-Based** - Both shells fetch data from the mock service via the native `fetch` API.
 - **CSV Exports** - The account pages request authenticated CSV attachments directly over HTTP; this is the no-event-mesh control group for a future event-driven export completion flow.
 - **Admin Reads** - The admin shell reads all orders and posts over HTTP with an admin Bearer token; this is also part of the no-event-mesh control group.

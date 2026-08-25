@@ -62,28 +62,54 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
   const checkoutSummaryMount = pageMount.querySelector("#checkoutSummaryMount");
   const applyCouponMount = pageMount.querySelector("#applyCouponMount");
 
-  const subtotal = getCartTotalValue(appState);
-  const discountPercentage = appState.appliedCoupon?.discountPercentage || 0;
-  const discountAmount = subtotal * (discountPercentage / 100);
+  const calculateTotals = () => {
+    const currentSubtotal = getCartTotalValue(appState);
+    const currentDiscountPercentage =
+      appState.appliedCoupon?.discountPercentage || 0;
+    const currentDiscountAmount =
+      currentSubtotal * (currentDiscountPercentage / 100);
+    return {
+      subtotal: currentSubtotal,
+      discountAmount: currentDiscountAmount,
+    };
+  };
+
+  let checkoutSummaryHandle = null;
+  const refreshCheckoutSummary = () => {
+    if (!checkoutSummaryHandle) {
+      return;
+    }
+    checkoutSummaryHandle.update(calculateTotals());
+  };
 
   activeCleanupFunctions.push(
     modules.mountCheckoutItems(checkoutItemsMount, {
       productsById: appState.productsById,
       onQuantityChange: (productId, quantity) => {
         updateCartItem(appState, productId, quantity);
-        window.dispatchEvent(new CustomEvent("global:renderApp"));
+        refreshCheckoutSummary();
       },
       onRemoveItem: (productId) => {
+        const productName = appState.productsById[productId]?.name || "Item";
         removeCartItem(appState, productId);
-        window.dispatchEvent(new CustomEvent("global:renderApp"));
+        notify({
+          type: "success",
+          title: "Item removed",
+          message: `${productName} was removed from your cart.`,
+        });
+        if (appState.cartItems.length === 0) {
+          window.dispatchEvent(new CustomEvent("global:renderApp"));
+          return;
+        }
+        refreshCheckoutSummary();
       },
     }),
   );
 
-  activeCleanupFunctions.push(
-    modules.mountCheckoutSummary(checkoutSummaryMount, {
-      subtotal,
-      discountAmount,
+  const initialTotals = calculateTotals();
+  checkoutSummaryHandle = modules.mountCheckoutSummary(checkoutSummaryMount, {
+    subtotal: initialTotals.subtotal,
+    discountAmount: initialTotals.discountAmount,
       onPlaceOrder: async () => {
         const orderItems = appState.cartItems.map((cartItem) => {
           const product = appState.productsById[cartItem.productId];
@@ -94,12 +120,13 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
             unitPrice: product?.price || 0,
           };
         });
-        const totalAmount = subtotal - discountAmount;
+        const orderTotals = calculateTotals();
+        const totalAmount = orderTotals.subtotal - orderTotals.discountAmount;
 
         const orderResult = await persistOrder(appState, {
           items: orderItems,
-          subtotal,
-          discountAmount,
+          subtotal: orderTotals.subtotal,
+          discountAmount: orderTotals.discountAmount,
           totalAmount,
           appliedCoupon: appState.appliedCoupon,
           shippingAddress: appState.currentUser?.address || null,
@@ -124,14 +151,14 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
         });
         navigate("/order-placed");
       },
-    }),
-  );
+    });
+  activeCleanupFunctions.push(() => checkoutSummaryHandle.unmount());
 
   activeCleanupFunctions.push(
     modules.mountApplyCoupon(applyCouponMount, {
       onCouponApplied: (couponPayload) => {
         appState.appliedCoupon = couponPayload;
-        window.dispatchEvent(new CustomEvent("global:renderApp"));
+        refreshCheckoutSummary();
       },
     }),
   );

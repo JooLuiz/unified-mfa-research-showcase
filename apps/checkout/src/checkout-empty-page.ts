@@ -1,5 +1,11 @@
-import "zone.js";
-import "@angular/compiler";
+/**
+ * Renders the isolated empty-cart iframe document.
+ * Role: Owns the child-page Angular UI and posts resize and navigation messages to the host.
+ * Not in this file: Host iframe mounting or share-scope initialization.
+ * Key dependencies: src/polyfills.ts loaded by src/checkout-empty-entry.ts.
+ * See also: src/checkout-empty.ts.
+ */
+
 import { Component } from "@angular/core";
 import { bootstrapApplication } from "@angular/platform-browser";
 import "./styles.css";
