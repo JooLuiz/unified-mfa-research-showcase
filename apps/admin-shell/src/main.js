@@ -8,6 +8,7 @@
 
 import "./styles.css";
 import { configureMesh } from "event-mesh/mesh";
+import mesh from "event-mesh/mesh";
 
 import {
   readStoredAuth,
@@ -16,7 +17,9 @@ import {
   isAdminRoute,
   rememberPostLoginRedirect,
   refreshCurrentUserFromApi,
+  fetchMeshConnectionTicket,
 } from "./utils/authActions";
+import { AUTH_TOKEN_STORAGE_KEY } from "./utils/constants";
 
 import loadRemoteModules from "./utils/loadRemoteModules";
 import { mountNotificationCenter } from "./notifications/notificationCenter";
@@ -38,6 +41,7 @@ const appState = {
 
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
+let meshSessionStarted = false;
 
 /**
  * Configures the admin host's mesh singleton before any consumer accesses it.
@@ -50,7 +54,37 @@ function configureApplicationMesh() {
     gatewayUrl: "ws://localhost",
     gatewayPort: 3004,
     enableWebSocket: true,
+    getConnectionTicket: async () => {
+      const authToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+      if (!authToken) {
+        throw new Error("missing auth token for mesh ticket");
+      }
+      return fetchMeshConnectionTicket(authToken);
+    },
   });
+}
+
+function startAuthenticatedMeshSession() {
+  if (meshSessionStarted) {
+    return;
+  }
+
+  configureApplicationMesh();
+  meshSessionStarted = true;
+}
+
+function stopAuthenticatedMeshSession() {
+  mesh.close();
+  meshSessionStarted = false;
+}
+
+function handleAuthMeshLifecycle() {
+  if (appState.authToken) {
+    startAuthenticatedMeshSession();
+    return;
+  }
+
+  stopAuthenticatedMeshSession();
 }
 
 function clearCurrentPage() {
@@ -170,6 +204,7 @@ window.addEventListener("popstate", () => {
 });
 
 window.addEventListener("auth:changed", () => {
+  handleAuthMeshLifecycle();
   renderApp();
 });
 
@@ -179,13 +214,15 @@ window.addEventListener("auth:logout-request", () => {
 });
 
 async function bootstrap() {
-  configureApplicationMesh();
   const notificationMount = document.getElementById("notificationMount");
   if (notificationMount) {
     mountNotificationCenter(notificationMount);
   }
 
   readStoredAuth(appState);
+  if (appState.authToken) {
+    startAuthenticatedMeshSession();
+  }
   if (appState.authToken) {
     void refreshCurrentUserFromApi(appState);
   }

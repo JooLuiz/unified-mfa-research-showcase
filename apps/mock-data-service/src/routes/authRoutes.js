@@ -7,7 +7,11 @@
  */
 
 const express = require("express");
-const { buildPublicUser, buildAuthToken } = require("../domain/auth");
+const { buildPublicUser, buildAuthToken, extractUserIdFromToken } = require("../domain/auth");
+const {
+  buildMeshRolesFromUserRole,
+  issueMeshTicket,
+} = require("../domain/meshTickets");
 
 /**
  * Creates the authentication router.
@@ -17,6 +21,35 @@ const { buildPublicUser, buildAuthToken } = require("../domain/auth");
  */
 function createAuthRouter(jsonStore) {
   const router = express.Router();
+
+  router.post("/auth/mesh-ticket", async (request, response) => {
+    try {
+      const userId = extractUserIdFromToken(request.headers.authorization);
+      if (!userId) {
+        response.status(401).json({ message: "Missing or invalid token" });
+        return;
+      }
+
+      const usersData = await jsonStore.readJsonFile("users.json");
+      const matchingUser = usersData.find((userRecord) => userRecord.id === userId);
+      if (!matchingUser) {
+        response.status(404).json({ message: "User not found" });
+        return;
+      }
+
+      const meshTicket = issueMeshTicket({
+        userId: matchingUser.id,
+        roles: buildMeshRolesFromUserRole(matchingUser.role),
+      });
+
+      response.type("text/plain").send(meshTicket);
+    } catch (error) {
+      response.status(500).json({
+        message: "Unable to issue mesh ticket",
+        details: error.message,
+      });
+    }
+  });
 
   router.post("/auth/login", async (request, response) => {
     try {

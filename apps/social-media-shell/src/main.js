@@ -15,7 +15,9 @@ import {
   isProtectedRoute,
   rememberPostLoginRedirect,
   refreshCurrentUserFromApi,
+  fetchMeshConnectionTicket,
 } from "./utils/authActions";
+import { AUTH_TOKEN_STORAGE_KEY } from "./utils/constants";
 
 import loadMockData from "./utils/loadData";
 import loadRemoteModules from "./utils/loadRemoteModules";
@@ -29,6 +31,8 @@ import {
   accountPageApp,
 } from "./utils/pageApps";
 import { configureMesh } from "event-mesh/mesh";
+import mesh from "event-mesh/mesh";
+import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
 
 const appState = {
   posts: [],
@@ -54,12 +58,44 @@ const PAGE_APP_NAMES = [
   ACCOUNT_PAGE_APP_NAME,
 ];
 
+let meshSessionStarted = false;
+
 function configureApplicationMesh() {
   configureMesh({
     gatewayUrl: "ws://localhost",
     gatewayPort: 3004,
     enableWebSocket: true,
+    getConnectionTicket: async () => {
+      const authToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+      if (!authToken) {
+        throw new Error("missing auth token for mesh ticket");
+      }
+      return fetchMeshConnectionTicket(authToken);
+    },
   });
+}
+
+function startAuthenticatedMeshSession() {
+  if (!meshSessionStarted) {
+    configureApplicationMesh();
+    meshSessionStarted = true;
+  }
+  ensureCsvExportListeners();
+}
+
+function stopAuthenticatedMeshSession() {
+  resetCsvExportListeners();
+  mesh.close();
+  meshSessionStarted = false;
+}
+
+function handleAuthMeshLifecycle() {
+  if (appState.authToken) {
+    startAuthenticatedMeshSession();
+    return;
+  }
+
+  stopAuthenticatedMeshSession();
 }
 
 function activeOnExactPath(targetPath) {
@@ -139,6 +175,7 @@ window.addEventListener("global:renderApp", () => {
 });
 
 window.addEventListener("auth:changed", () => {
+  handleAuthMeshLifecycle();
   reloadActivePageApp();
 });
 
@@ -156,13 +193,15 @@ function applyInitialAuthGuard() {
 }
 
 async function bootstrap() {
-  configureApplicationMesh();
   const notificationMount = document.getElementById("notificationMount");
   if (notificationMount) {
     mountNotificationCenter(notificationMount);
   }
 
   readStoredAuth(appState);
+  if (appState.authToken) {
+    startAuthenticatedMeshSession();
+  }
   await loadMockData(appState);
   if (appState.authToken) {
     void refreshCurrentUserFromApi(appState);

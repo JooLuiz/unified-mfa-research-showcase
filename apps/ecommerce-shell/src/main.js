@@ -8,13 +8,17 @@ import {
   isProtectedRoute,
   rememberPostLoginRedirect,
   refreshCurrentUserFromApi,
+  fetchMeshConnectionTicket,
 } from "./utils/authActions";
+import { AUTH_TOKEN_STORAGE_KEY } from "./utils/constants";
 import { configureMesh } from "event-mesh/mesh";
+import mesh from "event-mesh/mesh";
 
 import loadRemoteModules from "./utils/loadRemoteModules";
 import loadMockData from "./utils/loadData";
 import { mountNotificationCenter } from "./notifications/notificationCenter";
 import { notify } from "./notifications/notificationBus";
+import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
 
 import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
 
@@ -54,6 +58,7 @@ const appState = {
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
 let activeHeaderElement = null;
+let meshSessionStarted = false;
 const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
 
 function configureApplicationMesh() {
@@ -61,7 +66,37 @@ function configureApplicationMesh() {
     gatewayUrl: "ws://localhost",
     gatewayPort: 3004,
     enableWebSocket: true,
+    getConnectionTicket: async () => {
+      const authToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+      if (!authToken) {
+        throw new Error("missing auth token for mesh ticket");
+      }
+      return fetchMeshConnectionTicket(authToken);
+    },
   });
+}
+
+function startAuthenticatedMeshSession() {
+  if (!meshSessionStarted) {
+    configureApplicationMesh();
+    meshSessionStarted = true;
+  }
+  ensureCsvExportListeners();
+}
+
+function stopAuthenticatedMeshSession() {
+  resetCsvExportListeners();
+  mesh.close();
+  meshSessionStarted = false;
+}
+
+function handleAuthMeshLifecycle() {
+  if (appState.authToken) {
+    startAuthenticatedMeshSession();
+    return;
+  }
+
+  stopAuthenticatedMeshSession();
 }
 
 function setGlobalCartVariable() {
@@ -213,6 +248,7 @@ window.addEventListener("popstate", () => {
 });
 
 window.addEventListener("auth:changed", () => {
+  handleAuthMeshLifecycle();
   renderApp();
 });
 
@@ -255,7 +291,6 @@ window.addEventListener("cart:add-item", (event) => {
 });
 
 async function bootstrap() {
-  configureApplicationMesh();
   const notificationMount = document.getElementById("notificationMount");
   if (notificationMount) {
     mountNotificationCenter(notificationMount);
@@ -263,6 +298,9 @@ async function bootstrap() {
 
   readStoredPLPFilters(appState);
   readStoredAuth(appState);
+  if (appState.authToken) {
+    startAuthenticatedMeshSession();
+  }
   await loadMockData(appState);
   setGlobalCartVariable();
   if (appState.authToken) {

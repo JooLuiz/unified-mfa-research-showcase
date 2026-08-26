@@ -108,11 +108,20 @@ async function renderMyOrdersList(appState, ordersContainer, activeCleanupFuncti
   const subtitleElement = ordersContainer.querySelector(".account-card-subtitle");
   const exportOrdersButton = ordersContainer.querySelector("#exportOrdersButton");
   const handleOrdersExport = async () => {
+    exportOrdersButton.disabled = true;
+    exportOrdersButton.textContent = "Preparing export...";
+
     const exportResult = await requestCsvExport({
-      endpointPath: "/exports/orders.csv",
+      kind: "orders",
       fileName: "my-orders.csv",
       authToken: appState.authToken,
     });
+
+    if (exportOrdersButton.isConnected) {
+      exportOrdersButton.disabled = false;
+      exportOrdersButton.textContent = "Export CSV";
+    }
+
     notify(
       exportResult.ok
         ? {

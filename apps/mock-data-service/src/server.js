@@ -19,6 +19,12 @@ const { createFaqRouter } = require("./routes/faqRoutes");
 const { createOrderRouter } = require("./routes/orderRoutes");
 const { createExportRouter } = require("./routes/exportRoutes");
 const { createAdminRouter } = require("./routes/adminRoutes");
+const { consumeMeshTicket } = require("./domain/meshTickets");
+const {
+  createAuthenticateConnection,
+  createAuthorizeMessage,
+} = require("./event-mesh/gatewayAuth");
+const { registerExportRequestHandler } = require("./event-mesh/exportRequestHandler");
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -41,8 +47,12 @@ async function configureAndStartEventGateway() {
   configureGateway({
     gatewayPort: 3004,
     peerRebroadcastPolicy: "perMessage",
+    authenticateConnection: createAuthenticateConnection(consumeMeshTicket),
+    authorizeMessage: createAuthorizeMessage(),
   });
-  return gateway.start();
+  await gateway.start();
+  await registerExportRequestHandler(jsonStore);
+  return gateway;
 }
 
 app.get("/health", (_request, response) => {

@@ -98,11 +98,20 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
   `;
   const exportPostsButton = accountPostsMount.querySelector("#exportPostsButton");
   const handlePostsExport = async () => {
+    exportPostsButton.disabled = true;
+    exportPostsButton.textContent = "Preparing export...";
+
     const exportResult = await requestCsvExport({
-      endpointPath: "/exports/posts.csv",
+      kind: "posts",
       fileName: "my-posts.csv",
       authToken: appState.authToken,
     });
+
+    if (exportPostsButton.isConnected) {
+      exportPostsButton.disabled = false;
+      exportPostsButton.textContent = "Export CSV";
+    }
+
     notify(
       exportResult.ok
         ? {

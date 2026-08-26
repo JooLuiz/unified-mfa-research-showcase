@@ -114,6 +114,29 @@ async function refreshCurrentUserFromApi(appState) {
   }
 }
 
+/**
+ * Fetches a one-time mesh connection ticket for the authenticated session.
+ *
+ * @param {string} authToken - Current Bearer token.
+ * @returns {Promise<string>} Plain-text mesh ticket for WebSocket upgrade.
+ */
+async function fetchMeshConnectionTicket(authToken) {
+  const response = await fetch(`${MOCK_API_BASE_URL}/auth/mesh-ticket`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `fetchMeshConnectionTicket - request failed: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  return response.text();
+}
+
 export {
   PROTECTED_ROUTE_PATHS,
   readStoredAuth,
@@ -124,4 +147,5 @@ export {
   rememberPostLoginRedirect,
   consumePostLoginRedirect,
   refreshCurrentUserFromApi,
+  fetchMeshConnectionTicket,
 };

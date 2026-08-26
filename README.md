@@ -47,6 +47,7 @@ Base URL: `http://localhost:4000/api`
 - `GET /products`, `GET /products/:productId`
 - `GET /categories`, `GET /showcases`, `GET /banners`
 - `POST /auth/login` - returns `{ token, user }` for the mock users.
+- `POST /auth/mesh-ticket` - requires `Authorization: Bearer <token>`; returns a plain-text one-time mesh connection ticket.
 - `GET /users/me` - requires `Authorization: Bearer <token>` header.
 - `PUT /users/me` - updates the current user (full name, gender, address) and persists to `users.json`.
 - `GET /posts` - returns the social media feed with embedded authors.
@@ -54,8 +55,7 @@ Base URL: `http://localhost:4000/api`
 - `POST /faq` - persists FAQ answers to `faq-answers.json`.
 - `POST /orders` - persists an order for the authenticated user to `orders.json`.
 - `GET /orders` - returns the orders placed by the authenticated user.
-- `GET /exports/orders.csv` - downloads the authenticated user's order history as CSV.
-- `GET /exports/posts.csv` - downloads the authenticated user's posts as CSV.
+- `GET /exports/:requestId/download` - downloads the completed CSV for the job owner. Export jobs are created over authenticated Event Mesh (`exports.requested`); see `MESH_IMPLEMENTATIONS/csv-exports.md`.
 - `GET /admin/orders` - returns all users' orders with embedded customers. Requires an admin Bearer token.
 - `GET /admin/posts` - returns all users' posts with embedded authors. Requires an admin Bearer token.
 - `GET /health`
@@ -132,7 +132,8 @@ Admin shell (`http://localhost:4600`):
 - **Event-Emitter** - Shells dispatch and listen to native `CustomEvent` channels (`cart:add-item`, `cart:updateGlobalCart`, `auth:changed`, `auth:logout-request`, `host:navigate`, `host:logout`, `global:renderApp`).
 - **Local Notifications** - Each shell owns a page-local `CustomEvent` notification bus and persistent toast center for HTTP command outcomes. The bus and toast center come from the shared `packages/notifications` workspace (`@shared/notifications`), but each shell binds it to its own namespaced event channel (`ecommerce-shell:notification`, `social-media-shell:notification`, `admin-shell:notification`), so notifications do not cross shells, browser tabs, or reach the backend. A future event-mesh integration should adapt completion events into each shell's bus rather than being handled inside the toast UI.
 - **API-Based** - Both shells fetch data from the mock service via the native `fetch` API.
-- **CSV Exports** - The account pages request authenticated CSV attachments directly over HTTP; this is the no-event-mesh control group for a future event-driven export completion flow.
+- **Event Mesh** - Linked local `event-mesh` package. The mock service hosts the gateway on port `3004`; shells configure the mesh client at bootstrap. Feature write-ups live in `MESH_IMPLEMENTATIONS/`.
+- **CSV Exports** - Account pages create an authenticated export job over HTTP, wait for `exports.completed` / `exports.failed` on Event Mesh, then download the CSV with a second authenticated HTTP request. Details: `MESH_IMPLEMENTATIONS/csv-exports.md`.
 - **Admin Reads** - The admin shell reads all orders and posts over HTTP with an admin Bearer token; this is also part of the no-event-mesh control group.
 - **Web Storage** - PLP filters, auth tokens, and post-login redirects are persisted in `localStorage`/`sessionStorage`.
 - **Global State** - Each shell keeps an in-memory `appState` object and mirrors the cart to `window.__APP_SHELL_CART__`.
