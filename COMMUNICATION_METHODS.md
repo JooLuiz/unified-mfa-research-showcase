@@ -22,16 +22,16 @@
 | Header (web component) | Navigation | User clicked a nav link: `{ path }` | `host:navigate` CustomEvent on element | Ecommerce Shell or Social Media Shell (whichever hosts the header; calls `navigate(path)`) |
 | Header (web component) | Account | User clicked "Log out" | `host:logout` CustomEvent on element | Ecommerce Shell or Social Media Shell (dispatches `auth:logout-request`) |
 
-### postMessage (iframe boundary)
+### Distributed Event Mesh (iframe boundary)
 
 | Triggering App | Entity | What Is Communicated | Method | Affected App(s) |
 |---|---|---|---|---|
-| Formulary iframe page (type=faq) | Layout | Content height for auto-sizing: `{ frameId: "faq-formulary", height }` | `iframe:resize` postMessage | Formulary `mountFaqFormulary` function (resizes the iframe element) |
-| Formulary iframe page (type=post) | Layout | Content height for auto-sizing: `{ frameId: "new-post-formulary", height }` | `iframe:resize` postMessage | Formulary `mountNewPostFormulary` function (resizes the iframe element) |
-| Checkout Empty iframe page | Layout | Content height for auto-sizing: `{ frameId: "checkout-empty", height }` | `iframe:resize` postMessage | Checkout `mountCheckoutEmpty` function (resizes the iframe element) |
-| Formulary iframe page (type=faq) | FAQ | Form submission: `{ name, email, contactMethod, question }` | `faq:form-submitted` postMessage | Formulary `mountFaqFormulary` → invokes `onFormSubmitted` callback → Ecommerce Shell persists to API and re-renders |
-| Formulary iframe page (type=post) | Posts | Form submission: `{ content, imageUrl }` | `post:form-submitted` postMessage | Formulary `mountNewPostFormulary` → invokes `onFormSubmitted` callback → Social Media Shell persists to API and reloads page |
-| Checkout Empty iframe page | Cart / Navigation | User clicked "Go Back to Shopping" | `checkout:go-shopping` postMessage | Checkout `mountCheckoutEmpty` → invokes `onGoShopping` callback → Ecommerce Shell navigates to `/products` |
+| Formulary iframe page (type=faq) | Layout | Content height for auto-sizing: `{ height }` | `iframe-bridge.message` / `resized`, distributed scope | Ecommerce Shell channel subscription resizes the iframe element |
+| Formulary iframe page (type=post) | Layout | Content height for auto-sizing: `{ height }` | `iframe-bridge.message` / `resized`, distributed scope | Formulary `mountNewPostFormulary` channel subscription resizes the iframe element |
+| Checkout Empty iframe page | Layout | Content height for auto-sizing: `{ height }` | `iframe-bridge.message` / `resized`, distributed scope | Checkout `mountCheckoutEmpty` channel subscription resizes the iframe element |
+| Formulary iframe page (type=faq) | FAQ | Form submission: `{ name, email, contactMethod, question }` | `iframe-bridge.message` / `faq-submitted`, distributed scope | Ecommerce Shell persists to API and re-renders |
+| Formulary iframe page (type=post) | Posts | Form submission: `{ content, imageUrl }` | `iframe-bridge.message` / `post-submitted`, distributed scope | Social Media Shell persists to API and reloads page |
+| Checkout Empty iframe page | Cart / Navigation | User clicked "Go Back to Shopping" | `iframe-bridge.message` / `go-shopping`, distributed scope | Ecommerce Shell navigates to `/products` |
 
 ---
 
@@ -135,8 +135,8 @@
 | **Product List Page** | -- | `GET /products?...`, `GET /categories` | -- | -- | Builds API query params | -- |
 | **Product Details Page** | -- | `GET /products/:id` | -- | -- | Reads `productId` from `window.location.search` | -- |
 | **Banners** | -- | `GET /banners/:id` | -- | -- | -- | -- |
-| **Formulary (iframe)** | postMessage (resize + form-submitted) | -- | -- | -- | Reads `type`, `name`, `email`, `authorId` from URL | -- |
-| **Checkout Empty (iframe)** | postMessage (resize + go-shopping) | -- | -- | -- | -- | -- |
+| **Formulary (iframe)** | Distributed Event Mesh bridge (resize + form-submitted) | -- | -- | -- | Reads `type`, `name`, `email`, `authorId`, and an opaque bridge channel from URL | -- |
+| **Checkout Empty (iframe)** | Distributed Event Mesh bridge (resize + go-shopping) | -- | -- | -- | Reads an opaque bridge channel from URL | -- |
 | **Checkout Items/Summary/Coupon** | -- | -- | -- | Checkout Items reads `window.__APP_SHELL_CART__` | -- | -- |
 | **Login** | -- | `POST /auth/login` | -- | -- | -- | -- |
 | **Account** | -- | -- | -- | -- | -- | -- |

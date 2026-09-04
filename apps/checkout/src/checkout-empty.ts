@@ -2,9 +2,15 @@
  * Mounts the empty-checkout iframe and synchronizes its height with the host page.
  * Role: Provides the checkout remote's isolated empty-cart view and navigation bridge.
  * Not in this file: The child page UI and its Angular bootstrap.
- * Key dependencies: The checkout-empty.html entry point and browser postMessage API.
+ * Key dependencies: The checkout-empty.html entry point and @shared/iframe-bridge.
  * See also: src/checkout-empty-page.ts.
  */
+
+import mesh from "event-mesh/mesh";
+import {
+  createIframeBridge,
+  createIframeChannel,
+} from "@shared/iframe-bridge";
 
 declare const __webpack_public_path__: string;
 
@@ -16,36 +22,29 @@ interface CheckoutEmptyProps {
   onGoShopping?: () => void;
 }
 
-function buildCheckoutEmptyUrl(): string {
+function buildCheckoutEmptyUrl(channelId: string): string {
   const baseUrl = new URL(CHECKOUT_EMPTY_HTML_PATH, __webpack_public_path__);
+  baseUrl.search = new URLSearchParams({
+    channelId,
+    frameId: CHECKOUT_EMPTY_FRAME_ID,
+  }).toString();
   return baseUrl.toString();
 }
 
 /**
- * Applies a valid child-frame resize message to the iframe in this mount only.
+ * Applies a valid child-frame resize event to the iframe in this mount only.
  *
  * @param containerElement - Host container that owns the checkout iframe.
- * @param event - Cross-window message dispatched by the child frame.
+ * @param height - Height supplied by the validated bridge event.
  * @returns None.
  * @sideEffects Updates the iframe's inline height when the message is valid.
  */
 function updateIframeHeight(
   containerElement: HTMLElement,
-  event: MessageEvent,
+  height: unknown,
 ): void {
-  const messageData = event.data;
-  if (!messageData || typeof messageData !== "object") {
-    return;
-  }
-
-  if (messageData.type !== "iframe:resize") {
-    return;
-  }
-
-  const frameId = messageData.payload?.frameId;
-  const rawHeight = Number(messageData.payload?.height);
-
-  if (frameId !== CHECKOUT_EMPTY_FRAME_ID || !Number.isFinite(rawHeight)) {
+  const rawHeight = Number(height);
+  if (!Number.isFinite(rawHeight)) {
     return;
   }
 
@@ -62,14 +61,16 @@ function updateIframeHeight(
  *
  * @param containerElement - Host element that receives the iframe.
  * @param props - Optional callback invoked when the child requests product navigation.
- * @returns Cleanup function that removes message listeners and mounted content.
- * @sideEffects Creates an iframe and registers window message listeners.
+ * @returns Cleanup function that removes the bridge subscription and mounted content.
+ * @sideEffects Creates an iframe and registers a targeted mesh bridge channel.
  */
 export function mountCheckoutEmpty(
   containerElement: HTMLElement,
   props: CheckoutEmptyProps = {},
 ): () => void {
-  const iframeSource = buildCheckoutEmptyUrl();
+  const iframeBridge = createIframeBridge({ mesh });
+  const channelId = createIframeChannel();
+  const iframeSource = buildCheckoutEmptyUrl(channelId);
 
   containerElement.innerHTML = `
     <section class="frame-container">
@@ -88,27 +89,31 @@ export function mountCheckoutEmpty(
     iframeElement.style.height = `${CHECKOUT_EMPTY_FALLBACK_HEIGHT_PX}px`;
   }
 
-  function handlePostMessage(event: MessageEvent): void {
-    const messageData = event.data;
-    if (!messageData || typeof messageData !== "object") {
-      return;
-    }
+  iframeBridge.registerIframeChannel({
+    channelId,
+    frameId: CHECKOUT_EMPTY_FRAME_ID,
+  });
+  const unsubscribeFromIframeChannel = iframeBridge.subscribeToIframeChannel({
+    channelId,
+    frameId: CHECKOUT_EMPTY_FRAME_ID,
+    onMessage: ({ event, payload }) => {
+      if (event === "resized") {
+        updateIframeHeight(containerElement, payload.height);
+        return;
+      }
 
-    if (messageData.type === "checkout:go-shopping" && props.onGoShopping) {
-      props.onGoShopping();
-    }
-  }
-
-  const handleIframeResize = (event: MessageEvent): void => {
-    updateIframeHeight(containerElement, event);
-  };
-
-  window.addEventListener("message", handleIframeResize);
-  window.addEventListener("message", handlePostMessage);
+      if (event === "go-shopping" && props.onGoShopping) {
+        props.onGoShopping();
+      }
+    },
+  });
 
   return () => {
-    window.removeEventListener("message", handleIframeResize);
-    window.removeEventListener("message", handlePostMessage);
+    unsubscribeFromIframeChannel();
+    iframeBridge.unregisterIframeChannel({
+      channelId,
+      frameId: CHECKOUT_EMPTY_FRAME_ID,
+    });
     containerElement.innerHTML = "";
   };
 }

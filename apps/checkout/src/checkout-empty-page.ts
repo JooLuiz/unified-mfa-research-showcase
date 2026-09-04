@@ -8,25 +8,46 @@
 
 import { Component } from "@angular/core";
 import { bootstrapApplication } from "@angular/platform-browser";
+import { configureMesh } from "event-mesh/mesh";
+import mesh from "event-mesh/mesh";
+import { createIframeBridge } from "@shared/iframe-bridge";
 import "./styles.css";
 
 const CHECKOUT_EMPTY_FRAME_ID = "checkout-empty";
+const iframeQueryParameters = new URLSearchParams(window.location.search);
+const iframeBridgeChannelId = iframeQueryParameters.get("channelId");
+const iframeBridgeFrameId = iframeQueryParameters.get("frameId");
+
+configureMesh({
+  gatewayUrl: "ws://localhost",
+  gatewayPort: 3004,
+  enableWebSocket: true,
+});
+
+const iframeBridge = createIframeBridge({ mesh });
+
+function publishToParent(
+  event: string,
+  payload: Record<string, unknown> = {},
+): void {
+  if (!iframeBridgeChannelId) {
+    return;
+  }
+
+  iframeBridge.publishIframeMessage({
+    channelId: iframeBridgeChannelId,
+    frameId: iframeBridgeFrameId || CHECKOUT_EMPTY_FRAME_ID,
+    event,
+    payload,
+  });
+}
 
 function notifyHostHeight(): void {
   const contentHeight = Math.max(
     document.documentElement.scrollHeight,
     document.body.scrollHeight,
   );
-  window.parent.postMessage(
-    {
-      type: "iframe:resize",
-      payload: {
-        frameId: CHECKOUT_EMPTY_FRAME_ID,
-        height: contentHeight,
-      },
-    },
-    "*",
-  );
+  publishToParent("resized", { height: contentHeight });
 }
 
 @Component({
@@ -48,7 +69,7 @@ function notifyHostHeight(): void {
 })
 class CheckoutEmptyPageComponent {
   handleGoBackToShopping(): void {
-    window.parent.postMessage({ type: "checkout:go-shopping" }, "*");
+    publishToParent("go-shopping");
   }
 }
 

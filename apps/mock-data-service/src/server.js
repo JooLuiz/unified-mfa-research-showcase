@@ -26,6 +26,7 @@ const {
 } = require("./event-mesh/gatewayAuth");
 const { registerExportRequestHandler } = require("./event-mesh/exportRequestHandler");
 const { registerOrderRequestHandler } = require("./event-mesh/orderRequestHandler");
+const { registerIframeBridgeHandler } = require("./event-mesh/iframeBridgeHandler");
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -54,6 +55,7 @@ async function configureAndStartEventGateway() {
   await gateway.start();
   await registerExportRequestHandler(jsonStore);
   await registerOrderRequestHandler(jsonStore);
+  await registerIframeBridgeHandler();
   return gateway;
 }
 

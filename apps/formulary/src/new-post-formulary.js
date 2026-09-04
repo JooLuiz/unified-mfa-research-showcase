@@ -1,9 +1,19 @@
+import mesh from "event-mesh/mesh";
+import {
+  createIframeBridge,
+  createIframeChannel,
+} from "@shared/iframe-bridge";
+
 const NEW_POST_FORMULARY_HTML_PATH = "faq-formulary.html";
 const NEW_POST_FRAME_ID = "new-post-formulary";
 
-function buildNewPostFormularyUrl(props) {
+function buildNewPostFormularyUrl(props, channelId) {
   const baseUrl = new URL(NEW_POST_FORMULARY_HTML_PATH, __webpack_public_path__);
-  const queryParameters = new URLSearchParams({ type: "post" });
+  const queryParameters = new URLSearchParams({
+    type: "post",
+    channelId,
+    frameId: NEW_POST_FRAME_ID,
+  });
 
   if (props.userName) {
     queryParameters.set("name", props.userName);
@@ -19,33 +29,10 @@ function buildNewPostFormularyUrl(props) {
   return baseUrl.toString();
 }
 
-function handleIframeResize(event) {
-  const messageData = event.data;
-  if (!messageData || typeof messageData !== "object") {
-    return;
-  }
-
-  if (messageData.type !== "iframe:resize") {
-    return;
-  }
-
-  const frameId = messageData.payload?.frameId;
-  const rawHeight = Number(messageData.payload?.height);
-
-  if (frameId !== NEW_POST_FRAME_ID || !Number.isFinite(rawHeight)) {
-    return;
-  }
-
-  const frameElement = document.querySelector(
-    `iframe[data-frame-id="${NEW_POST_FRAME_ID}"]`,
-  );
-  if (frameElement) {
-    frameElement.style.height = `${Math.max(rawHeight, 80)}px`;
-  }
-}
-
 export function mountNewPostFormulary(containerElement, props = {}) {
-  const iframeSource = buildNewPostFormularyUrl(props);
+  const iframeBridge = createIframeBridge({ mesh });
+  const channelId = createIframeChannel();
+  const iframeSource = buildNewPostFormularyUrl(props, channelId);
 
   containerElement.innerHTML = `
     <section class="frame-container">
@@ -63,23 +50,33 @@ export function mountNewPostFormulary(containerElement, props = {}) {
     iframeElement.style.height = "0px";
   }
 
-  function handlePostMessage(event) {
-    const messageData = event.data;
-    if (!messageData || typeof messageData !== "object") {
-      return;
-    }
+  iframeBridge.registerIframeChannel({ channelId, frameId: NEW_POST_FRAME_ID });
+  const unsubscribeFromIframeChannel = iframeBridge.subscribeToIframeChannel({
+    channelId,
+    frameId: NEW_POST_FRAME_ID,
+    onMessage: ({ event, payload }) => {
+      if (event === "resized") {
+        const frameElement = containerElement.querySelector(
+          `iframe[data-frame-id="${NEW_POST_FRAME_ID}"]`,
+        );
+        if (frameElement && Number.isFinite(Number(payload.height))) {
+          frameElement.style.height = `${Math.max(Number(payload.height), 80)}px`;
+        }
+        return;
+      }
 
-    if (messageData.type === "post:form-submitted" && props.onFormSubmitted) {
-      props.onFormSubmitted(messageData.payload);
-    }
-  }
-
-  window.addEventListener("message", handleIframeResize);
-  window.addEventListener("message", handlePostMessage);
+      if (event === "post-submitted" && props.onFormSubmitted) {
+        props.onFormSubmitted(payload);
+      }
+    },
+  });
 
   return () => {
-    window.removeEventListener("message", handleIframeResize);
-    window.removeEventListener("message", handlePostMessage);
+    unsubscribeFromIframeChannel();
+    iframeBridge.unregisterIframeChannel({
+      channelId,
+      frameId: NEW_POST_FRAME_ID,
+    });
     containerElement.innerHTML = "";
   };
 }

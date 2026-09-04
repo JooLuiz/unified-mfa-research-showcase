@@ -12,6 +12,11 @@ import { MOCK_API_BASE_URL, FORMULARY_REMOTE_BASE_URL } from "../utils/constants
 import { applyPromotionFilters } from "./promotionsPage";
 import { persistFaqAnswerToApi } from "../commands/faqCommands";
 import { publishRenderRequested } from "../events/localMeshEventBus";
+import mesh from "event-mesh/mesh";
+import {
+  createIframeBridge,
+  createIframeChannel,
+} from "@shared/iframe-bridge";
 
 const FAQ_FRAME_ID = "faq-formulary";
 
@@ -62,8 +67,14 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
   if (appState.isFormularySubmitted) {
     activeCleanupFunctions.push(modules.mountFormularySent(faqMount));
   } else {
+    const iframeBridge = createIframeBridge({ mesh });
+    const channelId = createIframeChannel();
     const currentUser = appState.currentUser;
-    const faqQueryParameters = new URLSearchParams({ type: "faq" });
+    const faqQueryParameters = new URLSearchParams({
+      type: "faq",
+      channelId,
+      frameId: FAQ_FRAME_ID,
+    });
     const userName = currentUser?.fullName || currentUser?.username || "";
     const userEmail = currentUser?.email || "";
     if (userName) {
@@ -90,45 +101,33 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
       faqIframeElement.style.height = "0px";
     }
 
-    function handleFaqIframeResize(event) {
-      const messageData = event.data;
-      if (!messageData || typeof messageData !== "object") {
-        return;
-      }
-      if (messageData.type !== "iframe:resize") {
-        return;
-      }
-      const frameId = messageData.payload?.frameId;
-      const rawHeight = Number(messageData.payload?.height);
-      if (frameId !== FAQ_FRAME_ID || !Number.isFinite(rawHeight)) {
-        return;
-      }
-      const frameElement = faqMount.querySelector(`iframe[data-frame-id="${FAQ_FRAME_ID}"]`);
-      if (frameElement) {
-        frameElement.style.height = `${Math.max(rawHeight, 80)}px`;
-      }
-    }
+    iframeBridge.registerIframeChannel({ channelId, frameId: FAQ_FRAME_ID });
+    const unsubscribeFromIframeChannel = iframeBridge.subscribeToIframeChannel({
+      channelId,
+      frameId: FAQ_FRAME_ID,
+      onMessage: ({ event, payload }) => {
+        if (event === "resized") {
+          const frameElement = faqMount.querySelector(
+            `iframe[data-frame-id="${FAQ_FRAME_ID}"]`,
+          );
+          if (frameElement && Number.isFinite(Number(payload.height))) {
+            frameElement.style.height = `${Math.max(Number(payload.height), 80)}px`;
+          }
+          return;
+        }
 
-    function handleFaqFormSubmitted(event) {
-      const messageData = event.data;
-      if (!messageData || typeof messageData !== "object") {
-        return;
-      }
-      if (messageData.type === "faq:form-submitted") {
-        const payload = messageData.payload;
-        appState.isFormularySubmitted = true;
-        appState.lastIframeMessage = `FAQ submitted by ${payload.name} (${payload.email})`;
-        void persistFaqAnswerToApi(appState, payload);
-        publishRenderRequested();
-      }
-    }
-
-    window.addEventListener("message", handleFaqIframeResize);
-    window.addEventListener("message", handleFaqFormSubmitted);
+        if (event === "faq-submitted") {
+          appState.isFormularySubmitted = true;
+          appState.lastIframeMessage = `FAQ submitted by ${payload.name} (${payload.email})`;
+          void persistFaqAnswerToApi(appState, payload);
+          publishRenderRequested();
+        }
+      },
+    });
 
     activeCleanupFunctions.push(() => {
-      window.removeEventListener("message", handleFaqIframeResize);
-      window.removeEventListener("message", handleFaqFormSubmitted);
+      unsubscribeFromIframeChannel();
+      iframeBridge.unregisterIframeChannel({ channelId, frameId: FAQ_FRAME_ID });
       faqMount.innerHTML = "";
     });
   }

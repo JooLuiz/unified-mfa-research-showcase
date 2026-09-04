@@ -40,6 +40,7 @@ The workspaces are organized by **business domain**, not by technology stack. A 
 | ----------------------- | ------------------------ | --------------------------------------------------------------------------------------------- |
 | `@shared/notifications` | `packages/notifications` | Event Mesh-backed notification publisher and persistent toast center. |
 | `@shared/shell-events`  | `packages/shell-events`  | Shared local mesh contracts for shell auth and navigation coordination. |
+| `@shared/iframe-bridge` | `packages/iframe-bridge` | Channel-scoped distributed mesh adapter for isolated iframe pages. |
 
 ## Mock Data Service (`apps/mock-data-service`, port `4000`)
 
@@ -62,7 +63,7 @@ Base URL: `http://localhost:4000/api`
 
 ## Event Mesh
 
-Event Mesh transports authenticated backend commands (`orders.requested`, `exports.requested`) and shell-local UI coordination. All shells use local mesh messages for navigation and authentication events; ecommerce also uses local cart events. These contracts replace application-level window `CustomEvent` buses. See [`MESH_IMPLEMENTATIONS/notifications.md`](./MESH_IMPLEMENTATIONS/notifications.md) for the contracts and delivery scopes.
+Event Mesh transports authenticated backend commands (`orders.requested`, `exports.requested`), shell-local UI coordination, and channel-scoped iframe relays. Ecommerce and social-media start a restricted guest WebSocket connection for iframe bridge traffic, then upgrade to an authenticated connection after login. Admin remains local-only when logged out. See [`MESH_IMPLEMENTATIONS/iframe-bridge.md`](./MESH_IMPLEMENTATIONS/iframe-bridge.md) for bridge contracts and delivery scope.
 
 ### Demo accounts
 
@@ -132,9 +133,9 @@ Admin shell (`http://localhost:4600`):
 
 - **Module Federation** - all domain MFEs are exposed via Webpack's `ModuleFederationPlugin` and consumed by the two shells.
 - **Web Components** - Header (React), Footer (Vue), Product Showcase (Angular), Formulary Sent (Vue) are exposed as custom HTML elements.
-- **Iframes** - FAQ formulary (Vue) and Empty Checkout (Angular) are isolated in iframe pages and communicate via `window.postMessage`.
+- **Iframes** - FAQ formulary (Vue) and Empty Checkout (Angular) are isolated in iframe pages and communicate through a targeted distributed Event Mesh relay.
 - **Event-Emitter** - Shells dispatch and listen to native `CustomEvent` channels (`cart:add-item`, `cart:updateGlobalCart`, `auth:changed`, `auth:logout-request`, `host:navigate`, `host:logout`, `global:renderApp`).
-- **Local Notifications** - Each shell owns a persistent toast center from `@shared/notifications` that subscribes to `notifications.raised` on Event Mesh. Producers call `publishNotification()`, which publishes on mesh (`scope: "local"`). Local mesh starts at bootstrap even when logged out; authenticated WebSocket mesh upgrades on login. Backend order placement replies with targeted `notifications.raised` events. Details: `MESH_IMPLEMENTATIONS/notifications.md`.
+- **Local Notifications** - Each shell owns a persistent toast center from `@shared/notifications` that subscribes to `notifications.raised` on Event Mesh. Producers call `publishNotification()`, which publishes on mesh (`scope: "local"`). Ecommerce and social-media start with a restricted guest WebSocket mesh and upgrade on login; admin starts local-only and upgrades when authenticated. Backend order placement replies with targeted `notifications.raised` events. Details: `MESH_IMPLEMENTATIONS/notifications.md`.
 - **API-Based** - Both shells fetch data from the mock service via the native `fetch` API.
 - **Event Mesh** - Linked local `event-mesh` package. The mock service hosts the gateway on port `3004`; shells configure the mesh client at bootstrap. Feature write-ups live in `MESH_IMPLEMENTATIONS/`.
 - **CSV Exports** - Account pages create an authenticated export job over HTTP, wait for `exports.completed` / `exports.failed` on Event Mesh, then download the CSV with a second authenticated HTTP request. Details: `MESH_IMPLEMENTATIONS/csv-exports.md`.

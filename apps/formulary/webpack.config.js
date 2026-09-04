@@ -4,9 +4,16 @@ const { ModuleFederationPlugin } = require("webpack").container;
 
 module.exports = {
   mode: "development",
-  entry: path.resolve(__dirname, "src/index.js"),
+  entry: {
+    main: path.resolve(__dirname, "src/index.js"),
+    "iframe-mesh-client": path.resolve(
+      __dirname,
+      "src/iframe-mesh-client-entry.js",
+    ),
+  },
   output: {
     publicPath: "auto",
+    filename: "[name].js",
     clean: true,
   },
   devServer: {

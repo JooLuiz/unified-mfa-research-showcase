@@ -79,11 +79,11 @@ let activeCleanupFunctions = [];
 let activeHeaderElement = null;
 const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
 
-function configureLocalApplicationMesh() {
+function configureGuestApplicationMesh() {
   configureMesh({
     gatewayUrl: "ws://localhost",
     gatewayPort: 3004,
-    enableWebSocket: false,
+    enableWebSocket: true,
   });
 }
 
@@ -108,7 +108,7 @@ function startLocalMeshSession() {
   }
 
   if (!isLocalMeshStarted()) {
-    configureLocalApplicationMesh();
+    configureGuestApplicationMesh();
     setLocalMeshStarted(true);
   }
 

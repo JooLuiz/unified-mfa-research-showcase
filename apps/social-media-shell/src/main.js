@@ -74,11 +74,11 @@ const PAGE_APP_NAMES = [
   ACCOUNT_PAGE_APP_NAME,
 ];
 
-function configureLocalApplicationMesh() {
+function configureGuestApplicationMesh() {
   configureMesh({
     gatewayUrl: "ws://localhost",
     gatewayPort: 3004,
-    enableWebSocket: false,
+    enableWebSocket: true,
   });
 }
 
@@ -103,7 +103,7 @@ function startLocalMeshSession() {
   }
 
   if (!isLocalMeshStarted()) {
-    configureLocalApplicationMesh();
+    configureGuestApplicationMesh();
     setLocalMeshStarted(true);
   }
 

@@ -41,15 +41,28 @@
   </head>
   <body>
     <div id="formularyRoot"></div>
+    <script src="/iframe-mesh-client.js"></script>
     <script src="https://unpkg.com/vue@3.5.13/dist/vue.global.prod.js"></script>
     <script>
+      function publishIframeBridgeMessage(event, payload) {
+        if (window.eventMeshIframeBridge) {
+          window.eventMeshIframeBridge.publish(event, payload);
+          return;
+        }
+
+        window.addEventListener(
+          "iframe-mesh-ready",
+          () => window.eventMeshIframeBridge.publish(event, payload),
+          { once: true },
+        );
+      }
+
       const FORMULARY_TYPE_FAQ = "faq";
       const FORMULARY_TYPE_POST = "post";
 
       const FORMULARY_DEFINITIONS = {
         [FORMULARY_TYPE_FAQ]: {
           title: "FAQ Formulary",
-          submittedMessageType: "faq:form-submitted",
           fields: [
             {
               name: "name",
@@ -84,10 +97,10 @@
             },
           ],
           frameId: "faq-formulary",
+          bridgeEvent: "faq-submitted",
         },
         [FORMULARY_TYPE_POST]: {
           title: "Create a new post",
-          submittedMessageType: "post:form-submitted",
           fields: [
             {
               name: "content",
@@ -105,6 +118,7 @@
             },
           ],
           frameId: "new-post-formulary",
+          bridgeEvent: "post-submitted",
         },
       };
 
@@ -126,16 +140,9 @@
           document.documentElement.scrollHeight,
           document.body.scrollHeight,
         );
-        window.parent.postMessage(
-          {
-            type: "iframe:resize",
-            payload: {
-              frameId: formularyDefinition.frameId,
-              height: contentHeight,
-            },
-          },
-          "*",
-        );
+        publishIframeBridgeMessage("resized", {
+          height: contentHeight,
+        });
       };
 
       const { createApp, reactive, h, onMounted, watch } = Vue;
@@ -180,12 +187,9 @@
               {},
             );
 
-            window.parent.postMessage(
-              {
-                type: formularyDefinition.submittedMessageType,
-                payload: trimmedPayload,
-              },
-              "*",
+            publishIframeBridgeMessage(
+              formularyDefinition.bridgeEvent,
+              trimmedPayload,
             );
 
             formularyDefinition.fields.forEach((fieldDefinition) => {

@@ -10,6 +10,14 @@ const EXPORT_TOPIC = "exports";
 const EXPORT_REQUESTED_EVENT = "requested";
 const ORDERS_TOPIC = "orders";
 const ORDERS_REQUESTED_EVENT = "requested";
+const IFRAME_BRIDGE_TOPIC = "iframe-bridge";
+const IFRAME_CHANNEL_REGISTERED_EVENT = "registered";
+const IFRAME_CHANNEL_UNREGISTERED_EVENT = "unregistered";
+const IFRAME_MESSAGE_EVENT = "message";
+const GUEST_CREDENTIAL = Object.freeze({
+  kind: "guest",
+  roles: ["guest"],
+});
 
 /**
  * Builds the gateway authenticateConnection callback for mesh ticket validation.
@@ -21,7 +29,7 @@ function createAuthenticateConnection(consumeMeshTicket) {
   return async ({ url }) => {
     const ticketValue = url.searchParams.get("ticket");
     if (!ticketValue) {
-      return null;
+      return GUEST_CREDENTIAL;
     }
 
     return consumeMeshTicket(ticketValue);
@@ -35,6 +43,16 @@ function createAuthenticateConnection(consumeMeshTicket) {
  */
 function createAuthorizeMessage() {
   return ({ credential, message }) => {
+    const isIframeBridgeMessage =
+      message.topic === IFRAME_BRIDGE_TOPIC &&
+      (message.event === IFRAME_CHANNEL_REGISTERED_EVENT ||
+        message.event === IFRAME_CHANNEL_UNREGISTERED_EVENT ||
+        message.event === IFRAME_MESSAGE_EVENT);
+
+    if (credential?.kind === "guest") {
+      return isIframeBridgeMessage;
+    }
+
     if (!credential?.userId) {
       return false;
     }
@@ -43,7 +61,8 @@ function createAuthorizeMessage() {
       (message.topic === EXPORT_TOPIC &&
         message.event === EXPORT_REQUESTED_EVENT) ||
       (message.topic === ORDERS_TOPIC &&
-        message.event === ORDERS_REQUESTED_EVENT)
+        message.event === ORDERS_REQUESTED_EVENT) ||
+      isIframeBridgeMessage
     );
   };
 }

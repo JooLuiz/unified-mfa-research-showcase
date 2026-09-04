@@ -1,0 +1,23 @@
+{
+  "name": "@shared/iframe-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "build": "node -e \"process.stdout.write('iframe-bridge build not required\\n')\"",
+    "lint": "node -e \"process.stdout.write('iframe-bridge lint not configured\\n')\""
+  },
+  "peerDependencies": {
+    "event-mesh": "*"
+  },
+  "peerDependenciesMeta": {
+    "event-mesh": {
+      "optional": true
+    }
+  }
+}
