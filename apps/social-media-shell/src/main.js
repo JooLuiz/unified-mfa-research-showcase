@@ -23,7 +23,19 @@ import loadMockData from "./utils/loadData";
 import loadRemoteModules from "./utils/loadRemoteModules";
 import { navigate } from "./utils/navigate";
 import { createHeaderApp, createFooterApp } from "./utils/mountActions";
-import { mountNotificationCenter } from "./notifications/notificationCenter";
+import {
+  mountNotificationCenter,
+  ensureNotificationDisplayListeners,
+  resetNotificationDisplayListeners,
+} from "./notifications/notificationCenter";
+import {
+  isLocalMeshStarted,
+  isAuthenticatedMeshActive,
+  setLocalMeshStarted,
+  setAuthenticatedMeshActive,
+  clearMeshSessionFlags,
+} from "./notifications/meshSessionState";
+import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
 import {
   feedPageApp,
   postsPageApp,
@@ -32,7 +44,6 @@ import {
 } from "./utils/pageApps";
 import { configureMesh } from "event-mesh/mesh";
 import mesh from "event-mesh/mesh";
-import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
 
 const appState = {
   posts: [],
@@ -58,9 +69,15 @@ const PAGE_APP_NAMES = [
   ACCOUNT_PAGE_APP_NAME,
 ];
 
-let meshSessionStarted = false;
+function configureLocalApplicationMesh() {
+  configureMesh({
+    gatewayUrl: "ws://localhost",
+    gatewayPort: 3004,
+    enableWebSocket: false,
+  });
+}
 
-function configureApplicationMesh() {
+function configureAuthenticatedApplicationMesh() {
   configureMesh({
     gatewayUrl: "ws://localhost",
     gatewayPort: 3004,
@@ -75,18 +92,47 @@ function configureApplicationMesh() {
   });
 }
 
-function startAuthenticatedMeshSession() {
-  if (!meshSessionStarted) {
-    configureApplicationMesh();
-    meshSessionStarted = true;
+function startLocalMeshSession() {
+  if (isAuthenticatedMeshActive()) {
+    return;
   }
+
+  if (!isLocalMeshStarted()) {
+    configureLocalApplicationMesh();
+    setLocalMeshStarted(true);
+  }
+
+  ensureNotificationDisplayListeners();
+}
+
+function startAuthenticatedMeshSession() {
+  if (!appState.authToken) {
+    return;
+  }
+
+  if (isAuthenticatedMeshActive()) {
+    ensureNotificationDisplayListeners();
+    ensureCsvExportListeners();
+    return;
+  }
+
+  resetNotificationDisplayListeners();
+  resetCsvExportListeners();
+  mesh.close();
+  clearMeshSessionFlags();
+
+  configureAuthenticatedApplicationMesh();
+  setAuthenticatedMeshActive(true);
+  ensureNotificationDisplayListeners();
   ensureCsvExportListeners();
 }
 
-function stopAuthenticatedMeshSession() {
+function downgradeToLocalMeshSession() {
   resetCsvExportListeners();
+  resetNotificationDisplayListeners();
   mesh.close();
-  meshSessionStarted = false;
+  clearMeshSessionFlags();
+  startLocalMeshSession();
 }
 
 function handleAuthMeshLifecycle() {
@@ -95,7 +141,7 @@ function handleAuthMeshLifecycle() {
     return;
   }
 
-  stopAuthenticatedMeshSession();
+  downgradeToLocalMeshSession();
 }
 
 function activeOnExactPath(targetPath) {
@@ -201,6 +247,8 @@ async function bootstrap() {
   readStoredAuth(appState);
   if (appState.authToken) {
     startAuthenticatedMeshSession();
+  } else {
+    startLocalMeshSession();
   }
   await loadMockData(appState);
   if (appState.authToken) {

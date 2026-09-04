@@ -9,4 +9,5 @@ The mock data service starts the gateway (`event-mesh/gateway`) on port `3004`. 
 | Feature | File |
 | --- | --- |
 | Connection-level mesh authentication (tickets, gateway callbacks, shell lifecycle) | [mesh-authentication.md](./mesh-authentication.md) |
+| Toast notifications (local mesh + backend order replies) | [notifications.md](./notifications.md) |
 | Authenticated CSV exports for My Orders / My Posts | [csv-exports.md](./csv-exports.md) |

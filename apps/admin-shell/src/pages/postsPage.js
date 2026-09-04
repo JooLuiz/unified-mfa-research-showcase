@@ -2,13 +2,13 @@
  * Renders the all-posts table route for the admin shell.
  * Role: Loads every post via the admin API and renders a read-only table.
  * Not in this file: Auth guard (main.js) or post mutations.
- * Key dependencies: src/utils/fetchJson.js; src/notifications/notificationBus.js.
+ * Key dependencies: src/utils/fetchJson.js; src/notifications/meshNotificationAdapter.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
 import fetchJson from "../utils/fetchJson";
 import { MOCK_API_BASE_URL } from "../utils/constants";
-import { notify } from "../notifications/notificationBus";
+import { publishNotification } from "../notifications/meshNotificationAdapter";
 
 const CONTENT_EXCERPT_LENGTH = 80;
 
@@ -99,7 +99,7 @@ async function renderPostsPage(appState, pageMount) {
     `;
   } catch (error) {
     tableMount.innerHTML = `<p class="admin-error">Unable to load posts.</p>`;
-    notify({
+    publishNotification({
       type: "error",
       title: "Posts unavailable",
       message: "Unable to load all posts.",

@@ -53,8 +53,7 @@ Base URL: `http://localhost:4000/api`
 - `GET /posts` - returns the social media feed with embedded authors.
 - `POST /posts` - creates a new post for the authenticated user and persists to `posts.json`.
 - `POST /faq` - persists FAQ answers to `faq-answers.json`.
-- `POST /orders` - persists an order for the authenticated user to `orders.json`.
-- `GET /orders` - returns the orders placed by the authenticated user.
+- `GET /orders` - returns the orders placed by the authenticated user. Order creation is over Event Mesh (`orders.requested`); see `MESH_IMPLEMENTATIONS/notifications.md`.
 - `GET /exports/:requestId/download` - downloads the completed CSV for the job owner. Export jobs are created over authenticated Event Mesh (`exports.requested`); see `MESH_IMPLEMENTATIONS/csv-exports.md`.
 - `GET /admin/orders` - returns all users' orders with embedded customers. Requires an admin Bearer token.
 - `GET /admin/posts` - returns all users' posts with embedded authors. Requires an admin Bearer token.
@@ -130,7 +129,7 @@ Admin shell (`http://localhost:4600`):
 - **Web Components** - Header (React), Footer (Vue), Product Showcase (Angular), Formulary Sent (Vue) are exposed as custom HTML elements.
 - **Iframes** - FAQ formulary (Vue) and Empty Checkout (Angular) are isolated in iframe pages and communicate via `window.postMessage`.
 - **Event-Emitter** - Shells dispatch and listen to native `CustomEvent` channels (`cart:add-item`, `cart:updateGlobalCart`, `auth:changed`, `auth:logout-request`, `host:navigate`, `host:logout`, `global:renderApp`).
-- **Local Notifications** - Each shell owns a page-local `CustomEvent` notification bus and persistent toast center for HTTP command outcomes. The bus and toast center come from the shared `packages/notifications` workspace (`@shared/notifications`), but each shell binds it to its own namespaced event channel (`ecommerce-shell:notification`, `social-media-shell:notification`, `admin-shell:notification`), so notifications do not cross shells, browser tabs, or reach the backend. A future event-mesh integration should adapt completion events into each shell's bus rather than being handled inside the toast UI.
+- **Local Notifications** - Each shell owns a persistent toast center from `@shared/notifications` that subscribes to `notifications.raised` on Event Mesh. Producers call `publishNotification()`, which publishes on mesh (`scope: "local"`). Local mesh starts at bootstrap even when logged out; authenticated WebSocket mesh upgrades on login. Backend order placement replies with targeted `notifications.raised` events. Details: `MESH_IMPLEMENTATIONS/notifications.md`.
 - **API-Based** - Both shells fetch data from the mock service via the native `fetch` API.
 - **Event Mesh** - Linked local `event-mesh` package. The mock service hosts the gateway on port `3004`; shells configure the mesh client at bootstrap. Feature write-ups live in `MESH_IMPLEMENTATIONS/`.
 - **CSV Exports** - Account pages create an authenticated export job over HTTP, wait for `exports.completed` / `exports.failed` on Event Mesh, then download the CSV with a second authenticated HTTP request. Details: `MESH_IMPLEMENTATIONS/csv-exports.md`.

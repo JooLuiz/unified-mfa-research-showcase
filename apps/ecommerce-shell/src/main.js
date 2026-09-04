@@ -16,8 +16,19 @@ import mesh from "event-mesh/mesh";
 
 import loadRemoteModules from "./utils/loadRemoteModules";
 import loadMockData from "./utils/loadData";
-import { mountNotificationCenter } from "./notifications/notificationCenter";
-import { notify } from "./notifications/notificationBus";
+import {
+  mountNotificationCenter,
+  ensureNotificationDisplayListeners,
+  resetNotificationDisplayListeners,
+} from "./notifications/notificationCenter";
+import { publishNotification } from "./notifications/meshNotificationAdapter";
+import {
+  isLocalMeshStarted,
+  isAuthenticatedMeshActive,
+  setLocalMeshStarted,
+  setAuthenticatedMeshActive,
+  clearMeshSessionFlags,
+} from "./notifications/meshSessionState";
 import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
 
 import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
@@ -58,10 +69,17 @@ const appState = {
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
 let activeHeaderElement = null;
-let meshSessionStarted = false;
 const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
 
-function configureApplicationMesh() {
+function configureLocalApplicationMesh() {
+  configureMesh({
+    gatewayUrl: "ws://localhost",
+    gatewayPort: 3004,
+    enableWebSocket: false,
+  });
+}
+
+function configureAuthenticatedApplicationMesh() {
   configureMesh({
     gatewayUrl: "ws://localhost",
     gatewayPort: 3004,
@@ -76,18 +94,47 @@ function configureApplicationMesh() {
   });
 }
 
-function startAuthenticatedMeshSession() {
-  if (!meshSessionStarted) {
-    configureApplicationMesh();
-    meshSessionStarted = true;
+function startLocalMeshSession() {
+  if (isAuthenticatedMeshActive()) {
+    return;
   }
+
+  if (!isLocalMeshStarted()) {
+    configureLocalApplicationMesh();
+    setLocalMeshStarted(true);
+  }
+
+  ensureNotificationDisplayListeners();
+}
+
+function startAuthenticatedMeshSession() {
+  if (!appState.authToken) {
+    return;
+  }
+
+  if (isAuthenticatedMeshActive()) {
+    ensureNotificationDisplayListeners();
+    ensureCsvExportListeners();
+    return;
+  }
+
+  resetNotificationDisplayListeners();
+  resetCsvExportListeners();
+  mesh.close();
+  clearMeshSessionFlags();
+
+  configureAuthenticatedApplicationMesh();
+  setAuthenticatedMeshActive(true);
+  ensureNotificationDisplayListeners();
   ensureCsvExportListeners();
 }
 
-function stopAuthenticatedMeshSession() {
+function downgradeToLocalMeshSession() {
   resetCsvExportListeners();
+  resetNotificationDisplayListeners();
   mesh.close();
-  meshSessionStarted = false;
+  clearMeshSessionFlags();
+  startLocalMeshSession();
 }
 
 function handleAuthMeshLifecycle() {
@@ -96,7 +143,7 @@ function handleAuthMeshLifecycle() {
     return;
   }
 
-  stopAuthenticatedMeshSession();
+  downgradeToLocalMeshSession();
 }
 
 function setGlobalCartVariable() {
@@ -283,7 +330,7 @@ window.addEventListener("cart:add-item", (event) => {
   updateHeaderState(appState, activeHeaderElement);
   const productName =
     appState.productsById[payload.productId]?.name || "Item";
-  notify({
+  publishNotification({
     type: "success",
     title: "Item added",
     message: `${productName} was added to your cart.`,
@@ -300,6 +347,8 @@ async function bootstrap() {
   readStoredAuth(appState);
   if (appState.authToken) {
     startAuthenticatedMeshSession();
+  } else {
+    startLocalMeshSession();
   }
   await loadMockData(appState);
   setGlobalCartVariable();

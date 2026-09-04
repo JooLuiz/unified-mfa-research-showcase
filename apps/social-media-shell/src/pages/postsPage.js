@@ -2,7 +2,7 @@
  * Renders the community posts route.
  * Role: Composes the new-post entry point, grouped post feeds, and interleaved promotional banners.
  * Not in this file: Post persistence (src/commands/postCommands.js) or trending selection (src/pages/feedPage.js).
- * Key dependencies: Ecommerce shell base URL for banner redirects; src/notifications/notificationBus.js.
+ * Key dependencies: Ecommerce shell base URL for banner redirects; src/notifications/meshNotificationAdapter.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
@@ -12,7 +12,7 @@ import {
   rememberPostLoginRedirect,
 } from "../utils/authActions";
 import { ECOMMERCE_SHELL_BASE_URL } from "../utils/constants";
-import { notify } from "../notifications/notificationBus";
+import { publishNotification } from "../notifications/meshNotificationAdapter";
 import { persistNewPost } from "../commands/postCommands";
 
 const POSTS_PER_BANNER_GROUP = 4;
@@ -58,7 +58,7 @@ function mountNewPostFormularyWithProps(containerElement, appState, modules) {
         authorId: appState.currentUser?.id,
       }).then((postResult) => {
         if (postResult.ok) {
-          notify({
+          publishNotification({
             type: "success",
             title: "Post published",
             message: "Your post is now visible in the community feed.",

@@ -8,6 +8,8 @@
 
 const EXPORT_TOPIC = "exports";
 const EXPORT_REQUESTED_EVENT = "requested";
+const ORDERS_TOPIC = "orders";
+const ORDERS_REQUESTED_EVENT = "requested";
 
 /**
  * Builds the gateway authenticateConnection callback for mesh ticket validation.
@@ -38,7 +40,10 @@ function createAuthorizeMessage() {
     }
 
     return (
-      message.topic === EXPORT_TOPIC && message.event === EXPORT_REQUESTED_EVENT
+      (message.topic === EXPORT_TOPIC &&
+        message.event === EXPORT_REQUESTED_EVENT) ||
+      (message.topic === ORDERS_TOPIC &&
+        message.event === ORDERS_REQUESTED_EVENT)
     );
   };
 }

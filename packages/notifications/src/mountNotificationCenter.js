@@ -1,10 +1,16 @@
 /**
  * Renders and manages a persistent toast queue for a shell.
- * Role: Converts page-local notification requests into accessible, auto-dismissing toast elements.
- * Not in this file: Business outcome decisions, backend transport, or route-specific UI.
- * Key dependencies: A notification bus created by createNotificationBus.
- * See also: src/createNotificationBus.js.
+ * Role: Subscribes to mesh notification events and renders accessible, auto-dismissing toasts.
+ * Not in this file: Business outcome decisions, mesh configuration, or route-specific UI.
+ * Key dependencies: event-mesh/mesh client; notificationPayload validation helpers.
+ * See also: src/notificationPayload.js; src/createMeshNotificationAdapter.js.
  */
+
+import {
+  NOTIFICATION_TOPIC,
+  NOTIFICATION_RAISED_EVENT,
+  isValidNotificationPayload,
+} from "./notificationPayload.js";
 
 const DEFAULT_DURATION_MS = 5000;
 
@@ -12,12 +18,13 @@ const DEFAULT_DURATION_MS = 5000;
  * Mounts the notification center in a persistent shell-level container.
  *
  * @param {HTMLElement} containerElement - Element that owns the rendered toast queue.
- * @param {{ subscribeToNotifications: (listener: (notification: object) => void) => () => void }} notificationBus - Bus that delivers notification requests.
- * @returns {() => void} Function that clears pending timers, subscriptions, and rendered toasts.
- * @sideEffects Subscribes to notification events and mutates the supplied container.
+ * @param {{ subscribe: (topic: string, event: string, callback: (message: object) => void) => void }} mesh - Mesh client for notification display subscription.
+ * @returns {{ unmount: () => void, ensureNotificationDisplayListeners: () => void, resetNotificationDisplayListeners: () => void }} Lifecycle API for toast display and mesh subscription management.
+ * @sideEffects Mutates the supplied container; registers mesh listeners when ensure is called.
  */
-function mountNotificationCenter(containerElement, notificationBus) {
+function mountNotificationCenter(containerElement, mesh) {
   const dismissalTimers = new Set();
+  let notificationDisplayListenersStarted = false;
 
   containerElement.className = "notification-center";
   containerElement.setAttribute("aria-live", "polite");
@@ -31,7 +38,7 @@ function mountNotificationCenter(containerElement, notificationBus) {
     notificationElement.remove();
   }
 
-  const unsubscribe = notificationBus.subscribeToNotifications((notification) => {
+  function renderNotification(notification) {
     const notificationElement = document.createElement("section");
     notificationElement.className = `notification-toast notification-toast--${notification.type}`;
     notificationElement.setAttribute(
@@ -63,13 +70,45 @@ function mountNotificationCenter(containerElement, notificationBus) {
     dismissButton.addEventListener("click", () =>
       dismissNotification(notificationElement, timerId),
     );
-  });
+  }
 
-  return () => {
-    unsubscribe();
+  function handleNotificationRaised(message) {
+    const notificationPayload = message.payload;
+    if (!isValidNotificationPayload(notificationPayload)) {
+      return;
+    }
+
+    renderNotification(notificationPayload);
+  }
+
+  function ensureNotificationDisplayListeners() {
+    if (notificationDisplayListenersStarted) {
+      return;
+    }
+
+    notificationDisplayListenersStarted = true;
+    mesh.subscribe(
+      NOTIFICATION_TOPIC,
+      NOTIFICATION_RAISED_EVENT,
+      handleNotificationRaised,
+    );
+  }
+
+  function resetNotificationDisplayListeners() {
+    notificationDisplayListenersStarted = false;
+  }
+
+  function unmount() {
+    resetNotificationDisplayListeners();
     dismissalTimers.forEach((timerId) => window.clearTimeout(timerId));
     dismissalTimers.clear();
     containerElement.replaceChildren();
+  }
+
+  return {
+    unmount,
+    ensureNotificationDisplayListeners,
+    resetNotificationDisplayListeners,
   };
 }
 

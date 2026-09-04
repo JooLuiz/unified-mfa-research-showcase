@@ -2,13 +2,13 @@
  * Renders the admin dashboard route for the admin shell.
  * Role: Loads all orders and posts and renders summary cards with totals.
  * Not in this file: Table rendering (orders/posts pages) or auth guard (main.js).
- * Key dependencies: src/utils/fetchJson.js; src/notifications/notificationBus.js.
+ * Key dependencies: src/utils/fetchJson.js; src/notifications/meshNotificationAdapter.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
 import fetchJson from "../utils/fetchJson";
 import { MOCK_API_BASE_URL } from "../utils/constants";
-import { notify } from "../notifications/notificationBus";
+import { publishNotification } from "../notifications/meshNotificationAdapter";
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("en-US", {
@@ -78,7 +78,7 @@ async function renderDashboardPage(appState, pageMount) {
     cardsMount.innerHTML = `
       <p class="admin-error">Unable to load dashboard data.</p>
     `;
-    notify({
+    publishNotification({
       type: "error",
       title: "Dashboard unavailable",
       message: "Unable to load orders and posts summary.",

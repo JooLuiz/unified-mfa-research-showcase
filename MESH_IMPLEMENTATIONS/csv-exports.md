@@ -24,7 +24,7 @@ Login → POST /api/auth/mesh-ticket → WebSocket ?ticket=...
 Account page → mesh.publish exports.requested { kind }
 Gateway handler → create job → generate CSV → gateway.reply(completed|failed)
 Shell listener → targeted reply with requestId
-Shell → GET /api/exports/:requestId/download → Blob download → local notify()
+Shell → GET /api/exports/:requestId/download → Blob download → publishNotification()
 ```
 
 Authentication steps (ticket issue, WebSocket upgrade, session lifecycle) are documented in [mesh-authentication.md](./mesh-authentication.md).
@@ -59,7 +59,7 @@ Replies are targeted to the requesting client via `gateway.reply()`, so shells d
 | Social adapter | `apps/social-media-shell/src/exports/requestCsvExport.js` |
 | Account UI | `apps/ecommerce-shell/src/pages/accountPage.js`, `apps/social-media-shell/src/pages/accountPage.js` |
 
-`@shared/notifications` does not subscribe to mesh events. The export adapter translates the outcome into each shell's existing `notify()` call.
+`@shared/notifications` renders toasts from a direct mesh subscription in each shell's notification center. Export result toasts use `publishNotification()` from the account page.
 
 ## What did not change
 

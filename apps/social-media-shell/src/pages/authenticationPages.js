@@ -2,7 +2,7 @@
  * Renders the login route for the social media shell.
  * Role: Mounts the login MFE and owns the post-login session, toast, and redirect outcome.
  * Not in this file: Login form or credential validation (login MFE); login failure stays in the MFE.
- * Key dependencies: src/utils/authActions.js; src/notifications/notificationBus.js.
+ * Key dependencies: src/utils/authActions.js; src/notifications/meshNotificationAdapter.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
@@ -13,7 +13,7 @@ import {
   consumePostLoginRedirect,
 } from "../utils/authActions";
 import { MOCK_API_BASE_URL } from "../utils/constants";
-import { notify } from "../notifications/notificationBus";
+import { publishNotification } from "../notifications/meshNotificationAdapter";
 
 /**
  * Renders the login page, redirecting away when already authenticated.
@@ -41,7 +41,7 @@ async function renderLoginPage(appState, pageMount, modules, activeCleanupFuncti
       redirectAfterLogin: consumePostLoginRedirect(),
       onLoginSuccess: ({ token, user, redirectAfterLogin }) => {
         setAuthSession(appState, { token, user });
-        notify({
+        publishNotification({
           type: "success",
           title: "Signed in",
           message: `Welcome back, ${user.fullName || user.username}.`,

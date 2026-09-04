@@ -3,7 +3,7 @@
  * Role: Owns admin host lifecycle, authentication guards, mesh configuration, and page orchestration.
  * Not in this file: Remote MFE implementation, API request details, or toast rendering.
  * Key dependencies: event-mesh/mesh; notification and remote-module adapters.
- * See also: src/utils/loadRemoteModules.js; src/notifications/notificationBus.js.
+ * See also: src/utils/loadRemoteModules.js; src/notifications/notificationCenter.js.
  */
 
 import "./styles.css";
@@ -22,10 +22,21 @@ import {
 import { AUTH_TOKEN_STORAGE_KEY } from "./utils/constants";
 
 import loadRemoteModules from "./utils/loadRemoteModules";
-import { mountNotificationCenter } from "./notifications/notificationCenter";
+import {
+  mountNotificationCenter,
+  ensureNotificationDisplayListeners,
+  resetNotificationDisplayListeners,
+} from "./notifications/notificationCenter";
 import { mountHeaderAndFooter } from "./utils/mountActions";
 import { navigate } from "./utils/navigate";
-import { notify } from "./notifications/notificationBus";
+import { publishNotification } from "./notifications/meshNotificationAdapter";
+import {
+  isLocalMeshStarted,
+  isAuthenticatedMeshActive,
+  setLocalMeshStarted,
+  setAuthenticatedMeshActive,
+  clearMeshSessionFlags,
+} from "./notifications/meshSessionState";
 import {
   renderLoginPage,
   renderDashboardPage,
@@ -41,15 +52,28 @@ const appState = {
 
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
-let meshSessionStarted = false;
 
 /**
- * Configures the admin host's mesh singleton before any consumer accesses it.
+ * Configures local-only mesh for anonymous notification delivery.
+ *
+ * @returns {void}
+ * @sideEffects Configures the mesh client without opening a WebSocket connection.
+ */
+function configureLocalApplicationMesh() {
+  configureMesh({
+    gatewayUrl: "ws://localhost",
+    gatewayPort: 3004,
+    enableWebSocket: false,
+  });
+}
+
+/**
+ * Configures authenticated mesh with gateway WebSocket and ticket acquisition.
  *
  * @returns {void}
  * @sideEffects Configures the browser WebSocket client for the local mesh gateway.
  */
-function configureApplicationMesh() {
+function configureAuthenticatedApplicationMesh() {
   configureMesh({
     gatewayUrl: "ws://localhost",
     gatewayPort: 3004,
@@ -64,18 +88,43 @@ function configureApplicationMesh() {
   });
 }
 
-function startAuthenticatedMeshSession() {
-  if (meshSessionStarted) {
+function startLocalMeshSession() {
+  if (isAuthenticatedMeshActive()) {
     return;
   }
 
-  configureApplicationMesh();
-  meshSessionStarted = true;
+  if (!isLocalMeshStarted()) {
+    configureLocalApplicationMesh();
+    setLocalMeshStarted(true);
+  }
+
+  ensureNotificationDisplayListeners();
 }
 
-function stopAuthenticatedMeshSession() {
+function startAuthenticatedMeshSession() {
+  if (!appState.authToken) {
+    return;
+  }
+
+  if (isAuthenticatedMeshActive()) {
+    ensureNotificationDisplayListeners();
+    return;
+  }
+
+  resetNotificationDisplayListeners();
   mesh.close();
-  meshSessionStarted = false;
+  clearMeshSessionFlags();
+
+  configureAuthenticatedApplicationMesh();
+  setAuthenticatedMeshActive(true);
+  ensureNotificationDisplayListeners();
+}
+
+function downgradeToLocalMeshSession() {
+  resetNotificationDisplayListeners();
+  mesh.close();
+  clearMeshSessionFlags();
+  startLocalMeshSession();
 }
 
 function handleAuthMeshLifecycle() {
@@ -84,7 +133,7 @@ function handleAuthMeshLifecycle() {
     return;
   }
 
-  stopAuthenticatedMeshSession();
+  downgradeToLocalMeshSession();
 }
 
 function clearCurrentPage() {
@@ -141,7 +190,7 @@ async function renderApp() {
     }
     if (!isAdminAuthenticated(appState)) {
       clearAuthSession(appState);
-      notify({
+      publishNotification({
         type: "error",
         title: "Access denied",
         message: "This account does not have admin access.",
@@ -222,6 +271,8 @@ async function bootstrap() {
   readStoredAuth(appState);
   if (appState.authToken) {
     startAuthenticatedMeshSession();
+  } else {
+    startLocalMeshSession();
   }
   if (appState.authToken) {
     void refreshCurrentUserFromApi(appState);

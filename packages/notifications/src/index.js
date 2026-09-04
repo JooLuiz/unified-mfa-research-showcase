@@ -3,9 +3,9 @@
  * Role: Exposes UI notification primitives and the linked mesh client without invoking it.
  * Not in this file: Toast behavior, mesh configuration, event subscriptions, or publishing.
  * Key dependencies: event-mesh/mesh resolved through the local Yarn link.
- * See also: src/createNotificationBus.js; src/mountNotificationCenter.js.
+ * See also: src/mountNotificationCenter.js; src/createMeshNotificationAdapter.js.
  */
 
-export { createNotificationBus } from "./createNotificationBus.js";
+export { createMeshNotificationAdapter } from "./createMeshNotificationAdapter.js";
 export { mountNotificationCenter } from "./mountNotificationCenter.js";
 export { default as mesh, configureMesh } from "event-mesh/mesh";

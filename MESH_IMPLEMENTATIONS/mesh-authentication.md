@@ -90,7 +90,7 @@ Returning `null` or throwing rejects the upgrade with HTTP `401`.
 | Check | Rule |
 | --- | --- |
 | Credential | `credential?.userId` must exist |
-| Allowed publish | `exports` topic + `requested` event only |
+| Allowed publish | `exports` + `requested`, or `orders` + `requested` |
 | Everything else | Deny |
 
 This keeps the showcase safe while admin connects to mesh without publishing business events yet.
@@ -99,7 +99,19 @@ This keeps the showcase safe while admin connects to mesh without publishing bus
 
 ## Client setup
 
-All three shells use the same pattern in `configureApplicationMesh()`:
+Shells use two mesh configurations:
+
+**Local mesh** (anonymous, always at bootstrap when logged out):
+
+```javascript
+configureMesh({
+  gatewayUrl: "ws://localhost",
+  gatewayPort: 3004,
+  enableWebSocket: false,
+});
+```
+
+**Authenticated mesh** (after login or bootstrap with token):
 
 ```javascript
 configureMesh({
@@ -122,14 +134,14 @@ The linked `event-mesh` client calls `getConnectionTicket` on every initial conn
 
 | Event | Shell behavior |
 | --- | --- |
-| Bootstrap with stored token | `configureApplicationMesh()` (+ export listeners in ecommerce/social) |
-| Bootstrap without token | Mesh is not configured; no reconnect loop |
-| Login (`auth:changed`) | Start mesh session only if not already started; export shells re-register listeners |
-| Logout (`auth:changed`) | `mesh.close()`; export shells call `resetCsvExportListeners()` |
+| Bootstrap without token | `startLocalMeshSession()` — local mesh + notification display listeners |
+| Bootstrap with stored token | `startAuthenticatedMeshSession()` — WebSocket mesh + export listeners (ecommerce/social) |
+| Login (`auth:changed`) | Upgrade to authenticated mesh; re-register listeners |
+| Logout (`auth:changed`) | `downgradeToLocalMeshSession()` — restore local mesh; cart toasts keep working |
 
-`configureMesh()` may run only once per mesh singleton. Bootstrap and login share `startAuthenticatedMeshSession()`, which skips re-configuration when `refreshCurrentUserFromApi` fires `auth:changed` on an already-connected session.
+`configureMesh()` may run only once per mesh singleton. Mode switches call `mesh.close()` then reconfigure.
 
-`mesh.close()` resets the Event Mesh singleton, so login after logout must call `configureMesh` again.
+`mesh.close()` resets the Event Mesh singleton, so every upgrade or downgrade must call `configureMesh` again and reset listener flags before re-subscribing.
 
 ## Security notes for this showcase
 
@@ -150,6 +162,7 @@ The linked `event-mesh` client calls `getConnectionTicket` on every initial conn
 | Social mesh bootstrap | `apps/social-media-shell/src/main.js`, `src/utils/authActions.js` |
 | Admin mesh bootstrap | `apps/admin-shell/src/main.js`, `src/utils/authActions.js` |
 
-## First feature using auth
+## Features using auth
 
-Authenticated CSV exports use this connection credential in the gateway subscriber (`message.credential.userId`) and targeted replies via `gateway.reply()`. See [csv-exports.md](./csv-exports.md).
+- Authenticated CSV exports use `message.credential.userId` and targeted replies via `gateway.reply()`. See [csv-exports.md](./csv-exports.md).
+- Order placement publishes `orders.requested`; the gateway replies with `notifications.raised`. See [notifications.md](./notifications.md).
