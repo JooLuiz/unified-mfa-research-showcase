@@ -1,6 +1,5 @@
 import { getCartTotalValue, getCartItemCount } from "./cartActions";
 import { isAuthenticated } from "./authActions";
-import { navigate } from "./navigate";
 
 function buildHeaderState(appState) {
   return {
@@ -23,12 +22,6 @@ function updateHeaderState(appState, headerElement) {
 function mountHeaderAndFooter(appState, layoutMounts) {
   const headerElement = document.createElement("react-header-mfe");
   updateHeaderState(appState, headerElement);
-  headerElement.addEventListener("host:navigate", (event) => {
-    navigate(event.detail.path);
-  });
-  headerElement.addEventListener("host:logout", () => {
-    window.dispatchEvent(new CustomEvent("auth:logout-request"));
-  });
   layoutMounts.headerMount.appendChild(headerElement);
 
   const footerElement = document.createElement("vue-footer-mfe");

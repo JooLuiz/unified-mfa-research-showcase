@@ -16,6 +16,7 @@
     "webpack-dev-server": "^5.2.0"
   },
   "dependencies": {
-    "@shared/notifications": "*"
+    "@shared/notifications": "*",
+    "@shared/shell-events": "*"
   }
 }

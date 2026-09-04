@@ -1,7 +1,21 @@
+/**
+ * Registers the shared React header as a custom element.
+ * Role: Renders header UI and publishes local mesh navigation/logout requests.
+ * Not in this file: Mesh configuration, route matching, or authentication state.
+ * Key dependencies: event-mesh/mesh singleton owned by the host shell; @shared/shell-events.
+ * See also: packages/shell-events/src/createShellEvents.js.
+ */
+
 import React from "react";
 import { createRoot } from "react-dom/client";
 import PrettyIcons from "js-pretty-icons";
+import mesh from "event-mesh/mesh";
+import { createShellEvents } from "@shared/shell-events";
 import "./styles.css";
+
+const { publishPathRequested, publishLogoutRequested } = createShellEvents({
+  mesh,
+});
 
 const ECOMMERCE_NAV_LINKS = [
   { path: "/products", label: "Products" },
@@ -237,19 +251,10 @@ class HeaderElement extends HTMLElement {
         isAuthenticated={isAuthenticated}
         currentUserName={currentUserName}
         onNavigate={(path) => {
-          this.dispatchEvent(
-            new CustomEvent("host:navigate", {
-              detail: { path },
-              bubbles: true,
-            }),
-          );
+          publishPathRequested(path);
         }}
         onLogout={() => {
-          this.dispatchEvent(
-            new CustomEvent("host:logout", {
-              bubbles: true,
-            }),
-          );
+          publishLogoutRequested();
         }}
       />,
     );

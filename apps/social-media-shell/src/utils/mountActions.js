@@ -1,5 +1,13 @@
+/**
+ * Mounts social shell header and footer Single-SPA applications.
+ * Role: Adapts the shared header/footer MFEs to the social shell's auth and navigation events.
+ * Not in this file: Authentication state persistence, mesh configuration, or page routing.
+ * Key dependencies: src/events/shellEventBus.js; global layout custom elements.
+ * See also: src/main.js.
+ */
+
 import { isAuthenticated } from "./authActions";
-import { navigate } from "./navigate";
+import { subscribeToAuthSessionChanges } from "../events/shellEventBus";
 
 function buildHeaderState(appState) {
   return {
@@ -12,11 +20,15 @@ function buildHeaderState(appState) {
   };
 }
 
+/**
+ * Creates the Single-SPA lifecycle for the social header.
+ *
+ * @returns {{ bootstrap: () => Promise<void>, mount: (mountProps: object) => Promise<void>, unmount: () => Promise<void> }} Single-SPA application lifecycle.
+ */
 function createHeaderApp() {
   let headerElement = null;
-  let onHostNavigate = null;
-  let onHostLogout = null;
-  let onAuthChanged = null;
+  let onAuthSessionChanged = null;
+  let unsubscribeFromAuthSessionChanges = null;
   let storedAppState = null;
 
   function bootstrap() {
@@ -30,24 +42,14 @@ function createHeaderApp() {
     headerElement = document.createElement("react-header-mfe");
     headerElement.state = buildHeaderState(appState);
 
-    onHostNavigate = (event) => {
-      const targetPath = event?.detail?.path;
-      if (typeof targetPath === "string") {
-        navigate(targetPath);
-      }
-    };
-    onHostLogout = () => {
-      window.dispatchEvent(new CustomEvent("auth:logout-request"));
-    };
-    onAuthChanged = () => {
+    onAuthSessionChanged = () => {
       if (headerElement && storedAppState) {
         headerElement.state = buildHeaderState(storedAppState);
       }
     };
 
-    headerElement.addEventListener("host:navigate", onHostNavigate);
-    headerElement.addEventListener("host:logout", onHostLogout);
-    window.addEventListener("auth:changed", onAuthChanged);
+    unsubscribeFromAuthSessionChanges =
+      subscribeToAuthSessionChanges(onAuthSessionChanged);
 
     domElement.appendChild(headerElement);
     return Promise.resolve();
@@ -55,23 +57,16 @@ function createHeaderApp() {
 
   function unmount() {
     if (headerElement) {
-      if (onHostNavigate) {
-        headerElement.removeEventListener("host:navigate", onHostNavigate);
-      }
-      if (onHostLogout) {
-        headerElement.removeEventListener("host:logout", onHostLogout);
-      }
       if (headerElement.parentNode) {
         headerElement.parentNode.removeChild(headerElement);
       }
     }
-    if (onAuthChanged) {
-      window.removeEventListener("auth:changed", onAuthChanged);
+    if (unsubscribeFromAuthSessionChanges) {
+      unsubscribeFromAuthSessionChanges();
     }
     headerElement = null;
-    onHostNavigate = null;
-    onHostLogout = null;
-    onAuthChanged = null;
+    onAuthSessionChanged = null;
+    unsubscribeFromAuthSessionChanges = null;
     storedAppState = null;
     return Promise.resolve();
   }
@@ -79,6 +74,11 @@ function createHeaderApp() {
   return { bootstrap, mount, unmount };
 }
 
+/**
+ * Creates the Single-SPA lifecycle for the social footer.
+ *
+ * @returns {{ bootstrap: () => Promise<void>, mount: (mountProps: object) => Promise<void>, unmount: () => Promise<void> }} Single-SPA application lifecycle.
+ */
 function createFooterApp() {
   let footerElement = null;
 

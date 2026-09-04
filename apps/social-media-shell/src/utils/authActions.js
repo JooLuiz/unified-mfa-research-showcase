@@ -5,6 +5,7 @@ import {
   PROTECTED_ROUTE_PATHS,
   MOCK_API_BASE_URL,
 } from "./constants";
+import { publishAuthSessionChanged } from "../events/shellEventBus";
 
 function readStoredAuth(appState) {
   try {
@@ -45,14 +46,14 @@ function setAuthSession(appState, sessionPayload) {
   appState.authToken = sessionPayload.token || null;
   appState.currentUser = sessionPayload.user || null;
   persistAuth(appState);
-  window.dispatchEvent(new CustomEvent("auth:changed"));
+  publishAuthSessionChanged();
 }
 
 function clearAuthSession(appState) {
   appState.authToken = null;
   appState.currentUser = null;
   persistAuth(appState);
-  window.dispatchEvent(new CustomEvent("auth:changed"));
+  publishAuthSessionChanged();
 }
 
 function isAuthenticated(appState) {
@@ -97,7 +98,7 @@ async function refreshCurrentUserFromApi(appState) {
     const refreshedUser = await response.json();
     appState.currentUser = refreshedUser;
     persistAuth(appState);
-    window.dispatchEvent(new CustomEvent("auth:changed"));
+    publishAuthSessionChanged();
   } catch (error) {
     console.warn("refreshCurrentUserFromApi - error");
     console.warn(error);

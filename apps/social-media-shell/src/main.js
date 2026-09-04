@@ -37,6 +37,11 @@ import {
 } from "./notifications/meshSessionState";
 import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
 import {
+  ensureShellEventListeners,
+  publishRenderRequested,
+  resetShellEventListeners,
+} from "./events/shellEventBus";
+import {
   feedPageApp,
   postsPageApp,
   loginPageApp,
@@ -103,6 +108,7 @@ function startLocalMeshSession() {
   }
 
   ensureNotificationDisplayListeners();
+  ensureShellEventListeners(shellEventHandlers);
 }
 
 function startAuthenticatedMeshSession() {
@@ -113,11 +119,13 @@ function startAuthenticatedMeshSession() {
   if (isAuthenticatedMeshActive()) {
     ensureNotificationDisplayListeners();
     ensureCsvExportListeners();
+    ensureShellEventListeners(shellEventHandlers);
     return;
   }
 
   resetNotificationDisplayListeners();
   resetCsvExportListeners();
+  resetShellEventListeners();
   mesh.close();
   clearMeshSessionFlags();
 
@@ -125,11 +133,13 @@ function startAuthenticatedMeshSession() {
   setAuthenticatedMeshActive(true);
   ensureNotificationDisplayListeners();
   ensureCsvExportListeners();
+  ensureShellEventListeners(shellEventHandlers);
 }
 
 function downgradeToLocalMeshSession() {
   resetCsvExportListeners();
   resetNotificationDisplayListeners();
+  resetShellEventListeners();
   mesh.close();
   clearMeshSessionFlags();
   startLocalMeshSession();
@@ -216,19 +226,22 @@ function registerPageApplications() {
   });
 }
 
-window.addEventListener("global:renderApp", () => {
-  reloadActivePageApp();
-});
-
-window.addEventListener("auth:changed", () => {
-  handleAuthMeshLifecycle();
-  reloadActivePageApp();
-});
-
-window.addEventListener("auth:logout-request", () => {
-  clearAuthSession(appState);
-  navigate("/");
-});
+const shellEventHandlers = {
+  onRenderRequested: () => {
+    reloadActivePageApp();
+  },
+  onPathRequested: ({ path }) => {
+    navigate(path);
+  },
+  onAuthSessionChanged: () => {
+    handleAuthMeshLifecycle();
+    reloadActivePageApp();
+  },
+  onLogoutRequested: () => {
+    clearAuthSession(appState);
+    navigate("/");
+  },
+};
 
 function applyInitialAuthGuard() {
   const currentPathName = window.location.pathname;

@@ -4,7 +4,7 @@ const { ModuleFederationPlugin } = require("webpack").container;
 
 module.exports = {
   mode: "development",
-  entry: path.resolve(__dirname, "src/main.js"),
+  entry: path.resolve(__dirname, "src/index.js"),
   output: {
     publicPath: "auto",
     clean: true,

@@ -114,6 +114,32 @@ All producers import `publishNotification` from `meshNotificationAdapter.js`. Di
 
 Ecommerce checkout uses [`placeOrderViaMesh.js`](../apps/ecommerce-shell/src/commands/placeOrderViaMesh.js) for backend-driven order notifications. It maintains a separate mesh subscriber for order reply correlation only.
 
+## Shell-local events
+
+All shells replace their window `CustomEvent` buses with local mesh messages. They coordinate browser-local UI state only and therefore always use `scope: "local"`; they are never delivered to the gateway.
+
+Shared auth/navigation contracts live in [`packages/shell-events`](../packages/shell-events):
+
+| Topic | Event | Publisher | Consumer |
+| --- | --- | --- | --- |
+| `navigation` | `render-requested` | Navigation and route outcomes | Owning shell renderer/page reloader |
+| `navigation` | `path-requested` | Shared header MFE | Owning shell `navigate(path)` |
+| `auth` | `session-changed` | Sign-in, sign-out, session refresh | Owning shell mesh lifecycle and UI |
+| `auth` | `logout-requested` | Shared header MFE | Owning shell session handler |
+
+The shared header publishes through the host's Event Mesh singleton. It does not configure mesh. The social shell still observes `auth.session-changed` through `subscribeToAuthSessionChanges` so the persistent header can refresh its displayed user state.
+
+The ecommerce shell adds cart-specific contracts in [`apps/ecommerce-shell/src/events`](../apps/ecommerce-shell/src/events):
+
+| Topic | Event | Publisher | Consumer |
+| --- | --- | --- | --- |
+| `cart` | `item-add-requested` | Product actions | Ecommerce shell cart handler |
+| `cart` | `changed` | Ecommerce shell after a cart mutation | Header and Checkout MFE |
+
+The ecommerce shell owns the cart. Every `cart.changed` event carries a cloned `{ items: [{ productId, quantity }] }` snapshot. The Checkout MFE receives snapshots through a host-injected `subscribeToCartChanges` adapter, which uses mesh internally; it does not configure or import the mesh client.
+
+Browser-native `popstate` and iframe `message` events remain outside these local mesh contracts.
+
 ## Related docs
 
 - Connection auth and authorized client publishes: [mesh-authentication.md](./mesh-authentication.md)

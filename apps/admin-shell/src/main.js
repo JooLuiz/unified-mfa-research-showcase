@@ -38,6 +38,11 @@ import {
   clearMeshSessionFlags,
 } from "./notifications/meshSessionState";
 import {
+  ensureShellEventListeners,
+  publishRenderRequested,
+  resetShellEventListeners,
+} from "./events/shellEventBus";
+import {
   renderLoginPage,
   renderDashboardPage,
   renderOrdersPage,
@@ -99,6 +104,7 @@ function startLocalMeshSession() {
   }
 
   ensureNotificationDisplayListeners();
+  ensureShellEventListeners(shellEventHandlers);
 }
 
 function startAuthenticatedMeshSession() {
@@ -108,20 +114,24 @@ function startAuthenticatedMeshSession() {
 
   if (isAuthenticatedMeshActive()) {
     ensureNotificationDisplayListeners();
+    ensureShellEventListeners(shellEventHandlers);
     return;
   }
 
   resetNotificationDisplayListeners();
+  resetShellEventListeners();
   mesh.close();
   clearMeshSessionFlags();
 
   configureAuthenticatedApplicationMesh();
   setAuthenticatedMeshActive(true);
   ensureNotificationDisplayListeners();
+  ensureShellEventListeners(shellEventHandlers);
 }
 
 function downgradeToLocalMeshSession() {
   resetNotificationDisplayListeners();
+  resetShellEventListeners();
   mesh.close();
   clearMeshSessionFlags();
   startLocalMeshSession();
@@ -185,7 +195,7 @@ async function renderApp() {
     if (!appState.authToken || !appState.currentUser) {
       rememberPostLoginRedirect(pathName + window.location.search);
       history.replaceState({}, "", "/login");
-      window.dispatchEvent(new CustomEvent("global:renderApp"));
+      publishRenderRequested();
       return;
     }
     if (!isAdminAuthenticated(appState)) {
@@ -196,7 +206,7 @@ async function renderApp() {
         message: "This account does not have admin access.",
       });
       history.replaceState({}, "", "/login");
-      window.dispatchEvent(new CustomEvent("global:renderApp"));
+      publishRenderRequested();
       return;
     }
   }
@@ -244,22 +254,25 @@ async function renderApp() {
     .addEventListener("click", () => navigate("/"));
 }
 
-window.addEventListener("global:renderApp", () => {
-  renderApp();
-});
+const shellEventHandlers = {
+  onRenderRequested: () => {
+    void renderApp();
+  },
+  onPathRequested: ({ path }) => {
+    navigate(path);
+  },
+  onAuthSessionChanged: () => {
+    handleAuthMeshLifecycle();
+    void renderApp();
+  },
+  onLogoutRequested: () => {
+    clearAuthSession(appState);
+    navigate("/login");
+  },
+};
 
 window.addEventListener("popstate", () => {
-  renderApp();
-});
-
-window.addEventListener("auth:changed", () => {
-  handleAuthMeshLifecycle();
-  renderApp();
-});
-
-window.addEventListener("auth:logout-request", () => {
-  clearAuthSession(appState);
-  navigate("/login");
+  void renderApp();
 });
 
 async function bootstrap() {

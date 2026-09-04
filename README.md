@@ -38,7 +38,8 @@ The workspaces are organized by **business domain**, not by technology stack. A 
 
 | Package                 | Path                     | Notes                                                                                         |
 | ----------------------- | ------------------------ | --------------------------------------------------------------------------------------------- |
-| `@shared/notifications` | `packages/notifications` | Shell-local notification bus and toast center, bound per shell to a namespaced event channel. |
+| `@shared/notifications` | `packages/notifications` | Event Mesh-backed notification publisher and persistent toast center. |
+| `@shared/shell-events`  | `packages/shell-events`  | Shared local mesh contracts for shell auth and navigation coordination. |
 
 ## Mock Data Service (`apps/mock-data-service`, port `4000`)
 
@@ -58,6 +59,10 @@ Base URL: `http://localhost:4000/api`
 - `GET /admin/orders` - returns all users' orders with embedded customers. Requires an admin Bearer token.
 - `GET /admin/posts` - returns all users' posts with embedded authors. Requires an admin Bearer token.
 - `GET /health`
+
+## Event Mesh
+
+Event Mesh transports authenticated backend commands (`orders.requested`, `exports.requested`) and shell-local UI coordination. All shells use local mesh messages for navigation and authentication events; ecommerce also uses local cart events. These contracts replace application-level window `CustomEvent` buses. See [`MESH_IMPLEMENTATIONS/notifications.md`](./MESH_IMPLEMENTATIONS/notifications.md) for the contracts and delivery scopes.
 
 ### Demo accounts
 

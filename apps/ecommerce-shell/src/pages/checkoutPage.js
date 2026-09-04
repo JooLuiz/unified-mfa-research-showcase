@@ -18,6 +18,11 @@ import {
 } from "../utils/authActions";
 import { publishNotification } from "../notifications/meshNotificationAdapter";
 import { placeOrderViaMesh } from "../commands/placeOrderViaMesh";
+import {
+  publishCartChanged,
+  publishRenderRequested,
+  subscribeToCartChanges,
+} from "../events/localMeshEventBus";
 
 /**
  * Renders checkout, awaiting order persistence before clearing the cart or navigating.
@@ -83,7 +88,9 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
 
   activeCleanupFunctions.push(
     modules.mountCheckoutItems(checkoutItemsMount, {
+      cartItems: appState.cartItems,
       productsById: appState.productsById,
+      subscribeToCartChanges,
       onQuantityChange: (productId, quantity) => {
         updateCartItem(appState, productId, quantity);
         refreshCheckoutSummary();
@@ -97,7 +104,7 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
           message: `${productName} was removed from your cart.`,
         });
         if (appState.cartItems.length === 0) {
-          window.dispatchEvent(new CustomEvent("global:renderApp"));
+          publishRenderRequested();
           return;
         }
         refreshCheckoutSummary();
@@ -137,7 +144,7 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
 
       appState.cartItems = [];
       appState.appliedCoupon = null;
-      window.dispatchEvent(new CustomEvent("cart:updateGlobalCart"));
+      publishCartChanged(appState.cartItems);
       navigate("/order-placed");
     },
   });

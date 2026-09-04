@@ -1,5 +1,12 @@
+/**
+ * Mounts the admin header and footer custom elements.
+ * Role: Creates layout chrome and supplies the header with admin display state.
+ * Not in this file: Navigation, logout handling, or mesh configuration.
+ * Key dependencies: global layout custom elements.
+ * See also: src/main.js.
+ */
+
 import { isAuthenticated } from "./authActions";
-import { navigate } from "./navigate";
 
 function mountHeaderAndFooter(appState, layoutMounts) {
   const headerElement = document.createElement("react-header-mfe");
@@ -11,12 +18,6 @@ function mountHeaderAndFooter(appState, layoutMounts) {
     currentUserName:
       appState.currentUser?.fullName || appState.currentUser?.username || "",
   };
-  headerElement.addEventListener("host:navigate", (event) => {
-    navigate(event.detail.path);
-  });
-  headerElement.addEventListener("host:logout", () => {
-    window.dispatchEvent(new CustomEvent("auth:logout-request"));
-  });
   layoutMounts.headerMount.appendChild(headerElement);
 
   const footerElement = document.createElement("vue-footer-mfe");

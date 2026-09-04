@@ -1,0 +1,75 @@
+/**
+ * Defines local Event Mesh contracts for ecommerce shell coordination.
+ * Role: Centralizes topic/event names and validates payloads exchanged between ecommerce modules.
+ * Not in this file: Mesh publishing, subscriptions, cart mutations, or UI rendering.
+ * Key dependencies: None.
+ * See also: src/events/localMeshEventBus.js; src/main.js.
+ */
+
+const CART_TOPIC = "cart";
+const CART_ITEM_ADD_REQUESTED_EVENT = "item-add-requested";
+const CART_CHANGED_EVENT = "changed";
+
+/**
+ * @typedef {{ productId: string, quantity: number }} CartItem
+ */
+
+function isRecord(value) {
+  return Boolean(value) && typeof value === "object";
+}
+
+/**
+ * Checks whether a value is a valid cart item.
+ *
+ * @param {unknown} value - Candidate cart item.
+ * @returns {value is CartItem} Whether the value has a product ID and positive quantity.
+ */
+function isValidCartItem(value) {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.productId === "string" &&
+    value.productId.trim() !== "" &&
+    Number.isFinite(value.quantity) &&
+    value.quantity > 0
+  );
+}
+
+/**
+ * Creates a safe cart snapshot for delivery to mesh subscribers.
+ *
+ * @param {unknown} cartItems - Candidate cart item collection.
+ * @returns {CartItem[]} Cloned valid cart items with integer quantities.
+ */
+function createCartSnapshot(cartItems) {
+  if (!Array.isArray(cartItems)) {
+    return [];
+  }
+
+  return cartItems
+    .filter(isValidCartItem)
+    .map((cartItem) => ({
+      productId: cartItem.productId,
+      quantity: Math.floor(cartItem.quantity),
+    }));
+}
+
+/**
+ * Checks whether a value can request adding an item to the cart.
+ *
+ * @param {unknown} value - Candidate add-item request payload.
+ * @returns {value is CartItem} Whether the payload is a valid cart item.
+ */
+function isValidCartAddRequest(value) {
+  return isValidCartItem(value);
+}
+
+export {
+  CART_CHANGED_EVENT,
+  CART_ITEM_ADD_REQUESTED_EVENT,
+  CART_TOPIC,
+  createCartSnapshot,
+  isValidCartAddRequest,
+};

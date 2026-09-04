@@ -1,3 +1,16 @@
+/**
+ * Calculates and mutates ecommerce cart state through local mesh messages.
+ * Role: Provides cart helpers and publishes shell-owned cart intent/state events.
+ * Not in this file: Cart command handling, header rendering, or Checkout MFE subscriptions.
+ * Key dependencies: src/events/localMeshEventBus.js.
+ * See also: src/main.js; src/pages/checkoutPage.js.
+ */
+
+import {
+  publishCartChanged,
+  publishCartItemAddRequested,
+} from "../events/localMeshEventBus";
+
 function getCartTotalValue(appState) {
   return appState.cartItems.reduce((totalValue, cartItem) => {
     const product = appState.productsById[cartItem.productId];
@@ -16,11 +29,7 @@ function getCartItemCount(appState) {
 }
 
 function dispatchAddToCartEvent(addToCartPayload) {
-  window.dispatchEvent(
-    new CustomEvent("cart:add-item", {
-      detail: addToCartPayload,
-    }),
-  );
+  publishCartItemAddRequested(addToCartPayload);
 }
 
 function updateCartItem(appState, productId, quantity) {
@@ -32,16 +41,14 @@ function updateCartItem(appState, productId, quantity) {
   } else {
     appState.cartItems.push({ productId, quantity });
   }
-  window.__APP_SHELL_CART__ = appState.cartItems;
-  window.dispatchEvent(new CustomEvent("cart:updateGlobalCart"));
+  publishCartChanged(appState.cartItems);
 }
 
 function removeCartItem(appState, productId) {
   appState.cartItems = appState.cartItems.filter(
     (cartItem) => cartItem.productId !== productId,
   );
-  window.__APP_SHELL_CART__ = appState.cartItems;
-  window.dispatchEvent(new CustomEvent("cart:updateGlobalCart"));
+  publishCartChanged(appState.cartItems);
 }
 
 export {

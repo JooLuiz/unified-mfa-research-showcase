@@ -11,6 +11,7 @@ import { dispatchAddToCartEvent } from "../utils/cartActions";
 import { MOCK_API_BASE_URL, FORMULARY_REMOTE_BASE_URL } from "../utils/constants";
 import { applyPromotionFilters } from "./promotionsPage";
 import { persistFaqAnswerToApi } from "../commands/faqCommands";
+import { publishRenderRequested } from "../events/localMeshEventBus";
 
 const FAQ_FRAME_ID = "faq-formulary";
 
@@ -118,7 +119,7 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
         appState.isFormularySubmitted = true;
         appState.lastIframeMessage = `FAQ submitted by ${payload.name} (${payload.email})`;
         void persistFaqAnswerToApi(appState, payload);
-        window.dispatchEvent(new CustomEvent("global:renderApp"));
+        publishRenderRequested();
       }
     }
 

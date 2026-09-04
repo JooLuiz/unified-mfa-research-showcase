@@ -1,3 +1,11 @@
+/**
+ * Renders editable checkout cart items supplied by the ecommerce shell.
+ * Role: Displays cart snapshots and emits quantity/removal intents without owning cart state or mesh configuration.
+ * Not in this file: Cart persistence, cart message publishing, or Event Mesh configuration.
+ * Key dependencies: Host-provided cart snapshot and cart-change subscription adapter.
+ * See also: apps/ecommerce-shell/src/pages/checkoutPage.js.
+ */
+
 import "@angular/compiler";
 import {
   ApplicationRef,
@@ -27,17 +35,17 @@ type CartItem = {
 
 type ProductsById = Record<string, Product>;
 
+type SubscribeToCartChanges = (
+  listener: (cartItems: CartItem[]) => void,
+) => () => void;
+
 type CheckoutItemsProps = {
+  cartItems: CartItem[];
   productsById: ProductsById;
+  subscribeToCartChanges: SubscribeToCartChanges;
   onQuantityChange?: (productId: string, quantity: number) => void;
   onRemoveItem?: (productId: string) => void;
 };
-
-declare global {
-  interface Window {
-    __APP_SHELL_CART__?: unknown;
-  }
-}
 
 const normalizeQuantity = (nextQuantity: number): number => {
   const parsedQuantity = Number(nextQuantity);
@@ -61,13 +69,12 @@ function isCartItem(value: unknown): value is CartItem {
   return Number.isFinite(parsedQuantity) && parsedQuantity >= 1;
 }
 
-function readCartItemsFromGlobalState(): CartItem[] {
-  const globalCart = window.__APP_SHELL_CART__;
-  if (!Array.isArray(globalCart)) {
+function normalizeCartItems(cartItems: unknown): CartItem[] {
+  if (!Array.isArray(cartItems)) {
     return [];
   }
 
-  return globalCart
+  return cartItems
     .filter(isCartItem)
     .map((cartItem) => ({
       productId: cartItem.productId,
@@ -185,18 +192,14 @@ export function mountCheckoutItems(
   let componentRef: ComponentRef<CheckoutItemsComponent> | null = null;
   let isUnmounted = false;
 
-  const syncCartItemsFromGlobalState = (): void => {
+  const syncCartItems = (cartItems: CartItem[]): void => {
     if (!componentRef) {
       return;
     }
-    componentRef.setInput("cartItems", readCartItemsFromGlobalState());
+    componentRef.setInput("cartItems", normalizeCartItems(cartItems));
   };
 
-  const handleGlobalCartUpdated = (): void => {
-    syncCartItemsFromGlobalState();
-  };
-
-  window.addEventListener("cart:updateGlobalCart", handleGlobalCartUpdated);
+  const unsubscribeFromCartChanges = props.subscribeToCartChanges(syncCartItems);
 
   const bootstrapPromise = createApplication().then((nextApplicationRef) => {
     if (isUnmounted) {
@@ -206,7 +209,7 @@ export function mountCheckoutItems(
 
     applicationRef = nextApplicationRef;
     componentRef = applicationRef.bootstrap(CheckoutItemsComponent, containerElement);
-    syncCartItemsFromGlobalState();
+    syncCartItems(props.cartItems);
     componentRef.setInput("productsById", props.productsById ?? {});
 
     componentRef.instance.quantityChange.subscribe((payload) => {
@@ -219,7 +222,7 @@ export function mountCheckoutItems(
 
   return () => {
     isUnmounted = true;
-    window.removeEventListener("cart:updateGlobalCart", handleGlobalCartUpdated);
+    unsubscribeFromCartChanges();
     void bootstrapPromise.then(() => {
       componentRef?.destroy();
       applicationRef?.destroy();

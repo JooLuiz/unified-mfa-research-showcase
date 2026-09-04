@@ -30,6 +30,14 @@ import {
   clearMeshSessionFlags,
 } from "./notifications/meshSessionState";
 import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
+import {
+  ensureCartEventListeners,
+  ensureShellEventListeners,
+  publishCartChanged,
+  publishRenderRequested,
+  resetCartEventListeners,
+  resetShellEventListeners,
+} from "./events/localMeshEventBus";
 
 import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
 
@@ -105,6 +113,8 @@ function startLocalMeshSession() {
   }
 
   ensureNotificationDisplayListeners();
+  ensureShellEventListeners(shellEventHandlers);
+  ensureCartEventListeners(shellEventHandlers);
 }
 
 function startAuthenticatedMeshSession() {
@@ -115,11 +125,15 @@ function startAuthenticatedMeshSession() {
   if (isAuthenticatedMeshActive()) {
     ensureNotificationDisplayListeners();
     ensureCsvExportListeners();
+    ensureShellEventListeners(shellEventHandlers);
+    ensureCartEventListeners(shellEventHandlers);
     return;
   }
 
   resetNotificationDisplayListeners();
   resetCsvExportListeners();
+  resetShellEventListeners();
+  resetCartEventListeners();
   mesh.close();
   clearMeshSessionFlags();
 
@@ -127,11 +141,15 @@ function startAuthenticatedMeshSession() {
   setAuthenticatedMeshActive(true);
   ensureNotificationDisplayListeners();
   ensureCsvExportListeners();
+  ensureShellEventListeners(shellEventHandlers);
+  ensureCartEventListeners(shellEventHandlers);
 }
 
 function downgradeToLocalMeshSession() {
   resetCsvExportListeners();
   resetNotificationDisplayListeners();
+  resetShellEventListeners();
+  resetCartEventListeners();
   mesh.close();
   clearMeshSessionFlags();
   startLocalMeshSession();
@@ -144,10 +162,6 @@ function handleAuthMeshLifecycle() {
   }
 
   downgradeToLocalMeshSession();
-}
-
-function setGlobalCartVariable() {
-  window.__APP_SHELL_CART__ = appState.cartItems;
 }
 
 function clearCurrentPage() {
@@ -210,7 +224,7 @@ async function renderApp() {
     if (legacyOrderId) {
       const encodedOrderId = encodeURIComponent(legacyOrderId);
       history.replaceState({}, "", `/order-details/${encodedOrderId}`);
-      window.dispatchEvent(new CustomEvent("global:renderApp"));
+      publishRenderRequested();
       return;
     }
   }
@@ -218,7 +232,7 @@ async function renderApp() {
   if (isProtectedRoute(pathName) && !isAuthenticated(appState)) {
     rememberPostLoginRedirect(pathName + window.location.search);
     history.replaceState({}, "", "/login");
-    window.dispatchEvent(new CustomEvent("global:renderApp"));
+    publishRenderRequested();
     return;
   }
 
@@ -281,60 +295,54 @@ async function renderApp() {
     .addEventListener("click", () => navigate("/"));
 }
 
-window.addEventListener("cart:updateGlobalCart", () => {
-  setGlobalCartVariable();
+function handleCartChanged() {
   updateHeaderState(appState, activeHeaderElement);
-});
+}
 
-window.addEventListener("global:renderApp", () => {
-  renderApp();
-});
-
-window.addEventListener("popstate", () => {
-  renderApp();
-});
-
-window.addEventListener("auth:changed", () => {
-  handleAuthMeshLifecycle();
-  renderApp();
-});
-
-window.addEventListener("auth:logout-request", () => {
-  clearAuthSession(appState);
-  navigate("/");
-});
-
-window.addEventListener("cart:add-item", (event) => {
-  const payload = event.detail;
-  if (!payload || !payload.productId) {
-    return;
-  }
-
-  const incomingQuantity = Number(payload.quantity);
-  const quantityValue =
-    Number.isFinite(incomingQuantity) && incomingQuantity > 0
-      ? incomingQuantity
-      : 1;
+function handleCartItemAddRequested(cartItem) {
   const existingItem = appState.cartItems.find(
-    (cartItem) => cartItem.productId === payload.productId,
+    (existingCartItem) => existingCartItem.productId === cartItem.productId,
   );
   if (existingItem) {
-    existingItem.quantity += quantityValue;
+    existingItem.quantity += cartItem.quantity;
   } else {
     appState.cartItems.push({
-      productId: payload.productId,
-      quantity: quantityValue,
+      productId: cartItem.productId,
+      quantity: cartItem.quantity,
     });
   }
-  setGlobalCartVariable();
-  updateHeaderState(appState, activeHeaderElement);
+
+  publishCartChanged(appState.cartItems);
   const productName =
-    appState.productsById[payload.productId]?.name || "Item";
+    appState.productsById[cartItem.productId]?.name || "Item";
   publishNotification({
     type: "success",
     title: "Item added",
     message: `${productName} was added to your cart.`,
   });
+}
+
+const shellEventHandlers = {
+  onCartItemAddRequested: handleCartItemAddRequested,
+  onCartChanged: handleCartChanged,
+  onRenderRequested: () => {
+    void renderApp();
+  },
+  onPathRequested: ({ path }) => {
+    navigate(path);
+  },
+  onAuthSessionChanged: () => {
+    handleAuthMeshLifecycle();
+    void renderApp();
+  },
+  onLogoutRequested: () => {
+    clearAuthSession(appState);
+    navigate("/");
+  },
+};
+
+window.addEventListener("popstate", () => {
+  void renderApp();
 });
 
 async function bootstrap() {
@@ -351,7 +359,6 @@ async function bootstrap() {
     startLocalMeshSession();
   }
   await loadMockData(appState);
-  setGlobalCartVariable();
   if (appState.authToken) {
     void refreshCurrentUserFromApi(appState);
   }

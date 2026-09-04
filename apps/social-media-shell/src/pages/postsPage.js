@@ -13,6 +13,7 @@ import {
 } from "../utils/authActions";
 import { ECOMMERCE_SHELL_BASE_URL } from "../utils/constants";
 import { publishNotification } from "../notifications/meshNotificationAdapter";
+import { publishRenderRequested } from "../events/shellEventBus";
 import { persistNewPost } from "../commands/postCommands";
 
 const POSTS_PER_BANNER_GROUP = 4;
@@ -63,7 +64,7 @@ function mountNewPostFormularyWithProps(containerElement, appState, modules) {
             title: "Post published",
             message: "Your post is now visible in the community feed.",
           });
-          window.dispatchEvent(new CustomEvent("global:renderApp"));
+          publishRenderRequested();
         }
       });
     },
