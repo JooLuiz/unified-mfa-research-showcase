@@ -34,6 +34,7 @@ import {
   ensureCartEventListeners,
   ensureShellEventListeners,
   publishCartChanged,
+  publishPlpFiltersChanged,
   publishRenderRequested,
   resetCartEventListeners,
   resetShellEventListeners,
@@ -358,6 +359,7 @@ async function bootstrap() {
   } else {
     startLocalMeshSession();
   }
+  publishPlpFiltersChanged(appState.plpFilters);
   await loadMockData(appState);
   if (appState.authToken) {
     void refreshCurrentUserFromApi(appState);

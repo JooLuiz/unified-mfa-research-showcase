@@ -15,6 +15,7 @@ export const {
   ensureShellEventListeners,
   publishAuthSessionChanged,
   publishLogoutRequested,
+  publishPostLoginRedirectChanged,
   publishRenderRequested,
   resetShellEventListeners,
   subscribeToAuthSessionChanges,

@@ -14,13 +14,14 @@ import { OrderDetailsComponent } from "./OrderDetailsView";
  * Mounts the order details view into a host container.
  *
  * @param {HTMLElement} containerElement - Host-owned mount element.
- * @param {{ order?: object, apiBaseUrl?: string }} props - Optional pre-loaded order and mock API base URL.
+ * @param {{ order?: object, apiBaseUrl?: string, getAuthToken?: () => string }} props - Optional pre-loaded order, mock API base URL, and host-injected auth accessor.
  * @returns {() => void} Cleanup that unmounts the Vue app.
  */
 export function mountOrderDetails(containerElement, props) {
   const orderDetailsApp = createApp(OrderDetailsComponent, {
     order: props.order,
     apiBaseUrl: props.apiBaseUrl,
+    getAuthToken: props.getAuthToken,
   });
   orderDetailsApp.mount(containerElement);
 

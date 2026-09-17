@@ -1,20 +1,29 @@
 /**
  * Order loading composable for the order details MFE.
- * Role: Owns order-id parsing from the URL, auth token lookup, and the abort-aware order request lifecycle.
+ * Role: Owns order-id parsing from the URL, host-injected auth token lookup, and the abort-aware order request lifecycle.
  * Not in this file: Rendering (src/OrderDetailsView.js) or formatting (src/order-details-utils.js).
- * Key dependencies: Mock data service GET /orders/:orderId; ecommerce-shell localStorage auth token.
- * See also: src/OrderDetailsView.js.
+ * Key dependencies: Mock data service GET /orders/:orderId; host-injected getAuthToken from the ecommerce shell.
+ * See also: src/OrderDetailsView.js; apps/ecommerce-shell/src/pages/orderPages.js.
  */
 
 import { onMounted, onUnmounted, ref, watch } from "vue";
 
-const AUTH_TOKEN_STORAGE_KEY = "ecommerce-shell:auth-token";
 const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
 
-function readAuthTokenFromLocalStorage() {
+/**
+ * Reads the Bearer token from the host-injected accessor when present.
+ *
+ * @param {{ getAuthToken?: () => string }} props - Mount props from the owning shell.
+ * @returns {string} Auth token string, or empty string when unavailable.
+ */
+function readAuthTokenFromHost(props) {
+  if (typeof props.getAuthToken !== "function") {
+    return "";
+  }
+
   try {
-    const storedToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-    return typeof storedToken === "string" ? storedToken : "";
+    const authToken = props.getAuthToken();
+    return typeof authToken === "string" ? authToken : "";
   } catch {
     return "";
   }
@@ -58,7 +67,7 @@ async function fetchOrderById(apiBaseUrl, orderId, authToken, signal) {
 /**
  * Loads the order from props or the mock API and exposes the request state.
  *
- * @param {{ order: object | null, apiBaseUrl: string }} props - Component props.
+ * @param {{ order: object | null, apiBaseUrl: string, getAuthToken?: () => string }} props - Component props; getAuthToken is injected by the host shell.
  * @returns {{ orderData: import("vue").Ref<object | null>, isLoading: import("vue").Ref<boolean>, loadError: import("vue").Ref<Error | null>, isMissingOrderId: import("vue").Ref<boolean> }} Reactive order state.
  * @sideEffects Performs an HTTP request on mount and prop changes, aborted on unmount or reload.
  */
@@ -103,7 +112,7 @@ function useOrderDetails(props) {
     isMissingOrderId.value = false;
 
     try {
-      const authToken = readAuthTokenFromLocalStorage();
+      const authToken = readAuthTokenFromHost(props);
       const fetchedOrder = await fetchOrderById(
         props.apiBaseUrl,
         orderId,
@@ -140,7 +149,7 @@ function useOrderDetails(props) {
   });
 
   watch(
-    () => [props.order, props.apiBaseUrl],
+    () => [props.order, props.apiBaseUrl, props.getAuthToken],
     () => {
       loadOrder();
     },

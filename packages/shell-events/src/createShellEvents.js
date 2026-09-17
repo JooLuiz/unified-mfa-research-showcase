@@ -11,6 +11,7 @@ import {
   AUTH_SESSION_CHANGED_EVENT,
   AUTH_TOPIC,
   NAVIGATION_PATH_REQUESTED_EVENT,
+  NAVIGATION_POST_LOGIN_REDIRECT_CHANGED_EVENT,
   NAVIGATION_RENDER_REQUESTED_EVENT,
   NAVIGATION_TOPIC,
 } from "./shellEventContracts.js";
@@ -23,7 +24,7 @@ function isValidNavigationPath(path) {
  * Creates a shell-scoped local event adapter for auth and navigation messages.
  *
  * @param {{ mesh: { publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void } }} adapterInput - Configured mesh client for the owning shell.
- * @returns {{ publishRenderRequested: () => void, publishPathRequested: (path: string) => void, publishAuthSessionChanged: () => void, publishLogoutRequested: () => void, ensureShellEventListeners: (handlers: object) => void, resetShellEventListeners: () => void, subscribeToAuthSessionChanges: (listener: () => void) => () => void }} Shell event adapter.
+ * @returns {{ publishRenderRequested: () => void, publishPathRequested: (path: string) => void, publishPostLoginRedirectChanged: (path: string | null) => void, publishAuthSessionChanged: () => void, publishLogoutRequested: () => void, ensureShellEventListeners: (handlers: object) => void, resetShellEventListeners: () => void, subscribeToAuthSessionChanges: (listener: () => void) => () => void }} Shell event adapter.
  */
 function createShellEvents({ mesh }) {
   let shellEventListenersStarted = false;
@@ -58,6 +59,35 @@ function createShellEvents({ mesh }) {
     publishLocalEvent(NAVIGATION_TOPIC, NAVIGATION_PATH_REQUESTED_EVENT, {
       path,
     });
+  }
+
+  /**
+   * Publishes that the post-login redirect intent changed (set or cleared).
+   *
+   * @param {string | null} path - Relative path to remember, or null when consumed/cleared.
+   * @returns {void}
+   * @sideEffects Publishes a local navigation.post-login-redirect-changed message.
+   * @note sessionStorage remains the reload/tab cache; this event is live coordination only.
+   */
+  function publishPostLoginRedirectChanged(path) {
+    if (path === null || path === undefined) {
+      publishLocalEvent(
+        NAVIGATION_TOPIC,
+        NAVIGATION_POST_LOGIN_REDIRECT_CHANGED_EVENT,
+        { path: null },
+      );
+      return;
+    }
+
+    if (!isValidNavigationPath(path)) {
+      return;
+    }
+
+    publishLocalEvent(
+      NAVIGATION_TOPIC,
+      NAVIGATION_POST_LOGIN_REDIRECT_CHANGED_EVENT,
+      { path },
+    );
   }
 
   /**
@@ -138,6 +168,7 @@ function createShellEvents({ mesh }) {
   return {
     publishRenderRequested,
     publishPathRequested,
+    publishPostLoginRedirectChanged,
     publishAuthSessionChanged,
     publishLogoutRequested,
     ensureShellEventListeners,

@@ -1,9 +1,9 @@
 /**
- * Publishes and subscribes to ecommerce cart Event Mesh messages.
- * Role: Hides cart mesh transport details behind ecommerce operations and lifecycle-safe subscriptions.
- * Not in this file: Shared auth/navigation events, cart state mutations, or UI rendering.
+ * Publishes and subscribes to ecommerce Event Mesh messages.
+ * Role: Hides cart and catalog mesh transport details behind ecommerce operations and lifecycle-safe subscriptions.
+ * Not in this file: Shared auth/navigation event internals, cart state mutations, or UI rendering.
  * Key dependencies: event-mesh/mesh; @shared/shell-events; src/events/ecommerceEventContracts.js.
- * See also: src/main.js; src/pages/checkoutPage.js.
+ * See also: src/main.js; src/pages/checkoutPage.js; src/utils/PLPFilterActions.js.
  */
 
 import mesh from "event-mesh/mesh";
@@ -12,7 +12,10 @@ import {
   CART_CHANGED_EVENT,
   CART_ITEM_ADD_REQUESTED_EVENT,
   CART_TOPIC,
+  CATALOG_FILTERS_CHANGED_EVENT,
+  CATALOG_TOPIC,
   createCartSnapshot,
+  createPlpFiltersSnapshot,
   isValidCartAddRequest,
 } from "./ecommerceEventContracts";
 
@@ -47,6 +50,23 @@ function publishCartChanged(cartItems) {
     topic: CART_TOPIC,
     event: CART_CHANGED_EVENT,
     payload: { items: createCartSnapshot(cartItems) },
+    scope: "local",
+  });
+}
+
+/**
+ * Publishes the current PLP filter snapshot for local subscribers.
+ *
+ * @param {unknown} filters - PLP filter object owned by the ecommerce shell.
+ * @returns {void}
+ * @sideEffects Publishes a local catalog.filters-changed message.
+ * @note localStorage remains the reload cache; this event is live coordination only.
+ */
+function publishPlpFiltersChanged(filters) {
+  mesh.publish({
+    topic: CATALOG_TOPIC,
+    event: CATALOG_FILTERS_CHANGED_EVENT,
+    payload: createPlpFiltersSnapshot(filters),
     scope: "local",
   });
 }
@@ -96,17 +116,37 @@ function subscribeToCartChanges(listener) {
   });
 }
 
+/**
+ * Subscribes to PLP filter snapshots without exposing Event Mesh to the caller.
+ *
+ * @param {(filters: { searchQuery: string, minPrice: string, maxPrice: string, categoryIds: string[] }) => void} listener - Callback for each filter snapshot.
+ * @returns {() => void} Removes the mesh subscription.
+ * @sideEffects Registers a local catalog.filters-changed mesh subscription.
+ */
+function subscribeToPlpFiltersChanges(listener) {
+  return mesh.subscribe(
+    CATALOG_TOPIC,
+    CATALOG_FILTERS_CHANGED_EVENT,
+    (message) => {
+      listener(createPlpFiltersSnapshot(message.payload));
+    },
+  );
+}
+
 export {
   ensureCartEventListeners,
   publishCartChanged,
   publishCartItemAddRequested,
+  publishPlpFiltersChanged,
   resetCartEventListeners,
   subscribeToCartChanges,
+  subscribeToPlpFiltersChanges,
 };
 export const {
   ensureShellEventListeners,
   publishAuthSessionChanged,
   publishLogoutRequested,
+  publishPostLoginRedirectChanged,
   publishRenderRequested,
   resetShellEventListeners,
   subscribeToAuthSessionChanges,

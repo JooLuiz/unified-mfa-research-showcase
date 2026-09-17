@@ -3,15 +3,18 @@
  * Role: Centralizes topic/event names and validates payloads exchanged between ecommerce modules.
  * Not in this file: Mesh publishing, subscriptions, cart mutations, or UI rendering.
  * Key dependencies: None.
- * See also: src/events/localMeshEventBus.js; src/main.js.
+ * See also: src/events/localMeshEventBus.js; src/main.js; src/utils/PLPFilterActions.js.
  */
 
 const CART_TOPIC = "cart";
 const CART_ITEM_ADD_REQUESTED_EVENT = "item-add-requested";
 const CART_CHANGED_EVENT = "changed";
+const CATALOG_TOPIC = "catalog";
+const CATALOG_FILTERS_CHANGED_EVENT = "filters-changed";
 
 /**
  * @typedef {{ productId: string, quantity: number }} CartItem
+ * @typedef {{ searchQuery: string, minPrice: string, maxPrice: string, categoryIds: string[] }} PlpFilters
  */
 
 function isRecord(value) {
@@ -66,10 +69,43 @@ function isValidCartAddRequest(value) {
   return isValidCartItem(value);
 }
 
+/**
+ * Creates a safe PLP filter snapshot for mesh delivery.
+ *
+ * @param {unknown} filters - Candidate filter object.
+ * @returns {PlpFilters} Normalized filter snapshot with string fields and string category ids.
+ */
+function createPlpFiltersSnapshot(filters) {
+  if (!isRecord(filters)) {
+    return {
+      searchQuery: "",
+      minPrice: "",
+      maxPrice: "",
+      categoryIds: [],
+    };
+  }
+
+  const categoryIds = Array.isArray(filters.categoryIds)
+    ? filters.categoryIds.filter(
+        (categoryId) => typeof categoryId === "string",
+      )
+    : [];
+
+  return {
+    searchQuery: String(filters.searchQuery || ""),
+    minPrice: String(filters.minPrice || ""),
+    maxPrice: String(filters.maxPrice || ""),
+    categoryIds,
+  };
+}
+
 export {
   CART_CHANGED_EVENT,
   CART_ITEM_ADD_REQUESTED_EVENT,
   CART_TOPIC,
+  CATALOG_FILTERS_CHANGED_EVENT,
+  CATALOG_TOPIC,
   createCartSnapshot,
+  createPlpFiltersSnapshot,
   isValidCartAddRequest,
 };

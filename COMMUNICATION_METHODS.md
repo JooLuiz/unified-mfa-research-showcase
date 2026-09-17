@@ -67,23 +67,27 @@
 
 ## 3. Web Storage
 
+Web storage is a **reload/tab cache**. Live coordination for redirects and PLP filters uses local Event Mesh (`scope: "local"`); see `MESH_IMPLEMENTATIONS/storage-coordination.md`. Order Details receives auth via host-injected `getAuthToken` and does not read shell localStorage.
+
 ### localStorage
 
 | Triggering App | Entity | What Is Communicated | Method | Affected App(s) |
 |---|---|---|---|---|
-| Ecommerce Shell (`authActions.js`) | Account | Auth token (JWT string) | Write to `ecommerce-shell:auth-token` | Ecommerce Shell (`authActions.js` reads on bootstrap to restore session) |
+| Ecommerce Shell (`authActions.js`) | Account | Auth token (JWT string) | Write to `ecommerce-shell:auth-token` | Ecommerce Shell (`authActions.js` reads on bootstrap to restore session; mesh ticket bootstrap) |
 | Ecommerce Shell (`authActions.js`) | Account | User object (JSON: id, username, fullName, email, address) | Write to `ecommerce-shell:auth-user` | Ecommerce Shell (`authActions.js` reads on bootstrap) |
-| Ecommerce Shell (`PLPFilterActions.js`) | Products | PLP filters (JSON: `{ searchQuery, minPrice, maxPrice, categoryIds }`) | Write to `ecommerce-shell:plp-filters` | Ecommerce Shell (`PLPFilterActions.js` reads on bootstrap to restore last-used filters) |
-| Order Details MFE (`order-details.js`) | Account / Orders | Auth token (JWT string) | Read from `ecommerce-shell:auth-token` | Order Details MFE (uses token to request `GET /api/orders/:id`) |
+| Ecommerce Shell (`PLPFilterActions.js`) | Products | PLP filters (JSON: `{ searchQuery, minPrice, maxPrice, categoryIds }`) | Write to `ecommerce-shell:plp-filters` + publish `catalog.filters-changed` | Ecommerce Shell (hydrate on bootstrap; mesh subscribers for live sync) |
 | Social Media Shell (`authActions.js`) | Account | Auth token (JWT string) | Write to `social-media-shell:auth-token` | Social Media Shell (`authActions.js` reads on bootstrap) |
 | Social Media Shell (`authActions.js`) | Account | User object (JSON: id, username, fullName, email, address) | Write to `social-media-shell:auth-user` | Social Media Shell (`authActions.js` reads on bootstrap) |
+| Admin Shell (`authActions.js`) | Account | Auth token (JWT string) | Write to `admin-shell:auth-token` | Admin Shell (`authActions.js` reads on bootstrap) |
+| Admin Shell (`authActions.js`) | Account | User object (JSON) | Write to `admin-shell:auth-user` | Admin Shell (`authActions.js` reads on bootstrap) |
 
 ### sessionStorage
 
 | Triggering App | Entity | What Is Communicated | Method | Affected App(s) |
 |---|---|---|---|---|
-| Ecommerce Shell (`authActions.js`) | Navigation | Intended post-login redirect path (e.g. `/checkout`, `/account`) | Write to `ecommerce-shell:post-login-redirect` | Ecommerce Shell (`authActions.js` reads and consumes after successful login) |
-| Social Media Shell (`authActions.js`) | Navigation | Intended post-login redirect path (e.g. `/account`, `/posts`) | Write to `social-media-shell:post-login-redirect` | Social Media Shell (`authActions.js` reads and consumes after successful login) |
+| Ecommerce Shell (`authActions.js`) | Navigation | Intended post-login redirect path | Write to `ecommerce-shell:post-login-redirect` + publish `navigation.post-login-redirect-changed` | Ecommerce Shell (consume after login) |
+| Social Media Shell (`authActions.js`) | Navigation | Intended post-login redirect path | Write to `social-media-shell:post-login-redirect` + publish `navigation.post-login-redirect-changed` | Social Media Shell (consume after login) |
+| Admin Shell (`authActions.js`) | Navigation | Intended post-login redirect path | Write to `admin-shell:post-login-redirect` + publish `navigation.post-login-redirect-changed` | Admin Shell (consume after login) |
 
 ---
 
@@ -140,6 +144,6 @@
 | **Checkout Items/Summary/Coupon** | -- | -- | -- | Checkout Items reads `window.__APP_SHELL_CART__` | -- | -- |
 | **Login** | -- | `POST /auth/login` | -- | -- | -- | -- |
 | **Account** | -- | -- | -- | -- | -- | -- |
-| **Order Details** | -- | `GET /orders/:id` | Reads `ecommerce-shell:auth-token` | -- | Reads `orderId` from `window.location.pathname` | -- |
+| **Order Details** | -- | `GET /orders/:id` | -- (host-injected `getAuthToken`) | -- | Reads `orderId` from `window.location.pathname` | -- |
 | **Post Feed** | -- | -- | -- | -- | -- | -- |
 | **Mock Data Service** | -- | Serves all API endpoints | -- | -- | Reads filter/sort query params | -- |

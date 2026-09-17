@@ -140,7 +140,7 @@ Admin shell (`http://localhost:4600`):
 - **Event Mesh** - Linked local `event-mesh` package. The mock service hosts the gateway on port `3004`; shells configure the mesh client at bootstrap. Feature write-ups live in `MESH_IMPLEMENTATIONS/`.
 - **CSV Exports** - Account pages create an authenticated export job over HTTP, wait for `exports.completed` / `exports.failed` on Event Mesh, then download the CSV with a second authenticated HTTP request. Details: `MESH_IMPLEMENTATIONS/csv-exports.md`.
 - **Admin Reads** - The admin shell reads all orders and posts over HTTP with an admin Bearer token; this is also part of the no-event-mesh control group.
-- **Web Storage** - PLP filters, auth tokens, and post-login redirects are persisted in `localStorage`/`sessionStorage`.
+- **Web Storage** - Auth tokens, PLP filters, and post-login redirects remain `localStorage`/`sessionStorage` caches for reload. Live redirect and PLP filter coordination uses local Event Mesh; Order Details receives auth via host-injected `getAuthToken`. Details: `MESH_IMPLEMENTATIONS/storage-coordination.md`.
 - **Global State** - Each shell keeps an in-memory `appState` object and mirrors the cart to `window.__APP_SHELL_CART__`.
 - **Query Params** - PDP uses `?productId=`; cross-host banner redirects pass filters as query params.
 - **URL Changes** - Routing uses `history.pushState` and `popstate`; protected routes redirect to `/login`.

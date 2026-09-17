@@ -19,7 +19,8 @@ import {
 
 /**
  * Order details component.
- * Props: order (object, optional pre-loaded order) and apiBaseUrl (string, mock API base URL).
+ * Props: order (object, optional pre-loaded order), apiBaseUrl (string, mock API base URL),
+ *   and getAuthToken (function, host-injected Bearer token accessor).
  * Renders: loading, missing-id, error, not-found, or the full order details section.
  */
 const OrderDetailsComponent = {
@@ -31,6 +32,10 @@ const OrderDetailsComponent = {
     apiBaseUrl: {
       type: String,
       default: "",
+    },
+    getAuthToken: {
+      type: Function,
+      default: null,
     },
   },
   setup(props) {
