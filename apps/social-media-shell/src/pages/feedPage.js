@@ -37,16 +37,6 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
       title: "Trending Posts",
       layoutMode: "grid",
       posts: trendingPosts,
-      onLike: (postId) => {
-        console.log("renderFeedPage - postId");
-        console.log(postId);
-      },
-      onAuthorClick: (author) => {
-        if (author?.username) {
-          console.log("renderFeedPage - authorClicked");
-          console.log(author);
-        }
-      },
     }),
   );
 

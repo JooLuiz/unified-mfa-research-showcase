@@ -1,6 +1,20 @@
+/**
+ * Post feed remote for community like and author intents.
+ * Role: Renders posts and publishes community.post-liked / community.author-selected on the host mesh.
+ * Not in this file: Mesh configuration or host-owned like/author side effects.
+ * Key dependencies: event-mesh/mesh singleton; @shared/community-events.
+ * See also: MESH_IMPLEMENTATIONS/remote-intents.md.
+ */
+
 import React from "react";
 import { createRoot } from "react-dom/client";
+import mesh from "event-mesh/mesh";
+import { createCommunityEvents } from "@shared/community-events";
 import "./styles.css";
+
+const { publishPostLiked, publishAuthorSelected } = createCommunityEvents({
+  mesh,
+});
 
 function formatPostDate(isoDateString) {
   if (!isoDateString) {
@@ -13,7 +27,7 @@ function formatPostDate(isoDateString) {
   return dateValue.toLocaleString();
 }
 
-function PostCardView({ post, layoutMode, onLike, onAuthorClick }) {
+function PostCardView({ post, layoutMode }) {
   const author = post.author || {};
   const authorDisplayName = author.fullName || author.username || "Unknown user";
   const cardClassName =
@@ -27,14 +41,14 @@ function PostCardView({ post, layoutMode, onLike, onAuthorClick }) {
             className="post-card-avatar"
             src={author.avatarUrl}
             alt={`${authorDisplayName} avatar`}
-            onClick={() => onAuthorClick && onAuthorClick(author)}
+            onClick={() => publishAuthorSelected(author)}
           />
         )}
         <div className="post-card-author">
           <button
             type="button"
             className="post-card-author-button"
-            onClick={() => onAuthorClick && onAuthorClick(author)}
+            onClick={() => publishAuthorSelected(author)}
           >
             <strong>{authorDisplayName}</strong>
           </button>
@@ -49,7 +63,7 @@ function PostCardView({ post, layoutMode, onLike, onAuthorClick }) {
         <button
           type="button"
           className="post-card-action"
-          onClick={() => onLike && onLike(post.id)}
+          onClick={() => publishPostLiked(post.id)}
         >
           Like ({post.likes || 0})
         </button>
@@ -59,7 +73,7 @@ function PostCardView({ post, layoutMode, onLike, onAuthorClick }) {
   );
 }
 
-function PostFeedView({ posts, title, layoutMode, onLike, onAuthorClick }) {
+function PostFeedView({ posts, title, layoutMode }) {
   if (!Array.isArray(posts) || posts.length === 0) {
     return (
       <section className="post-feed-shell">
@@ -78,13 +92,7 @@ function PostFeedView({ posts, title, layoutMode, onLike, onAuthorClick }) {
       {shouldRenderTitle && <h2 className="post-feed-title">{feedTitle}</h2>}
       <div className={feedListClassName}>
         {posts.map((post) => (
-          <PostCardView
-            key={post.id}
-            post={post}
-            layoutMode={layoutMode}
-            onLike={onLike}
-            onAuthorClick={onAuthorClick}
-          />
+          <PostCardView key={post.id} post={post} layoutMode={layoutMode} />
         ))}
       </div>
     </section>
@@ -98,8 +106,6 @@ export function mountPostFeed(containerElement, props) {
       posts={props.posts}
       title={props.title}
       layoutMode={props.layoutMode}
-      onLike={props.onLike}
-      onAuthorClick={props.onAuthorClick}
     />,
   );
 

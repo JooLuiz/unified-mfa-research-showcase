@@ -11,7 +11,6 @@ import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
-import { persistAccountUpdate } from "../commands/accountCommands";
 import { requestCsvExport } from "../exports/requestCsvExport";
 import { publishNotification } from "../notifications/meshNotificationAdapter";
 
@@ -60,16 +59,12 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
   activeCleanupFunctions.push(
     accountProfileModule.mountAccountProfile(accountProfileMount, {
       user: appState.currentUser,
-      onSaveProfile: (profilePayload) =>
-        persistAccountUpdate(appState, profilePayload),
     }),
   );
 
   activeCleanupFunctions.push(
     accountAddressModule.mountAccountAddress(accountAddressMount, {
       address: appState.currentUser?.address,
-      onSaveAddress: (addressPayload) =>
-        persistAccountUpdate(appState, { address: addressPayload }),
     }),
   );
 
@@ -146,16 +141,6 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
       title: "",
       layoutMode: "grid",
       posts: currentUserPosts,
-      onLike: (postId) => {
-        console.log("renderAccountPage - postId");
-        console.log(postId);
-      },
-      onAuthorClick: (author) => {
-        if (author?.username) {
-          console.log("renderAccountPage - authorClicked");
-          console.log(author);
-        }
-      },
     }),
   );
 }

@@ -1,5 +1,17 @@
+/**
+ * Account profile remote for profile-save intents.
+ * Role: Renders the profile form and publishes account.profile-save-requested on the host mesh.
+ * Not in this file: Mesh configuration or HTTP account persistence (shell owns those).
+ * Key dependencies: event-mesh/mesh singleton; @shared/account-events.
+ * See also: MESH_IMPLEMENTATIONS/remote-intents.md.
+ */
+
 import { createApp, h, reactive } from "vue";
+import mesh from "event-mesh/mesh";
+import { createAccountEvents } from "@shared/account-events";
 import "./styles.css";
+
+const { publishProfileSaveRequested } = createAccountEvents({ mesh });
 
 const AccountProfileComponent = {
   props: {
@@ -7,7 +19,6 @@ const AccountProfileComponent = {
       type: Object,
       default: () => null,
     },
-    onSaveProfile: Function,
   },
   setup(props) {
     const formState = reactive({
@@ -17,12 +28,10 @@ const AccountProfileComponent = {
 
     const handleSubmit = (submitEvent) => {
       submitEvent.preventDefault();
-      if (typeof props.onSaveProfile === "function") {
-        props.onSaveProfile({
-          fullName: formState.fullName.trim(),
-          gender: formState.gender.trim(),
-        });
-      }
+      publishProfileSaveRequested({
+        fullName: formState.fullName.trim(),
+        gender: formState.gender.trim(),
+      });
     };
 
     return () => {
@@ -99,7 +108,6 @@ const AccountProfileComponent = {
 export function mountAccountProfile(containerElement, props) {
   const accountProfileApp = createApp(AccountProfileComponent, {
     user: props.user,
-    onSaveProfile: props.onSaveProfile,
   });
   accountProfileApp.mount(containerElement);
 

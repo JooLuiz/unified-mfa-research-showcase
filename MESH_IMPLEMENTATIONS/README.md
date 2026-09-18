@@ -12,5 +12,5 @@ The mock data service starts the gateway (`event-mesh/gateway`) on port `3004`. 
 | Toast notifications (local mesh + backend order replies) | [notifications.md](./notifications.md) |
 | Authenticated CSV exports for My Orders / My Posts | [csv-exports.md](./csv-exports.md) |
 | Web storage coordination (redirect, PLP filters, Order Details auth injection) | [storage-coordination.md](./storage-coordination.md) |
-| Remote catalog/checkout intents (filters, banners, cart lines, coupon, place-order without host callbacks) | [remote-intents.md](./remote-intents.md) |
+| Remote catalog/checkout/account/community/login intents (without host callbacks) | [remote-intents.md](./remote-intents.md) |
 | Iframe bridge (cross-origin formulary / empty checkout) | [iframe-bridge.md](./iframe-bridge.md) |

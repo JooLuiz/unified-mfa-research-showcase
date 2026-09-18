@@ -1,20 +1,21 @@
 /**
  * Renders the login route for the admin shell.
- * Role: Mounts the login MFE and owns the post-login admin check, session, toast, and redirect outcome.
- * Not in this file: Login form or credential validation (login MFE); login failure stays in the MFE.
- * Key dependencies: src/utils/authActions.js; src/notifications/meshNotificationAdapter.js.
- * See also: src/utils/renderActions.js (public barrel).
+ * Role: Mounts the login MFE with shell auth storage keys and requiredRole; session handoff is mesh-driven.
+ * Not in this file: Credential validation (login MFE); welcome toast (main onAuthSessionChanged).
+ * Key dependencies: src/utils/authActions.js; src/utils/constants.js.
+ * See also: src/utils/renderActions.js (public barrel); MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
 import { navigate } from "../utils/navigate";
 import {
   isAdminAuthenticated,
-  setAuthSession,
-  clearAuthSession,
   consumePostLoginRedirect,
 } from "../utils/authActions";
-import { MOCK_API_BASE_URL } from "../utils/constants";
-import { publishNotification } from "../notifications/meshNotificationAdapter";
+import {
+  MOCK_API_BASE_URL,
+  AUTH_TOKEN_STORAGE_KEY,
+  AUTH_USER_STORAGE_KEY,
+} from "../utils/constants";
 
 /**
  * Renders the login page, redirecting away when already authenticated as admin.
@@ -24,7 +25,6 @@ import { publishNotification } from "../notifications/meshNotificationAdapter";
  * @param {object} modules - Loaded remote module mount functions.
  * @param {Array<() => void>} activeCleanupFunctions - Cleanup registry for the current route.
  * @returns {Promise<void>}
- * @sideEffects On admin login success stores the session, notifies, and navigates; on non-admin login rejects with a toast.
  */
 async function renderLoginPage(appState, pageMount, modules, activeCleanupFunctions) {
   if (isAdminAuthenticated(appState)) {
@@ -40,26 +40,10 @@ async function renderLoginPage(appState, pageMount, modules, activeCleanupFuncti
     modules.mountLoginForm(loginMount, {
       apiBaseUrl: MOCK_API_BASE_URL,
       redirectAfterLogin: consumePostLoginRedirect(),
-      onLoginSuccess: ({ token, user, redirectAfterLogin }) => {
-        if (user?.role !== "admin") {
-          clearAuthSession(appState);
-          publishNotification({
-            type: "error",
-            title: "Access denied",
-            message: "This account does not have admin access.",
-          });
-          return;
-        }
-        setAuthSession(appState, { token, user });
-        publishNotification({
-          type: "success",
-          title: "Signed in",
-          message: `Welcome back, ${user.fullName || user.username}.`,
-        });
-        const targetPath = redirectAfterLogin || "/";
-        navigate(targetPath);
-      },
-      onCancel: () => navigate("/"),
+      authTokenStorageKey: AUTH_TOKEN_STORAGE_KEY,
+      authUserStorageKey: AUTH_USER_STORAGE_KEY,
+      defaultRedirectPath: "/",
+      requiredRole: "admin",
     }),
   );
 }

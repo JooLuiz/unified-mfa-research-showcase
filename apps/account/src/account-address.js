@@ -1,5 +1,17 @@
+/**
+ * Account address remote for address-save intents.
+ * Role: Renders the shipping address form and publishes account.address-save-requested on the host mesh.
+ * Not in this file: Mesh configuration or HTTP account persistence (shell owns those).
+ * Key dependencies: event-mesh/mesh singleton; @shared/account-events.
+ * See also: MESH_IMPLEMENTATIONS/remote-intents.md.
+ */
+
 import { createApp, h, reactive } from "vue";
+import mesh from "event-mesh/mesh";
+import { createAccountEvents } from "@shared/account-events";
 import "./styles.css";
+
+const { publishAddressSaveRequested } = createAccountEvents({ mesh });
 
 const AccountAddressComponent = {
   props: {
@@ -7,7 +19,6 @@ const AccountAddressComponent = {
       type: Object,
       default: () => null,
     },
-    onSaveAddress: Function,
   },
   setup(props) {
     const formState = reactive({
@@ -20,15 +31,13 @@ const AccountAddressComponent = {
 
     const handleSubmit = (submitEvent) => {
       submitEvent.preventDefault();
-      if (typeof props.onSaveAddress === "function") {
-        props.onSaveAddress({
-          street: formState.street.trim(),
-          city: formState.city.trim(),
-          state: formState.state.trim(),
-          postalCode: formState.postalCode.trim(),
-          country: formState.country.trim(),
-        });
-      }
+      publishAddressSaveRequested({
+        street: formState.street.trim(),
+        city: formState.city.trim(),
+        state: formState.state.trim(),
+        postalCode: formState.postalCode.trim(),
+        country: formState.country.trim(),
+      });
     };
 
     const buildField = (fieldId, fieldLabel, fieldKey) =>
@@ -73,7 +82,6 @@ const AccountAddressComponent = {
 export function mountAccountAddress(containerElement, props) {
   const accountAddressApp = createApp(AccountAddressComponent, {
     address: props.address,
-    onSaveAddress: props.onSaveAddress,
   });
   accountAddressApp.mount(containerElement);
 

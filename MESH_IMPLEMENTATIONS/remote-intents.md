@@ -1,6 +1,6 @@
 # Remote intents over Event Mesh
 
-Product and checkout remotes publish local intents on the host shell's Event Mesh singleton. Hosts subscribe and own side effects (navigate, mutate cart/coupon, place orders, or cross-origin redirect). Remotes must not call `configureMesh`.
+Product, checkout, account, community, and login remotes publish local intents on the host shell's Event Mesh singleton. Hosts subscribe and own side effects. Remotes must not call `configureMesh`. **JWT never appears in mesh payloads.**
 
 ## Phase 1 contracts
 
@@ -32,9 +32,31 @@ Checkout helpers live in [`packages/checkout-events`](../packages/checkout-event
 
 Inbound `subscribeToCartChanges` remains host-injected on checkout-items (snapshot sync, not an outbound callback).
 
+## Phase 2C contracts (account / community / formulary)
+
+| Topic | Event | Payload | Publishers | Typical host effect |
+| --- | --- | --- | --- | --- |
+| `account` | `profile-save-requested` | `{ fullName, gender }` | `account-profile` | Ecommerce/social/admin: `persistAccountUpdate` |
+| `account` | `address-save-requested` | `{ street, city, state, postalCode, country }` | `account-address` | Same with `{ address }` wrap |
+| `community` | `post-liked` | `{ postId }` | `post-feed` | Social: stub log (same as prior callback) |
+| `community` | `author-selected` | `{ author }` | `post-feed` | Social: stub log |
+| `community` | `post-submitted` | `{ content, imageUrl }` | `new-post-formulary` mount | Social: `persistNewPost` + toast + re-render |
+| `community` | `faq-submitted` | FAQ fields | `faq-formulary` mount (orphan) | Optional; ecommerce home FAQ stays shell-owned bridge |
+
+Helpers: [`packages/account-events`](../packages/account-events), [`packages/community-events`](../packages/community-events).
+
+## Phase 2D contracts (login)
+
+| Topic | Event | Payload | Publishers | Typical host effect |
+| --- | --- | --- | --- | --- |
+| `auth` | `session-changed` | `{}` | `login` (after writing shell auth keys) | Shell: `readStoredAuth` → mesh lifecycle → welcome toast if newly authenticated → re-render |
+| `navigation` | `path-requested` | `{ path }` | `login` (cancel `/`; success redirect/default) | Shell: `navigate(path)` |
+
+Login keeps HTTP POST `/auth/login` inside the remote. Host injects `authTokenStorageKey`, `authUserStorageKey`, `defaultRedirectPath`, optional `requiredRole`. **No JWT on mesh.**
+
 ## Export story
 
-Integrators mount these remotes with **data / inbound adapter props only**. They register host handlers for the events above instead of passing `onFiltersChange`, `onApplyPromotion`, `onQuantityChange`, `onRemoveItem`, `onCouponApplied`, `onPlaceOrder`, or `onGoShopping`.
+Integrators mount these remotes with **data / inbound adapter props only**. They register host handlers for the events above instead of passing outbound callbacks (`onLoginSuccess`, `onSaveProfile`, `onFormSubmitted`, etc.).
 
 ## Files
 
@@ -42,12 +64,15 @@ Integrators mount these remotes with **data / inbound adapter props only**. They
 | --- | --- |
 | Shared catalog package | `packages/catalog-events/` |
 | Shared checkout package | `packages/checkout-events/` |
+| Shared account package | `packages/account-events/` |
+| Shared community package | `packages/community-events/` |
 | Ecommerce listeners | `apps/ecommerce-shell/src/main.js`, `src/events/localMeshEventBus.js` |
 | Social listeners | `apps/social-media-shell/src/main.js`, `src/events/shellEventBus.js` |
-| Product list filters | `apps/product-list-page/src/ProductListView.js` |
-| Banners | `apps/banners/src/promotional-banner.js` |
-| Checkout remotes | `apps/checkout/src/checkout-items.ts`, `apply-coupon.ts`, `checkout-summary.ts`, `checkout-empty.ts` |
-| Place-order command | `apps/ecommerce-shell/src/commands/placeCheckoutOrder.js` |
+| Admin listeners | `apps/admin-shell/src/main.js`, `src/events/shellEventBus.js` |
+| Account remotes | `apps/account/src/account-profile.js`, `account-address.js` |
+| Post feed | `apps/social-media-posts/src/post-feed.js` |
+| Formulary mounts | `apps/formulary/src/new-post-formulary.js`, `faq-formulary.js` |
+| Login | `apps/login/src/login-form.js` |
 
 ## Related docs
 

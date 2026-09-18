@@ -20,6 +20,7 @@
     "@shared/notifications": "*",
     "@shared/shell-events": "*",
     "@shared/catalog-events": "*",
-    "@shared/checkout-events": "*"
+    "@shared/checkout-events": "*",
+    "@shared/account-events": "*"
   }
 }

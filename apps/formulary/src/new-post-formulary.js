@@ -1,11 +1,22 @@
+/**
+ * Mounts the new-post iframe and publishes community.post-submitted on the host mesh.
+ * Role: Provides the reusable create-post iframe host adapter without outbound callbacks.
+ * Not in this file: Post persistence or Event Mesh gateway relay validation.
+ * Key dependencies: event-mesh/mesh; @shared/iframe-bridge; @shared/community-events.
+ * See also: apps/social-media-shell/src/pages/postsPage.js; MESH_IMPLEMENTATIONS/remote-intents.md.
+ */
+
 import mesh from "event-mesh/mesh";
 import {
   createIframeBridge,
   createIframeChannel,
 } from "@shared/iframe-bridge";
+import { createCommunityEvents } from "@shared/community-events";
 
 const NEW_POST_FORMULARY_HTML_PATH = "faq-formulary.html";
 const NEW_POST_FRAME_ID = "new-post-formulary";
+
+const { publishPostSubmitted } = createCommunityEvents({ mesh });
 
 function buildNewPostFormularyUrl(props, channelId) {
   const baseUrl = new URL(NEW_POST_FORMULARY_HTML_PATH, __webpack_public_path__);
@@ -65,8 +76,8 @@ export function mountNewPostFormulary(containerElement, props = {}) {
         return;
       }
 
-      if (event === "post-submitted" && props.onFormSubmitted) {
-        props.onFormSubmitted(payload);
+      if (event === "post-submitted") {
+        publishPostSubmitted(payload);
       }
     },
   });

@@ -1,9 +1,9 @@
 /**
- * Mounts the FAQ iframe and receives its channel-scoped distributed mesh events.
- * Role: Provides the reusable FAQ iframe host adapter.
+ * Mounts the FAQ iframe and publishes community.faq-submitted on the host mesh.
+ * Role: Provides the reusable FAQ iframe host adapter without outbound callbacks.
  * Not in this file: FAQ persistence or Event Mesh gateway relay validation.
- * Key dependencies: event-mesh/mesh; @shared/iframe-bridge.
- * See also: apps/ecommerce-shell/src/pages/homePage.js.
+ * Key dependencies: event-mesh/mesh; @shared/iframe-bridge; @shared/community-events.
+ * See also: apps/ecommerce-shell/src/pages/homePage.js; MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
 import mesh from "event-mesh/mesh";
@@ -11,9 +11,12 @@ import {
   createIframeBridge,
   createIframeChannel,
 } from "@shared/iframe-bridge";
+import { createCommunityEvents } from "@shared/community-events";
 
 const FAQ_FORMULARY_HTML_PATH = "faq-formulary.html";
 const FAQ_FRAME_ID = "faq-formulary";
+
+const { publishFaqSubmitted } = createCommunityEvents({ mesh });
 
 function buildFaqFormularyUrl(props, channelId) {
   const baseUrl = new URL(FAQ_FORMULARY_HTML_PATH, __webpack_public_path__);
@@ -70,8 +73,8 @@ export function mountFaqFormulary(containerElement, props = {}) {
         return;
       }
 
-      if (event === "faq-submitted" && props.onFormSubmitted) {
-        props.onFormSubmitted(payload);
+      if (event === "faq-submitted") {
+        publishFaqSubmitted(payload);
       }
     },
   });

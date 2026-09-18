@@ -1,8 +1,29 @@
+/**
+ * Login form remote for shell-owned auth session handoff.
+ * Role: POSTs credentials, writes host-injected auth storage keys, then publishes auth.session-changed and navigation.path-requested.
+ * Not in this file: Mesh configuration (host owns configureMesh) or welcome toasts (shell onAuthSessionChanged).
+ * Key dependencies: event-mesh/mesh singleton; @shared/shell-events.
+ * See also: MESH_IMPLEMENTATIONS/remote-intents.md.
+ */
+
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
+import mesh from "event-mesh/mesh";
+import { createShellEvents } from "@shared/shell-events";
 import "./styles.css";
 
-function LoginFormView({ apiBaseUrl, onLoginSuccess, onCancel, redirectAfterLogin }) {
+const { publishAuthSessionChanged, publishPathRequested } = createShellEvents({
+  mesh,
+});
+
+function LoginFormView({
+  apiBaseUrl,
+  redirectAfterLogin,
+  authTokenStorageKey,
+  authUserStorageKey,
+  defaultRedirectPath,
+  requiredRole,
+}) {
   const [usernameValue, setUsernameValue] = useState("");
   const [passwordValue, setPasswordValue] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -16,6 +37,16 @@ function LoginFormView({ apiBaseUrl, onLoginSuccess, onCancel, redirectAfterLogi
 
     if (!trimmedUsername || !trimmedPassword) {
       setErrorMessage("Please type both username/email and password.");
+      return;
+    }
+
+    if (
+      typeof authTokenStorageKey !== "string" ||
+      authTokenStorageKey.trim() === "" ||
+      typeof authUserStorageKey !== "string" ||
+      authUserStorageKey.trim() === ""
+    ) {
+      setErrorMessage("Login is misconfigured: missing auth storage keys.");
       return;
     }
 
@@ -39,13 +70,28 @@ function LoginFormView({ apiBaseUrl, onLoginSuccess, onCancel, redirectAfterLogi
       }
 
       const loginPayload = await loginResponse.json();
-      if (typeof onLoginSuccess === "function") {
-        onLoginSuccess({
-          token: loginPayload.token,
-          user: loginPayload.user,
-          redirectAfterLogin,
-        });
+      const authenticatedUser = loginPayload.user;
+      if (
+        typeof requiredRole === "string" &&
+        requiredRole.trim() !== "" &&
+        authenticatedUser?.role !== requiredRole
+      ) {
+        setErrorMessage("This account does not have the required access.");
+        return;
       }
+
+      localStorage.setItem(authTokenStorageKey, loginPayload.token);
+      localStorage.setItem(authUserStorageKey, JSON.stringify(authenticatedUser));
+      publishAuthSessionChanged();
+
+      const targetPath =
+        (typeof redirectAfterLogin === "string" && redirectAfterLogin.trim() !== ""
+          ? redirectAfterLogin
+          : null) ||
+        (typeof defaultRedirectPath === "string" && defaultRedirectPath.trim() !== ""
+          ? defaultRedirectPath
+          : "/");
+      publishPathRequested(targetPath);
     } catch (error) {
       setErrorMessage(`Unable to log in: ${error.message}`);
     } finally {
@@ -91,15 +137,13 @@ function LoginFormView({ apiBaseUrl, onLoginSuccess, onCancel, redirectAfterLogi
           <button className="login-submit-button" type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Signing in..." : "Sign in"}
           </button>
-          {typeof onCancel === "function" && (
-            <button
-              className="login-cancel-button"
-              type="button"
-              onClick={() => onCancel()}
-            >
-              Cancel
-            </button>
-          )}
+          <button
+            className="login-cancel-button"
+            type="button"
+            onClick={() => publishPathRequested("/")}
+          >
+            Cancel
+          </button>
         </div>
       </form>
     </section>
@@ -111,9 +155,11 @@ export function mountLoginForm(containerElement, props) {
   root.render(
     <LoginFormView
       apiBaseUrl={props.apiBaseUrl}
-      onLoginSuccess={props.onLoginSuccess}
-      onCancel={props.onCancel}
       redirectAfterLogin={props.redirectAfterLogin}
+      authTokenStorageKey={props.authTokenStorageKey}
+      authUserStorageKey={props.authUserStorageKey}
+      defaultRedirectPath={props.defaultRedirectPath}
+      requiredRole={props.requiredRole}
     />,
   );
 

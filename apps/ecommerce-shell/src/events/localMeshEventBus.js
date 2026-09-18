@@ -10,6 +10,7 @@ import mesh from "event-mesh/mesh";
 import { createShellEvents } from "@shared/shell-events";
 import { createCatalogEvents } from "@shared/catalog-events";
 import { createCheckoutEvents } from "@shared/checkout-events";
+import { createAccountEvents } from "@shared/account-events";
 import {
   CART_CHANGED_EVENT,
   CART_TOPIC,
@@ -27,6 +28,7 @@ import {
 const sharedShellEvents = createShellEvents({ mesh });
 const sharedCatalogEvents = createCatalogEvents({ mesh });
 const sharedCheckoutEvents = createCheckoutEvents({ mesh });
+const sharedAccountEvents = createAccountEvents({ mesh });
 let cartChangedListenersStarted = false;
 
 /**
@@ -163,6 +165,12 @@ export const {
   publishPlaceOrderRequested,
   resetCheckoutIntentListeners,
 } = sharedCheckoutEvents;
+export const {
+  ensureAccountIntentListeners,
+  publishAddressSaveRequested,
+  publishProfileSaveRequested,
+  resetAccountIntentListeners,
+} = sharedAccountEvents;
 export const {
   ensureShellEventListeners,
   publishAuthSessionChanged,

@@ -38,8 +38,10 @@ import {
   clearMeshSessionFlags,
 } from "./notifications/meshSessionState";
 import {
+  ensureAccountIntentListeners,
   ensureShellEventListeners,
   publishRenderRequested,
+  resetAccountIntentListeners,
   resetShellEventListeners,
 } from "./events/shellEventBus";
 import {
@@ -49,6 +51,7 @@ import {
   renderPostsPage,
   renderAccountPage,
 } from "./utils/renderActions";
+import { persistAccountUpdate } from "./commands/accountCommands";
 
 const appState = {
   authToken: null,
@@ -105,6 +108,7 @@ function startLocalMeshSession() {
 
   ensureNotificationDisplayListeners();
   ensureShellEventListeners(shellEventHandlers);
+  ensureAccountIntentListeners(accountIntentHandlers);
 }
 
 function startAuthenticatedMeshSession() {
@@ -115,11 +119,13 @@ function startAuthenticatedMeshSession() {
   if (isAuthenticatedMeshActive()) {
     ensureNotificationDisplayListeners();
     ensureShellEventListeners(shellEventHandlers);
+    ensureAccountIntentListeners(accountIntentHandlers);
     return;
   }
 
   resetNotificationDisplayListeners();
   resetShellEventListeners();
+  resetAccountIntentListeners();
   mesh.close();
   clearMeshSessionFlags();
 
@@ -127,11 +133,13 @@ function startAuthenticatedMeshSession() {
   setAuthenticatedMeshActive(true);
   ensureNotificationDisplayListeners();
   ensureShellEventListeners(shellEventHandlers);
+  ensureAccountIntentListeners(accountIntentHandlers);
 }
 
 function downgradeToLocalMeshSession() {
   resetNotificationDisplayListeners();
   resetShellEventListeners();
+  resetAccountIntentListeners();
   mesh.close();
   clearMeshSessionFlags();
   startLocalMeshSession();
@@ -255,6 +263,15 @@ async function renderApp() {
     .addEventListener("click", () => navigate("/"));
 }
 
+const accountIntentHandlers = {
+  onProfileSaveRequested: (profilePayload) => {
+    void persistAccountUpdate(appState, profilePayload);
+  },
+  onAddressSaveRequested: (addressPayload) => {
+    void persistAccountUpdate(appState, { address: addressPayload });
+  },
+};
+
 const shellEventHandlers = {
   onRenderRequested: () => {
     void renderApp();
@@ -263,7 +280,21 @@ const shellEventHandlers = {
     navigate(path);
   },
   onAuthSessionChanged: () => {
+    const wasAuthenticated = Boolean(appState.authToken);
+    readStoredAuth(appState);
+    const isNowAuthenticated = Boolean(appState.authToken);
     handleAuthMeshLifecycle();
+    if (!wasAuthenticated && isNowAuthenticated) {
+      const welcomeName =
+        appState.currentUser?.fullName ||
+        appState.currentUser?.username ||
+        "there";
+      publishNotification({
+        type: "success",
+        title: "Signed in",
+        message: `Welcome back, ${welcomeName}.`,
+      });
+    }
     void renderApp();
   },
   onLogoutRequested: () => {

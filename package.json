@@ -23,6 +23,8 @@
     "packages/shell-events",
     "packages/catalog-events",
     "packages/checkout-events",
+    "packages/account-events",
+    "packages/community-events",
     "packages/iframe-bridge"
   ],
   "scripts": {

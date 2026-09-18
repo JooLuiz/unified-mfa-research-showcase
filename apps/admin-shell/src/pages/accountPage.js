@@ -6,7 +6,6 @@
  * See also: src/commands/accountCommands.js.
  */
 
-import { persistAccountUpdate } from "../commands/accountCommands";
 import { navigate } from "../utils/navigate";
 
 /**
@@ -45,15 +44,11 @@ async function renderAccountPage(appState, pageMount, activeCleanupFunctions) {
   activeCleanupFunctions.push(
     accountProfileModule.mountAccountProfile(accountProfileMount, {
       user: appState.currentUser,
-      onSaveProfile: (profilePayload) =>
-        persistAccountUpdate(appState, profilePayload),
     }),
   );
   activeCleanupFunctions.push(
     accountAddressModule.mountAccountAddress(accountAddressMount, {
       address: appState.currentUser?.address,
-      onSaveAddress: (addressPayload) =>
-        persistAccountUpdate(appState, { address: addressPayload }),
     }),
   );
 }

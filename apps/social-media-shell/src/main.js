@@ -37,10 +37,14 @@ import {
 } from "./notifications/meshSessionState";
 import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
 import {
+  ensureAccountIntentListeners,
   ensureCatalogIntentListeners,
+  ensureCommunityIntentListeners,
   ensureShellEventListeners,
   publishRenderRequested,
+  resetAccountIntentListeners,
   resetCatalogIntentListeners,
+  resetCommunityIntentListeners,
   resetShellEventListeners,
 } from "./events/shellEventBus";
 import {
@@ -49,6 +53,9 @@ import {
   loginPageApp,
   accountPageApp,
 } from "./utils/pageApps";
+import { persistAccountUpdate } from "./commands/accountCommands";
+import { persistNewPost } from "./commands/postCommands";
+import { publishNotification } from "./notifications/meshNotificationAdapter";
 import { configureMesh } from "event-mesh/mesh";
 import mesh from "event-mesh/mesh";
 
@@ -112,6 +119,8 @@ function startLocalMeshSession() {
   ensureNotificationDisplayListeners();
   ensureShellEventListeners(shellEventHandlers);
   ensureCatalogIntentListeners(catalogIntentHandlers);
+  ensureAccountIntentListeners(accountIntentHandlers);
+  ensureCommunityIntentListeners(communityIntentHandlers);
 }
 
 function startAuthenticatedMeshSession() {
@@ -124,6 +133,8 @@ function startAuthenticatedMeshSession() {
     ensureCsvExportListeners();
     ensureShellEventListeners(shellEventHandlers);
     ensureCatalogIntentListeners(catalogIntentHandlers);
+    ensureAccountIntentListeners(accountIntentHandlers);
+    ensureCommunityIntentListeners(communityIntentHandlers);
     return;
   }
 
@@ -131,6 +142,8 @@ function startAuthenticatedMeshSession() {
   resetCsvExportListeners();
   resetShellEventListeners();
   resetCatalogIntentListeners();
+  resetAccountIntentListeners();
+  resetCommunityIntentListeners();
   mesh.close();
   clearMeshSessionFlags();
 
@@ -140,6 +153,8 @@ function startAuthenticatedMeshSession() {
   ensureCsvExportListeners();
   ensureShellEventListeners(shellEventHandlers);
   ensureCatalogIntentListeners(catalogIntentHandlers);
+  ensureAccountIntentListeners(accountIntentHandlers);
+  ensureCommunityIntentListeners(communityIntentHandlers);
 }
 
 function downgradeToLocalMeshSession() {
@@ -147,6 +162,8 @@ function downgradeToLocalMeshSession() {
   resetNotificationDisplayListeners();
   resetShellEventListeners();
   resetCatalogIntentListeners();
+  resetAccountIntentListeners();
+  resetCommunityIntentListeners();
   mesh.close();
   clearMeshSessionFlags();
   startLocalMeshSession();
@@ -293,6 +310,47 @@ const catalogIntentHandlers = {
   onPromotionApplied: handlePromotionApplied,
 };
 
+const accountIntentHandlers = {
+  onProfileSaveRequested: (profilePayload) => {
+    void persistAccountUpdate(appState, profilePayload);
+  },
+  onAddressSaveRequested: (addressPayload) => {
+    void persistAccountUpdate(appState, { address: addressPayload });
+  },
+};
+
+const communityIntentHandlers = {
+  onPostLiked: ({ postId }) => {
+    console.log("communityIntentHandlers - postId");
+    console.log(postId);
+  },
+  onAuthorSelected: ({ author }) => {
+    if (author?.username) {
+      console.log("communityIntentHandlers - authorClicked");
+      console.log(author);
+    }
+  },
+  onPostSubmitted: (payload) => {
+    if (!isAuthenticated(appState)) {
+      return;
+    }
+    void persistNewPost(appState, {
+      content: payload.content,
+      imageUrl: payload.imageUrl,
+      authorId: appState.currentUser?.id,
+    }).then((postResult) => {
+      if (postResult.ok) {
+        publishNotification({
+          type: "success",
+          title: "Post published",
+          message: "Your post is now visible in the community feed.",
+        });
+        publishRenderRequested();
+      }
+    });
+  },
+};
+
 const shellEventHandlers = {
   onRenderRequested: () => {
     reloadActivePageApp();
@@ -301,7 +359,21 @@ const shellEventHandlers = {
     navigate(path);
   },
   onAuthSessionChanged: () => {
+    const wasAuthenticated = Boolean(appState.authToken);
+    readStoredAuth(appState);
+    const isNowAuthenticated = Boolean(appState.authToken);
     handleAuthMeshLifecycle();
+    if (!wasAuthenticated && isNowAuthenticated) {
+      const welcomeName =
+        appState.currentUser?.fullName ||
+        appState.currentUser?.username ||
+        "there";
+      publishNotification({
+        type: "success",
+        title: "Signed in",
+        message: `Welcome back, ${welcomeName}.`,
+      });
+    }
     reloadActivePageApp();
   },
   onLogoutRequested: () => {

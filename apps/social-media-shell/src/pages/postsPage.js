@@ -11,9 +11,6 @@ import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
-import { publishNotification } from "../notifications/meshNotificationAdapter";
-import { publishRenderRequested } from "../events/shellEventBus";
-import { persistNewPost } from "../commands/postCommands";
 
 const POSTS_PER_BANNER_GROUP = 4;
 
@@ -23,25 +20,6 @@ function mountNewPostFormularyWithProps(containerElement, appState, modules) {
     userName: currentUser?.fullName || currentUser?.username || "",
     userEmail: currentUser?.email || "",
     authorId: currentUser?.id || "",
-    onFormSubmitted: (payload) => {
-      if (!isAuthenticated(appState)) {
-        return;
-      }
-      void persistNewPost(appState, {
-        content: payload.content,
-        imageUrl: payload.imageUrl,
-        authorId: appState.currentUser?.id,
-      }).then((postResult) => {
-        if (postResult.ok) {
-          publishNotification({
-            type: "success",
-            title: "Post published",
-            message: "Your post is now visible in the community feed.",
-          });
-          publishRenderRequested();
-        }
-      });
-    },
   });
 }
 
@@ -117,16 +95,6 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
       modules.mountPostFeed(groupContainer, {
         title: groupIndex === 0 ? "Latest Posts" : "More Posts",
         posts: postsGroup,
-        onLike: (postId) => {
-          console.log("renderPostsPage - postId");
-          console.log(postId);
-        },
-        onAuthorClick: (author) => {
-          if (author?.username) {
-            console.log("renderPostsPage - authorClicked");
-            console.log(author);
-          }
-        },
       }),
     );
 

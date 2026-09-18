@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@shared/notifications": "*",
-    "@shared/shell-events": "*"
+    "@shared/shell-events": "*",
+    "@shared/account-events": "*"
   }
 }

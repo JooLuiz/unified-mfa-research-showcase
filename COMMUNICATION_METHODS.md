@@ -19,7 +19,7 @@ Shell-local UI coordination and product remote intents use **Event Mesh** (`scop
 | Formulary iframe page (type=post) | Layout | Content height for auto-sizing: `{ height }` | `iframe-bridge.message` / `resized`, distributed scope | Formulary `mountNewPostFormulary` channel subscription resizes the iframe element |
 | Checkout Empty iframe page | Layout | Content height for auto-sizing: `{ height }` | `iframe-bridge.message` / `resized`, distributed scope | Checkout `mountCheckoutEmpty` channel subscription resizes the iframe element |
 | Formulary iframe page (type=faq) | FAQ | Form submission: `{ name, email, contactMethod, question }` | `iframe-bridge.message` / `faq-submitted`, distributed scope | Ecommerce Shell persists to API and re-renders |
-| Formulary iframe page (type=post) | Posts | Form submission: `{ content, imageUrl }` | `iframe-bridge.message` / `post-submitted`, distributed scope | Social Media Shell persists to API and reloads page |
+| Formulary iframe page (type=post) | Posts | Form submission: `{ content, imageUrl }` | `iframe-bridge.message` / `post-submitted` → mount publishes `community.post-submitted` (local) | Social Media Shell mesh handler persists to API and reloads page |
 | Checkout Empty iframe page | Cart / Navigation | User clicked "Go Back to Shopping" | `iframe-bridge.message` / `go-shopping`, distributed scope | Ecommerce Shell navigates to `/products` |
 
 ---
@@ -41,7 +41,7 @@ Shell-local UI coordination and product remote intents use **Event Mesh** (`scop
 | Product List Page MFE | Products | `GET /api/categories` — all categories for filter sidebar | HTTP → Mock Data Service | Product List Page (renders category filter checkboxes) |
 | Product Details Page MFE | Products | `GET /api/products/:id` — full product details | HTTP → Mock Data Service | Product Details Page (renders PDP view) |
 | Banners MFE | Promotions | `GET /api/banners/:id` — single banner by ID | HTTP → Mock Data Service | Banners (renders promotional banner when only `bannerId` is given) |
-| Login MFE | Account | `POST /api/auth/login` — `{ email, password }` → `{ token, user }` | HTTP → Mock Data Service | Login MFE (returns credentials to shell via `onLoginSuccess` callback) |
+| Login MFE | Account | `POST /api/auth/login` — credentials → `{ token, user }` | HTTP → Mock Data Service; then write host auth keys + `auth.session-changed` / `navigation.path-requested` (no JWT on mesh) | Owning shell hydrates via `readStoredAuth` and navigates |
 | Ecommerce Shell (`authActions.js`) | Account | `GET /api/users/me` — refresh current user | HTTP → Mock Data Service | Ecommerce Shell (updates `appState.currentUser`) |
 | Social Media Shell (`authActions.js`) | Account | `GET /api/users/me` — refresh current user | HTTP → Mock Data Service | Social Media Shell (updates `appState.currentUser`) |
 | Ecommerce Shell (`renderActions.js`) | Account | `PUT /api/users/me` — `{ fullName, username, address, ... }` | HTTP → Mock Data Service | Ecommerce Shell (updates `appState.currentUser` with response) |
@@ -130,11 +130,11 @@ Cart snapshots are coordinated over local Event Mesh (`cart.changed`), not `wind
 | **Product List Page** | Publishes `catalog.filters-apply-requested` | `GET /products?...`, `GET /categories` | -- | -- | Builds API query params | -- |
 | **Product Details Page** | Publishes `cart.item-add-requested` | `GET /products/:id` | -- | -- | Reads `productId` from `window.location.search` | -- |
 | **Banners** | Publishes `catalog.promotion-applied` | `GET /banners/:id` | -- | -- | -- | -- |
-| **Formulary (iframe)** | Distributed Event Mesh bridge (resize + form-submitted) | -- | -- | -- | Reads `type`, `name`, `email`, `authorId`, and an opaque bridge channel from URL | -- |
+| **Formulary (iframe)** | Bridge resize; mounts publish `community.post-submitted` / `community.faq-submitted` | -- | -- | -- | Reads `type`, `name`, `email`, `authorId`, and an opaque bridge channel from URL | -- |
 | **Checkout Empty (iframe)** | Distributed Event Mesh bridge (resize + go-shopping) → host publishes `navigation.path-requested` | -- | -- | -- | Reads an opaque bridge channel from URL | -- |
 | **Checkout Items/Summary/Coupon** | Publishes cart update/remove, `checkout.coupon-applied`, `checkout.place-order-requested` | -- | -- | Checkout Items receives cart via host `subscribeToCartChanges` | -- | -- |
-| **Login** | -- | `POST /auth/login` | -- | -- | -- | -- |
-| **Account** | -- | -- | -- | -- | -- | -- |
+| **Login** | Writes shell auth keys; publishes `auth.session-changed` + `navigation.path-requested` | `POST /auth/login` | Host-injected token/user keys | -- | -- | -- |
+| **Account** | Publishes `account.profile-save-requested` / `account.address-save-requested` | -- | -- | -- | -- | -- |
 | **Order Details** | -- | `GET /orders/:id` | -- (host-injected `getAuthToken`) | -- | Reads `orderId` from `window.location.pathname` | -- |
-| **Post Feed** | -- | -- | -- | -- | -- | -- |
+| **Post Feed** | Publishes `community.post-liked` / `community.author-selected` | -- | -- | -- | -- | -- |
 | **Mock Data Service** | -- | Serves all API endpoints | -- | -- | Reads filter/sort query params | -- |

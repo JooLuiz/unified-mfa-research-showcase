@@ -31,6 +31,7 @@ import {
 } from "./notifications/meshSessionState";
 import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
 import {
+  ensureAccountIntentListeners,
   ensureCartEventListeners,
   ensureCatalogIntentListeners,
   ensureCheckoutIntentListeners,
@@ -38,6 +39,7 @@ import {
   publishCartChanged,
   publishPlpFiltersChanged,
   publishRenderRequested,
+  resetAccountIntentListeners,
   resetCartEventListeners,
   resetCatalogIntentListeners,
   resetCheckoutIntentListeners,
@@ -50,6 +52,7 @@ import { navigate } from "./utils/navigate";
 import { updateCartItem, removeCartItem } from "./utils/cartActions";
 import { applyPromotionFilters } from "./pages/promotionsPage";
 import { placeCheckoutOrder } from "./commands/placeCheckoutOrder";
+import { persistAccountUpdate } from "./commands/accountCommands";
 import {
   renderHomePage,
   renderPromotionsPage,
@@ -124,6 +127,7 @@ function startLocalMeshSession() {
   ensureShellEventListeners(shellEventHandlers);
   ensureCatalogIntentListeners(catalogIntentHandlers);
   ensureCheckoutIntentListeners(checkoutIntentHandlers);
+  ensureAccountIntentListeners(accountIntentHandlers);
   ensureCartEventListeners(shellEventHandlers);
 }
 
@@ -138,6 +142,7 @@ function startAuthenticatedMeshSession() {
     ensureShellEventListeners(shellEventHandlers);
     ensureCatalogIntentListeners(catalogIntentHandlers);
     ensureCheckoutIntentListeners(checkoutIntentHandlers);
+    ensureAccountIntentListeners(accountIntentHandlers);
     ensureCartEventListeners(shellEventHandlers);
     return;
   }
@@ -147,6 +152,7 @@ function startAuthenticatedMeshSession() {
   resetShellEventListeners();
   resetCatalogIntentListeners();
   resetCheckoutIntentListeners();
+  resetAccountIntentListeners();
   resetCartEventListeners();
   mesh.close();
   clearMeshSessionFlags();
@@ -158,6 +164,7 @@ function startAuthenticatedMeshSession() {
   ensureShellEventListeners(shellEventHandlers);
   ensureCatalogIntentListeners(catalogIntentHandlers);
   ensureCheckoutIntentListeners(checkoutIntentHandlers);
+  ensureAccountIntentListeners(accountIntentHandlers);
   ensureCartEventListeners(shellEventHandlers);
 }
 
@@ -167,6 +174,7 @@ function downgradeToLocalMeshSession() {
   resetShellEventListeners();
   resetCatalogIntentListeners();
   resetCheckoutIntentListeners();
+  resetAccountIntentListeners();
   resetCartEventListeners();
   mesh.close();
   clearMeshSessionFlags();
@@ -440,6 +448,15 @@ const checkoutIntentHandlers = {
   onPlaceOrderRequested: handlePlaceOrderRequested,
 };
 
+const accountIntentHandlers = {
+  onProfileSaveRequested: (profilePayload) => {
+    void persistAccountUpdate(appState, profilePayload);
+  },
+  onAddressSaveRequested: (addressPayload) => {
+    void persistAccountUpdate(appState, { address: addressPayload });
+  },
+};
+
 const shellEventHandlers = {
   onCartChanged: handleCartChanged,
   onRenderRequested: () => {
@@ -449,7 +466,21 @@ const shellEventHandlers = {
     navigate(path);
   },
   onAuthSessionChanged: () => {
+    const wasAuthenticated = Boolean(appState.authToken);
+    readStoredAuth(appState);
+    const isNowAuthenticated = Boolean(appState.authToken);
     handleAuthMeshLifecycle();
+    if (!wasAuthenticated && isNowAuthenticated) {
+      const welcomeName =
+        appState.currentUser?.fullName ||
+        appState.currentUser?.username ||
+        "there";
+      publishNotification({
+        type: "success",
+        title: "Signed in",
+        message: `Welcome back, ${welcomeName}.`,
+      });
+    }
     void renderApp();
   },
   onLogoutRequested: () => {

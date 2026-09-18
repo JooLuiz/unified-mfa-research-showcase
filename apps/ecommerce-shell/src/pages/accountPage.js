@@ -13,7 +13,6 @@ import {
 } from "../utils/authActions";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import fetchJson from "../utils/fetchJson";
-import { persistAccountUpdate } from "../commands/accountCommands";
 import { requestCsvExport } from "../exports/requestCsvExport";
 import { publishNotification } from "../notifications/meshNotificationAdapter";
 
@@ -63,16 +62,12 @@ async function renderAccountPage(appState, pageMount, activeCleanupFunctions) {
   activeCleanupFunctions.push(
     accountProfileModule.mountAccountProfile(accountProfileMount, {
       user: appState.currentUser,
-      onSaveProfile: (profilePayload) =>
-        persistAccountUpdate(appState, profilePayload),
     }),
   );
 
   activeCleanupFunctions.push(
     accountAddressModule.mountAccountAddress(accountAddressMount, {
       address: appState.currentUser?.address,
-      onSaveAddress: (addressPayload) =>
-        persistAccountUpdate(appState, { address: addressPayload }),
     }),
   );
 
