@@ -6,8 +6,6 @@
  * See also: src/utils/renderActions.js (public barrel).
  */
 
-import { navigate } from "../utils/navigate";
-import { dispatchAddToCartEvent } from "../utils/cartActions";
 import { MOCK_API_BASE_URL, FORMULARY_REMOTE_BASE_URL } from "../utils/constants";
 import { applyPromotionFilters } from "./promotionsPage";
 import { persistFaqAnswerToApi } from "../commands/faqCommands";
@@ -60,8 +58,6 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
       apiBaseUrl: MOCK_API_BASE_URL,
       fallbackTitle: "New Products Showcase",
       mountProductCard: modules.mountProductCard,
-      onProductClick: (productId) => navigate(`/product?productId=${productId}`),
-      onAddToCart: dispatchAddToCartEvent,
     }),
   );
   if (appState.isFormularySubmitted) {

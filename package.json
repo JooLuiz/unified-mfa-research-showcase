@@ -21,6 +21,7 @@
     "apps/admin-shell",
     "packages/notifications",
     "packages/shell-events",
+    "packages/catalog-events",
     "packages/iframe-bridge"
   ],
   "scripts": {

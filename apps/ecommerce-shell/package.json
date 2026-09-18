@@ -18,6 +18,7 @@
   "dependencies": {
     "@shared/iframe-bridge": "*",
     "@shared/notifications": "*",
-    "@shared/shell-events": "*"
+    "@shared/shell-events": "*",
+    "@shared/catalog-events": "*"
   }
 }

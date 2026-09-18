@@ -19,6 +19,7 @@
     "single-spa": "^6.0.3",
     "@shared/iframe-bridge": "*",
     "@shared/notifications": "*",
-    "@shared/shell-events": "*"
+    "@shared/shell-events": "*",
+    "@shared/catalog-events": "*"
   }
 }

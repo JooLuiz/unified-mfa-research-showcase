@@ -1,15 +1,19 @@
 /**
  * Defines local Event Mesh contracts for ecommerce shell coordination.
- * Role: Centralizes topic/event names and validates payloads exchanged between ecommerce modules.
+ * Role: Centralizes cart-changed and PLP filter contracts; reuses shared cart-add/product-open names from @shared/catalog-events.
  * Not in this file: Mesh publishing, subscriptions, cart mutations, or UI rendering.
- * Key dependencies: None.
+ * Key dependencies: @shared/catalog-events.
  * See also: src/events/localMeshEventBus.js; src/main.js; src/utils/PLPFilterActions.js.
  */
 
-const CART_TOPIC = "cart";
-const CART_ITEM_ADD_REQUESTED_EVENT = "item-add-requested";
+import {
+  CART_ITEM_ADD_REQUESTED_EVENT,
+  CART_TOPIC,
+  CATALOG_TOPIC,
+  isValidCartAddRequest,
+} from "@shared/catalog-events";
+
 const CART_CHANGED_EVENT = "changed";
-const CATALOG_TOPIC = "catalog";
 const CATALOG_FILTERS_CHANGED_EVENT = "filters-changed";
 
 /**
@@ -28,16 +32,7 @@ function isRecord(value) {
  * @returns {value is CartItem} Whether the value has a product ID and positive quantity.
  */
 function isValidCartItem(value) {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return (
-    typeof value.productId === "string" &&
-    value.productId.trim() !== "" &&
-    Number.isFinite(value.quantity) &&
-    value.quantity > 0
-  );
+  return isValidCartAddRequest(value);
 }
 
 /**
@@ -57,16 +52,6 @@ function createCartSnapshot(cartItems) {
       productId: cartItem.productId,
       quantity: Math.floor(cartItem.quantity),
     }));
-}
-
-/**
- * Checks whether a value can request adding an item to the cart.
- *
- * @param {unknown} value - Candidate add-item request payload.
- * @returns {value is CartItem} Whether the payload is a valid cart item.
- */
-function isValidCartAddRequest(value) {
-  return isValidCartItem(value);
 }
 
 /**

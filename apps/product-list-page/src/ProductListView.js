@@ -27,8 +27,6 @@ import { ProductGrid } from "./components/ProductGrid";
  * @param {object} [props.initialFilters] - Initial filter values from the host.
  * @param {string} [props.initialSort] - Initial sort key from the host.
  * @param {(nextFilters: object) => void} [props.onFiltersChange] - Notifies the host of applied filter changes.
- * @param {(productId: string) => void} [props.onProductClick] - Handles product card clicks.
- * @param {(payload: object) => void} [props.onAddToCart] - Handles add-to-cart actions.
  * @returns {JSX.Element} Product list page.
  */
 function ProductListView({
@@ -38,8 +36,6 @@ function ProductListView({
   initialFilters,
   initialSort,
   onFiltersChange,
-  onProductClick,
-  onAddToCart,
 }) {
   const cardSlotsRef = useRef([]);
   const [isCardElementReady, setIsCardElementReady] = useState(false);
@@ -121,15 +117,13 @@ function ProductListView({
       }
 
       cardElement.props = hasProvidedProducts
-        ? { product, onProductClick, onAddToCart }
-        : { productId: product.id, apiBaseUrl, onProductClick, onAddToCart };
+        ? { product }
+        : { productId: product.id, apiBaseUrl };
     });
   }, [
     isCardElementReady,
     visibleProducts,
     hasProvidedProducts,
-    onProductClick,
-    onAddToCart,
     apiBaseUrl,
   ]);
 

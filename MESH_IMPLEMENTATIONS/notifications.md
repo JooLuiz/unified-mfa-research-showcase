@@ -130,15 +130,16 @@ Shared auth/navigation contracts live in [`packages/shell-events`](../packages/s
 
 The shared header publishes through the host's Event Mesh singleton. It does not configure mesh. The social shell still observes `auth.session-changed` through `subscribeToAuthSessionChanges` so the persistent header can refresh its displayed user state.
 
-The ecommerce shell adds cart and catalog contracts in [`apps/ecommerce-shell/src/events`](../apps/ecommerce-shell/src/events):
+The ecommerce shell adds cart and catalog contracts in [`apps/ecommerce-shell/src/events`](../apps/ecommerce-shell/src/events) and shared [`packages/catalog-events`](../packages/catalog-events):
 
 | Topic | Event | Publisher | Consumer |
 | --- | --- | --- | --- |
-| `cart` | `item-add-requested` | Product actions | Ecommerce shell cart handler |
+| `cart` | `item-add-requested` | Product card / product details remotes | Ecommerce cart handler; social redirects to ecommerce PDP |
 | `cart` | `changed` | Ecommerce shell after a cart mutation | Header and Checkout MFE |
+| `catalog` | `product-open-requested` | Product card remote | Ecommerce navigate to PDP; social `location.assign` ecommerce PDP |
 | `catalog` | `filters-changed` | PLP filter store / bootstrap hydrate | Local subscribers via `subscribeToPlpFiltersChanges` |
 
-The ecommerce shell owns the cart. Every `cart.changed` event carries a cloned `{ items: [{ productId, quantity }] }` snapshot. The Checkout MFE receives snapshots through a host-injected `subscribeToCartChanges` adapter, which uses mesh internally; it does not configure or import the mesh client. Order Details receives auth through host-injected `getAuthToken` rather than localStorage. Details: [storage-coordination.md](./storage-coordination.md).
+The ecommerce shell owns the cart. Every `cart.changed` event carries a cloned `{ items: [{ productId, quantity }] }` snapshot. The Checkout MFE receives snapshots through a host-injected `subscribeToCartChanges` adapter, which uses mesh internally; it does not configure or import the mesh client. Order Details receives auth through host-injected `getAuthToken` rather than localStorage. Product remotes no longer take `onProductClick` / `onAddToCart` callbacks — details: [remote-intents.md](./remote-intents.md) and [storage-coordination.md](./storage-coordination.md).
 
 Browser-native `popstate` and iframe `message` events remain outside these local mesh contracts.
 
@@ -147,3 +148,4 @@ Browser-native `popstate` and iframe `message` events remain outside these local
 - Connection auth and authorized client publishes: [mesh-authentication.md](./mesh-authentication.md)
 - CSV export toasts also use `publishNotification` after mesh export outcomes: [csv-exports.md](./csv-exports.md)
 - Web storage vs mesh coordination: [storage-coordination.md](./storage-coordination.md)
+- Remote product intents: [remote-intents.md](./remote-intents.md)

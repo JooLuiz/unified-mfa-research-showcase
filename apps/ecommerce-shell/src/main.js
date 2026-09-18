@@ -32,11 +32,13 @@ import {
 import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
 import {
   ensureCartEventListeners,
+  ensureCatalogIntentListeners,
   ensureShellEventListeners,
   publishCartChanged,
   publishPlpFiltersChanged,
   publishRenderRequested,
   resetCartEventListeners,
+  resetCatalogIntentListeners,
   resetShellEventListeners,
 } from "./events/localMeshEventBus";
 
@@ -115,6 +117,7 @@ function startLocalMeshSession() {
 
   ensureNotificationDisplayListeners();
   ensureShellEventListeners(shellEventHandlers);
+  ensureCatalogIntentListeners(catalogIntentHandlers);
   ensureCartEventListeners(shellEventHandlers);
 }
 
@@ -127,6 +130,7 @@ function startAuthenticatedMeshSession() {
     ensureNotificationDisplayListeners();
     ensureCsvExportListeners();
     ensureShellEventListeners(shellEventHandlers);
+    ensureCatalogIntentListeners(catalogIntentHandlers);
     ensureCartEventListeners(shellEventHandlers);
     return;
   }
@@ -134,6 +138,7 @@ function startAuthenticatedMeshSession() {
   resetNotificationDisplayListeners();
   resetCsvExportListeners();
   resetShellEventListeners();
+  resetCatalogIntentListeners();
   resetCartEventListeners();
   mesh.close();
   clearMeshSessionFlags();
@@ -143,6 +148,7 @@ function startAuthenticatedMeshSession() {
   ensureNotificationDisplayListeners();
   ensureCsvExportListeners();
   ensureShellEventListeners(shellEventHandlers);
+  ensureCatalogIntentListeners(catalogIntentHandlers);
   ensureCartEventListeners(shellEventHandlers);
 }
 
@@ -150,6 +156,7 @@ function downgradeToLocalMeshSession() {
   resetCsvExportListeners();
   resetNotificationDisplayListeners();
   resetShellEventListeners();
+  resetCatalogIntentListeners();
   resetCartEventListeners();
   mesh.close();
   clearMeshSessionFlags();
@@ -231,8 +238,9 @@ async function renderApp() {
   }
 
   if (isProtectedRoute(pathName) && !isAuthenticated(appState)) {
-    rememberPostLoginRedirect(pathName + window.location.search);
+    const postLoginRedirectPath = pathName + window.location.search;
     history.replaceState({}, "", "/login");
+    rememberPostLoginRedirect(postLoginRedirectPath);
     publishRenderRequested();
     return;
   }
@@ -323,8 +331,23 @@ function handleCartItemAddRequested(cartItem) {
   });
 }
 
-const shellEventHandlers = {
+/**
+ * Opens product details for a catalog product-open intent.
+ *
+ * @param {{ productId: string }} payload - Validated product-open mesh payload.
+ * @returns {void}
+ * @sideEffects Navigates to the PDP route with a productId query param.
+ */
+function handleProductOpenRequested({ productId }) {
+  navigate(`/product?productId=${encodeURIComponent(productId)}`);
+}
+
+const catalogIntentHandlers = {
+  onProductOpenRequested: handleProductOpenRequested,
   onCartItemAddRequested: handleCartItemAddRequested,
+};
+
+const shellEventHandlers = {
   onCartChanged: handleCartChanged,
   onRenderRequested: () => {
     void renderApp();

@@ -8,7 +8,9 @@
     "lint": "node -e \"process.stdout.write('product-card lint not configured\\\\n')\""
   },
   "dependencies": {
-    "vue": "^3.5.13"
+    "vue": "^3.5.13",
+    "@shared/catalog-events": "*",
+    "event-mesh": "*"
   },
   "devDependencies": {
     "css-loader": "^7.1.2",

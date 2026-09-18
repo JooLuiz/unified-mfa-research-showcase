@@ -1,4 +1,17 @@
+/**
+ * Product card Vue component for catalog browsing and cart intents.
+ * Role: Renders a product card and publishes catalog.product-open-requested / cart.item-add-requested on the host mesh.
+ * Not in this file: Mesh configuration (host shell owns configureMesh) or cart state ownership.
+ * Key dependencies: event-mesh/mesh singleton; @shared/catalog-events.
+ * See also: src/product-card.js; MESH_IMPLEMENTATIONS/remote-intents.md.
+ */
+
 import { h, onMounted, onUnmounted, ref, watch } from "vue";
+import mesh from "event-mesh/mesh";
+import { createCatalogEvents } from "@shared/catalog-events";
+
+const { publishProductOpenRequested, publishCartItemAddRequested } =
+  createCatalogEvents({ mesh });
 
 const normalizeQuantity = (nextQuantity) => {
   const parsedQuantity = Number(nextQuantity);
@@ -48,8 +61,6 @@ export const ProductCardComponent = {
       type: String,
       default: "default",
     },
-    onProductClick: Function,
-    onAddToCart: Function,
   },
   setup(props) {
     const quantityValue = ref(normalizeQuantity(props.defaultQuantity));
@@ -57,6 +68,7 @@ export const ProductCardComponent = {
     const isLoading = ref(false);
     const loadError = ref(null);
     let activeAbortController = null;
+
 
     const loadProduct = async () => {
       if (props.product) {
@@ -142,18 +154,18 @@ export const ProductCardComponent = {
 
     const handleProductClick = () => {
       const currentProduct = productData.value;
-      if (!currentProduct || typeof props.onProductClick !== "function") {
+      if (!currentProduct) {
         return;
       }
-      props.onProductClick(currentProduct.id);
+      publishProductOpenRequested(currentProduct.id);
     };
 
     const handleActionClick = () => {
       const currentProduct = productData.value;
-      if (!currentProduct || typeof props.onAddToCart !== "function") {
+      if (!currentProduct) {
         return;
       }
-      props.onAddToCart({
+      publishCartItemAddRequested({
         productId: currentProduct.id,
         quantity: props.hideQuantity ? 1 : quantityValue.value,
       });

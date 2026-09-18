@@ -7,7 +7,6 @@
  */
 
 import type {
-  AddToCartPayload,
   MountProductCard,
   MountProductCardProps,
   Product,
@@ -24,8 +23,6 @@ export type CardSlotMountOptions = {
   hideQuantity?: boolean;
   variant?: "default" | "compact";
   mountProductCard?: MountProductCard;
-  onProductClick?: (productId: string) => void;
-  onAddToCart?: (payload: AddToCartPayload) => void;
 };
 
 async function resolveMountProductCard(
@@ -79,8 +76,6 @@ export class ProductCardSlotMounter {
         actionLabel: options.actionLabel,
         hideQuantity: options.hideQuantity,
         variant: options.variant,
-        onProductClick: options.onProductClick,
-        onAddToCart: options.onAddToCart,
       };
 
       if (hasFullProducts) {

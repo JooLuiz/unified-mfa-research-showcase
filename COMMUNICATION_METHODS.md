@@ -2,25 +2,14 @@
 
 ## 1. Events
 
-### Window-level CustomEvents
+Shell-local UI coordination and product remote intents use **Event Mesh** (`scope: "local"`), not window CustomEvents. See `MESH_IMPLEMENTATIONS/notifications.md` and `MESH_IMPLEMENTATIONS/remote-intents.md`.
+
+### Local Event Mesh (product remotes)
 
 | Triggering App | Entity | What Is Communicated | Method | Affected App(s) |
 |---|---|---|---|---|
-| Ecommerce Shell (`navigate.js`) | Navigation | A route change occurred, app needs re-render | `global:renderApp` event | Ecommerce Shell (`main.js` calls `renderApp()`) |
-| Social Media Shell (`renderActions.js`) | Posts | A new post was created, page needs refresh | `global:renderApp` event | Social Media Shell (`main.js` reloads single-spa page app) |
-| Ecommerce Shell (`authActions.js`) | Account | Auth state changed (login, logout, or profile refresh) | `auth:changed` event | Ecommerce Shell (`main.js` re-renders app) |
-| Social Media Shell (`authActions.js`) | Account | Auth state changed (login, logout, or profile refresh) | `auth:changed` event | Social Media Shell (`main.js` reloads page apps), Header (updates its displayed state) |
-| Ecommerce Shell (`mountActions.js`, on header `host:logout`) | Account | User requested logout | `auth:logout-request` event | Ecommerce Shell (`main.js` clears auth, navigates to `/`) |
-| Social Media Shell (`mountActions.js`, on header `host:logout`) | Account | User requested logout | `auth:logout-request` event | Social Media Shell (`main.js` clears auth, navigates to `/`) |
-| Ecommerce Shell (`cartActions.js` via Product Card, Product Details, Product Showcase) | Cart | Item to add: `{ productId, quantity }` | `cart:add-item` event | Ecommerce Shell (`main.js` adds item to `appState.cartItems`, re-renders) |
-| Ecommerce Shell (`cartActions.js`) | Cart | Cart contents were modified (update/remove/order placed) | `cart:updateGlobalCart` event | Ecommerce Shell (`main.js` syncs `window.__APP_SHELL_CART__`) |
-
-### Element-level CustomEvents (Web Component boundary)
-
-| Triggering App | Entity | What Is Communicated | Method | Affected App(s) |
-|---|---|---|---|---|
-| Header (web component) | Navigation | User clicked a nav link: `{ path }` | `host:navigate` CustomEvent on element | Ecommerce Shell or Social Media Shell (whichever hosts the header; calls `navigate(path)`) |
-| Header (web component) | Account | User clicked "Log out" | `host:logout` CustomEvent on element | Ecommerce Shell or Social Media Shell (dispatches `auth:logout-request`) |
+| Product Card | Products | Open product details: `{ productId }` | `catalog.product-open-requested` | Ecommerce navigates to PDP; Social hard-redirects to ecommerce PDP |
+| Product Card / Product Details | Cart | Add item: `{ productId, quantity }` | `cart.item-add-requested` | Ecommerce mutates cart + toast; Social hard-redirects to ecommerce PDP |
 
 ### Distributed Event Mesh (iframe boundary)
 
@@ -134,7 +123,7 @@ Web storage is a **reload/tab cache**. Live coordination for redirects and PLP f
 | **Social Media Shell** | Dispatches & listens to 4 event types | 7 API interactions | localStorage (2 keys) + sessionStorage (1 key) | -- | Builds cross-shell query params | `navigateToUrl`, `replaceState`, `location.assign/href` |
 | **Header** | Dispatches `host:navigate`, `host:logout` | -- | -- | -- | -- | -- |
 | **Footer** | -- | -- | -- | -- | -- | -- |
-| **Product Card** | -- | `GET /products/:id` | -- | -- | -- | -- |
+| **Product Card** | Publishes `catalog.product-open-requested` / `cart.item-add-requested` | `GET /products/:id` | -- | -- | -- | -- |
 | **Product Showcase** | -- | `GET /showcases/:id` | -- | -- | -- | -- |
 | **Product List Page** | -- | `GET /products?...`, `GET /categories` | -- | -- | Builds API query params | -- |
 | **Product Details Page** | -- | `GET /products/:id` | -- | -- | Reads `productId` from `window.location.search` | -- |

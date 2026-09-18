@@ -193,8 +193,9 @@ async function renderApp() {
 
   if (isAdminRoute(pathName)) {
     if (!appState.authToken || !appState.currentUser) {
-      rememberPostLoginRedirect(pathName + window.location.search);
+      const postLoginRedirectPath = pathName + window.location.search;
       history.replaceState({}, "", "/login");
+      rememberPostLoginRedirect(postLoginRedirectPath);
       publishRenderRequested();
       return;
     }

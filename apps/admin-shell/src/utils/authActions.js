@@ -75,28 +75,32 @@ function isAdminRoute(pathName) {
  *
  * @param {string} redirectPath - Relative path including optional query string.
  * @returns {void}
- * @sideEffects Writes sessionStorage cache and publishes navigation.post-login-redirect-changed.
+ * @sideEffects Writes sessionStorage immediately; defers navigation.post-login-redirect-changed publish.
  */
 function rememberPostLoginRedirect(redirectPath) {
   if (!redirectPath) {
     return;
   }
   sessionStorage.setItem(POST_LOGIN_REDIRECT_STORAGE_KEY, redirectPath);
-  publishPostLoginRedirectChanged(redirectPath);
+  queueMicrotask(() => {
+    publishPostLoginRedirectChanged(redirectPath);
+  });
 }
 
 /**
  * Reads and clears the remembered post-login redirect path.
  *
  * @returns {string | null | undefined} Cached redirect path when present.
- * @sideEffects Clears sessionStorage cache and publishes navigation.post-login-redirect-changed with null.
+ * @sideEffects Clears sessionStorage immediately; defers navigation.post-login-redirect-changed publish with null.
  */
 function consumePostLoginRedirect() {
   const redirectPath = sessionStorage.getItem(POST_LOGIN_REDIRECT_STORAGE_KEY);
   if (redirectPath) {
     sessionStorage.removeItem(POST_LOGIN_REDIRECT_STORAGE_KEY);
   }
-  publishPostLoginRedirectChanged(null);
+  queueMicrotask(() => {
+    publishPostLoginRedirectChanged(null);
+  });
   return redirectPath;
 }
 

@@ -2,11 +2,9 @@
  * Renders the social feed route.
  * Role: Composes the trending posts feed with the featured-products showcase web component.
  * Not in this file: Post creation (src/pages/postsPage.js) or post persistence (src/commands/postCommands.js).
- * Key dependencies: angular-product-showcase custom element; ecommerce shell base URL for product redirects.
- * See also: src/utils/renderActions.js (public barrel).
+ * Key dependencies: angular-product-showcase custom element; catalog intents handled by social mesh listeners.
+ * See also: src/utils/renderActions.js (public barrel); MESH_IMPLEMENTATIONS/remote-intents.md.
  */
-
-import { ECOMMERCE_SHELL_BASE_URL } from "../utils/constants";
 
 const TRENDING_LIKES_THRESHOLD = 100;
 
@@ -58,11 +56,6 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
     .filter(Boolean);
 
   if (showcaseProducts.length > 0) {
-    const redirectToProductDetails = (productId) =>
-      window.location.assign(
-        `${ECOMMERCE_SHELL_BASE_URL}/product?productId=${productId}`,
-      );
-
     const showcaseElement = document.createElement("angular-product-showcase");
     showcaseElement.config = {
       title: firstShowcase?.showcaseTitle || "Featured Products",
@@ -71,10 +64,6 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
       hideQuantity: true,
       displayMode: "modal",
       defaultCollapsed: false,
-      onProductClick: redirectToProductDetails,
-      onAddToCart: (showcasePayload) => {
-        redirectToProductDetails(showcasePayload.productId);
-      },
     };
     pageMount.appendChild(showcaseElement);
 

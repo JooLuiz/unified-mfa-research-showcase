@@ -15,7 +15,7 @@ import { ProductListView } from "./ProductListView";
  * Mounts the product list page into a host container.
  *
  * @param {HTMLElement} containerElement - Host-owned mount element.
- * @param {object} props - ProductListView props (products, categories, apiBaseUrl, filters, callbacks).
+ * @param {object} props - ProductListView props (products, categories, apiBaseUrl, filters).
  * @returns {() => void} Cleanup that unmounts the React root.
  */
 export function mountProductList(containerElement, props) {
@@ -28,8 +28,6 @@ export function mountProductList(containerElement, props) {
       initialFilters={props.initialFilters}
       initialSort={props.initialSort}
       onFiltersChange={props.onFiltersChange}
-      onProductClick={props.onProductClick}
-      onAddToCart={props.onAddToCart}
     />,
   );
 

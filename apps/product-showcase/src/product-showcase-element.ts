@@ -256,8 +256,6 @@ export class ProductShowcaseElementComponent
         hideQuantity: this.config.hideQuantity,
         variant: this.isModal ? "compact" : "default",
         mountProductCard: this.config.mountProductCard,
-        onProductClick: this.config.onProductClick,
-        onAddToCart: this.config.onAddToCart,
       },
     );
   }

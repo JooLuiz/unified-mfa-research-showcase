@@ -134,14 +134,13 @@ Admin shell (`http://localhost:4600`):
 - **Module Federation** - all domain MFEs are exposed via Webpack's `ModuleFederationPlugin` and consumed by the two shells.
 - **Web Components** - Header (React), Footer (Vue), Product Showcase (Angular), Formulary Sent (Vue) are exposed as custom HTML elements.
 - **Iframes** - FAQ formulary (Vue) and Empty Checkout (Angular) are isolated in iframe pages and communicate through a targeted distributed Event Mesh relay.
-- **Event-Emitter** - Shells dispatch and listen to native `CustomEvent` channels (`cart:add-item`, `cart:updateGlobalCart`, `auth:changed`, `auth:logout-request`, `host:navigate`, `host:logout`, `global:renderApp`).
+- **Event Mesh** - Linked local `event-mesh` package. The mock service hosts the gateway on port `3004`; shells configure the mesh client at bootstrap. Product remotes publish `catalog.product-open-requested` / `cart.item-add-requested` without host callbacks (`MESH_IMPLEMENTATIONS/remote-intents.md`). Other feature write-ups live in `MESH_IMPLEMENTATIONS/`.
 - **Local Notifications** - Each shell owns a persistent toast center from `@shared/notifications` that subscribes to `notifications.raised` on Event Mesh. Producers call `publishNotification()`, which publishes on mesh (`scope: "local"`). Ecommerce and social-media start with a restricted guest WebSocket mesh and upgrade on login; admin starts local-only and upgrades when authenticated. Backend order placement replies with targeted `notifications.raised` events. Details: `MESH_IMPLEMENTATIONS/notifications.md`.
 - **API-Based** - Both shells fetch data from the mock service via the native `fetch` API.
-- **Event Mesh** - Linked local `event-mesh` package. The mock service hosts the gateway on port `3004`; shells configure the mesh client at bootstrap. Feature write-ups live in `MESH_IMPLEMENTATIONS/`.
 - **CSV Exports** - Account pages create an authenticated export job over HTTP, wait for `exports.completed` / `exports.failed` on Event Mesh, then download the CSV with a second authenticated HTTP request. Details: `MESH_IMPLEMENTATIONS/csv-exports.md`.
 - **Admin Reads** - The admin shell reads all orders and posts over HTTP with an admin Bearer token; this is also part of the no-event-mesh control group.
 - **Web Storage** - Auth tokens, PLP filters, and post-login redirects remain `localStorage`/`sessionStorage` caches for reload. Live redirect and PLP filter coordination uses local Event Mesh; Order Details receives auth via host-injected `getAuthToken`. Details: `MESH_IMPLEMENTATIONS/storage-coordination.md`.
-- **Global State** - Each shell keeps an in-memory `appState` object and mirrors the cart to `window.__APP_SHELL_CART__`.
+- **Global State** - Each shell keeps an in-memory `appState` object. Cart live sync uses `cart.changed` on Event Mesh (not `window.__APP_SHELL_CART__`).
 - **Query Params** - PDP uses `?productId=`; cross-host banner redirects pass filters as query params.
 - **URL Changes** - Routing uses `history.pushState` and `popstate`; protected routes redirect to `/login`.
 

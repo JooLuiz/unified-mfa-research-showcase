@@ -11,11 +11,6 @@ export type Showcase = {
   productIds: string[];
 };
 
-export type AddToCartPayload = {
-  productId: string;
-  quantity: number;
-};
-
 export type MountProductCardProps = {
   product?: Product;
   productId?: string;
@@ -23,8 +18,6 @@ export type MountProductCardProps = {
   actionLabel?: string;
   hideQuantity?: boolean;
   variant?: "default" | "compact";
-  onProductClick?: (productId: string) => void;
-  onAddToCart?: (payload: AddToCartPayload) => void;
 };
 
 export type MountProductCard = (
@@ -47,8 +40,6 @@ export type ProductShowcaseConfiguration = {
   displayMode?: ProductShowcaseDisplayMode;
   defaultCollapsed?: boolean;
   mountProductCard?: MountProductCard;
-  onProductClick?: (productId: string) => void;
-  onAddToCart?: (payload: AddToCartPayload) => void;
 };
 
 export type ProductShowcaseElementInstance = HTMLElement & {

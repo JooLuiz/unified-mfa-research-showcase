@@ -1,42 +1,26 @@
 /**
  * Publishes and subscribes to ecommerce Event Mesh messages.
- * Role: Hides cart and catalog mesh transport details behind ecommerce operations and lifecycle-safe subscriptions.
+ * Role: Hides cart, catalog-filter, and shared catalog-intent mesh transport behind ecommerce operations.
  * Not in this file: Shared auth/navigation event internals, cart state mutations, or UI rendering.
- * Key dependencies: event-mesh/mesh; @shared/shell-events; src/events/ecommerceEventContracts.js.
+ * Key dependencies: event-mesh/mesh; @shared/shell-events; @shared/catalog-events; src/events/ecommerceEventContracts.js.
  * See also: src/main.js; src/pages/checkoutPage.js; src/utils/PLPFilterActions.js.
  */
 
 import mesh from "event-mesh/mesh";
 import { createShellEvents } from "@shared/shell-events";
+import { createCatalogEvents } from "@shared/catalog-events";
 import {
   CART_CHANGED_EVENT,
-  CART_ITEM_ADD_REQUESTED_EVENT,
   CART_TOPIC,
   CATALOG_FILTERS_CHANGED_EVENT,
   CATALOG_TOPIC,
   createCartSnapshot,
   createPlpFiltersSnapshot,
-  isValidCartAddRequest,
 } from "./ecommerceEventContracts";
 
 const sharedShellEvents = createShellEvents({ mesh });
-let cartEventListenersStarted = false;
-
-/**
- * Publishes a request for the shell to add an item to its cart.
- *
- * @param {{ productId: string, quantity: number }} cartItem - Product and quantity to add.
- * @returns {void}
- * @sideEffects Publishes a local cart.item-add-requested message.
- */
-function publishCartItemAddRequested(cartItem) {
-  mesh.publish({
-    topic: CART_TOPIC,
-    event: CART_ITEM_ADD_REQUESTED_EVENT,
-    payload: cartItem,
-    scope: "local",
-  });
-}
+const sharedCatalogEvents = createCatalogEvents({ mesh });
+let cartChangedListenersStarted = false;
 
 /**
  * Publishes the current cart state as an immutable-by-convention snapshot.
@@ -72,35 +56,30 @@ function publishPlpFiltersChanged(filters) {
 }
 
 /**
- * Registers persistent ecommerce cart handlers after a mesh configuration change.
+ * Registers persistent cart.changed handlers after a mesh configuration change.
  *
- * @param {{ onCartItemAddRequested: (cartItem: { productId: string, quantity: number }) => void, onCartChanged: () => void }} handlers - Cart orchestration handlers.
+ * @param {{ onCartChanged: () => void }} handlers - Cart orchestration handlers.
  * @returns {void}
- * @sideEffects Registers two local cart mesh subscriptions.
+ * @sideEffects Registers a local cart.changed mesh subscription.
  */
 function ensureCartEventListeners(handlers) {
-  if (cartEventListenersStarted) {
+  if (cartChangedListenersStarted) {
     return;
   }
 
-  cartEventListenersStarted = true;
-  mesh.subscribe(CART_TOPIC, CART_ITEM_ADD_REQUESTED_EVENT, (message) => {
-    if (isValidCartAddRequest(message.payload)) {
-      handlers.onCartItemAddRequested(message.payload);
-    }
-  });
+  cartChangedListenersStarted = true;
   mesh.subscribe(CART_TOPIC, CART_CHANGED_EVENT, () => {
     handlers.onCartChanged();
   });
 }
 
 /**
- * Marks cart subscriptions for re-registration after mesh.close() clears them.
+ * Marks cart.changed subscriptions for re-registration after mesh.close() clears them.
  *
  * @returns {void}
  */
 function resetCartEventListeners() {
-  cartEventListenersStarted = false;
+  cartChangedListenersStarted = false;
 }
 
 /**
@@ -136,12 +115,17 @@ function subscribeToPlpFiltersChanges(listener) {
 export {
   ensureCartEventListeners,
   publishCartChanged,
-  publishCartItemAddRequested,
   publishPlpFiltersChanged,
   resetCartEventListeners,
   subscribeToCartChanges,
   subscribeToPlpFiltersChanges,
 };
+export const {
+  ensureCatalogIntentListeners,
+  publishCartItemAddRequested,
+  publishProductOpenRequested,
+  resetCatalogIntentListeners,
+} = sharedCatalogEvents;
 export const {
   ensureShellEventListeners,
   publishAuthSessionChanged,

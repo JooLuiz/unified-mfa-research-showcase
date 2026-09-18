@@ -17,7 +17,7 @@ import {
   refreshCurrentUserFromApi,
   fetchMeshConnectionTicket,
 } from "./utils/authActions";
-import { AUTH_TOKEN_STORAGE_KEY } from "./utils/constants";
+import { AUTH_TOKEN_STORAGE_KEY, ECOMMERCE_SHELL_BASE_URL } from "./utils/constants";
 
 import loadMockData from "./utils/loadData";
 import loadRemoteModules from "./utils/loadRemoteModules";
@@ -37,8 +37,10 @@ import {
 } from "./notifications/meshSessionState";
 import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
 import {
+  ensureCatalogIntentListeners,
   ensureShellEventListeners,
   publishRenderRequested,
+  resetCatalogIntentListeners,
   resetShellEventListeners,
 } from "./events/shellEventBus";
 import {
@@ -109,6 +111,7 @@ function startLocalMeshSession() {
 
   ensureNotificationDisplayListeners();
   ensureShellEventListeners(shellEventHandlers);
+  ensureCatalogIntentListeners(catalogIntentHandlers);
 }
 
 function startAuthenticatedMeshSession() {
@@ -120,12 +123,14 @@ function startAuthenticatedMeshSession() {
     ensureNotificationDisplayListeners();
     ensureCsvExportListeners();
     ensureShellEventListeners(shellEventHandlers);
+    ensureCatalogIntentListeners(catalogIntentHandlers);
     return;
   }
 
   resetNotificationDisplayListeners();
   resetCsvExportListeners();
   resetShellEventListeners();
+  resetCatalogIntentListeners();
   mesh.close();
   clearMeshSessionFlags();
 
@@ -134,12 +139,14 @@ function startAuthenticatedMeshSession() {
   ensureNotificationDisplayListeners();
   ensureCsvExportListeners();
   ensureShellEventListeners(shellEventHandlers);
+  ensureCatalogIntentListeners(catalogIntentHandlers);
 }
 
 function downgradeToLocalMeshSession() {
   resetCsvExportListeners();
   resetNotificationDisplayListeners();
   resetShellEventListeners();
+  resetCatalogIntentListeners();
   mesh.close();
   clearMeshSessionFlags();
   startLocalMeshSession();
@@ -226,6 +233,28 @@ function registerPageApplications() {
   });
 }
 
+/**
+ * Hard-redirects to the ecommerce product details page for a catalog product id.
+ *
+ * @param {string} productId - Catalog product identifier.
+ * @returns {void}
+ * @sideEffects Assigns window.location to the ecommerce PDP URL.
+ */
+function redirectToEcommerceProductDetails(productId) {
+  window.location.assign(
+    `${ECOMMERCE_SHELL_BASE_URL}/product?productId=${encodeURIComponent(productId)}`,
+  );
+}
+
+const catalogIntentHandlers = {
+  onProductOpenRequested: ({ productId }) => {
+    redirectToEcommerceProductDetails(productId);
+  },
+  onCartItemAddRequested: ({ productId }) => {
+    redirectToEcommerceProductDetails(productId);
+  },
+};
+
 const shellEventHandlers = {
   onRenderRequested: () => {
     reloadActivePageApp();
@@ -246,8 +275,9 @@ const shellEventHandlers = {
 function applyInitialAuthGuard() {
   const currentPathName = window.location.pathname;
   if (isProtectedRoute(currentPathName) && !isAuthenticated(appState)) {
-    rememberPostLoginRedirect(currentPathName + window.location.search);
+    const postLoginRedirectPath = currentPathName + window.location.search;
     history.replaceState({}, "", "/login");
+    rememberPostLoginRedirect(postLoginRedirectPath);
   }
 }
 
