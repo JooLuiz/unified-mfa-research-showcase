@@ -1,5 +1,5 @@
 {
-  "name": "@shared/shell-events",
+  "name": "@shared/checkout-events",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -9,8 +9,8 @@
     ".": "./src/index.js"
   },
   "scripts": {
-    "build": "node -e \"process.stdout.write('shell-events build not required\\n')\"",
-    "lint": "node -e \"process.stdout.write('shell-events lint not configured\\n')\""
+    "build": "node -e \"process.stdout.write('checkout-events build not required\\n')\"",
+    "lint": "node -e \"process.stdout.write('checkout-events lint not configured\\n')\""
   },
   "peerDependencies": {
     "event-mesh": "*"

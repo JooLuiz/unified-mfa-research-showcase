@@ -82,9 +82,11 @@ Web storage is a **reload/tab cache**. Live coordination for redirects and PLP f
 
 ## 4. Global State
 
+Cart snapshots are coordinated over local Event Mesh (`cart.changed`), not `window` globals. See [MESH_IMPLEMENTATIONS/remote-intents.md](./MESH_IMPLEMENTATIONS/remote-intents.md).
+
 | Triggering App | Entity | What Is Communicated | Method | Affected App(s) |
 |---|---|---|---|---|
-| Ecommerce Shell (`main.js`) | Cart | Full cart array: `[{ productId, quantity }, ...]` | Write to `window.__APP_SHELL_CART__` | Checkout Items MFE (`checkout-items.ts`) reads it for rendering |
+| Ecommerce Shell (`localMeshEventBus.js`) | Cart | Full cart array: `[{ productId, quantity }, ...]` | Publish `cart.changed` (local scope); host injects `subscribeToCartChanges` | Checkout Items MFE refreshes lines; header updates via shell listener |
 
 ---
 
@@ -119,18 +121,18 @@ Web storage is a **reload/tab cache**. Live coordination for redirects and PLP f
 
 | App / Component | Events | API-based | Web Storage | Global State | Query Params | URL Changes |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Ecommerce Shell** | Dispatches & listens to 6 event types | 9 API interactions | localStorage (3 keys) + sessionStorage (1 key) | Writes `window.__APP_SHELL_CART__` | Builds `productId` query params for navigation; does not parse ids for MFEs | `pushState`, `replaceState` |
+| **Ecommerce Shell** | Dispatches & listens to mesh intents (catalog/cart/checkout/shell) | 9 API interactions | localStorage (3 keys) + sessionStorage (1 key) | Publishes `cart.changed` snapshots | Builds `productId` query params for navigation; does not parse ids for MFEs | `pushState`, `replaceState` |
 | **Social Media Shell** | Dispatches & listens to 4 event types | 7 API interactions | localStorage (2 keys) + sessionStorage (1 key) | -- | Builds cross-shell query params | `navigateToUrl`, `replaceState`, `location.assign/href` |
 | **Header** | Dispatches `host:navigate`, `host:logout` | -- | -- | -- | -- | -- |
 | **Footer** | -- | -- | -- | -- | -- | -- |
 | **Product Card** | Publishes `catalog.product-open-requested` / `cart.item-add-requested` | `GET /products/:id` | -- | -- | -- | -- |
 | **Product Showcase** | -- | `GET /showcases/:id` | -- | -- | -- | -- |
-| **Product List Page** | -- | `GET /products?...`, `GET /categories` | -- | -- | Builds API query params | -- |
-| **Product Details Page** | -- | `GET /products/:id` | -- | -- | Reads `productId` from `window.location.search` | -- |
-| **Banners** | -- | `GET /banners/:id` | -- | -- | -- | -- |
+| **Product List Page** | Publishes `catalog.filters-apply-requested` | `GET /products?...`, `GET /categories` | -- | -- | Builds API query params | -- |
+| **Product Details Page** | Publishes `cart.item-add-requested` | `GET /products/:id` | -- | -- | Reads `productId` from `window.location.search` | -- |
+| **Banners** | Publishes `catalog.promotion-applied` | `GET /banners/:id` | -- | -- | -- | -- |
 | **Formulary (iframe)** | Distributed Event Mesh bridge (resize + form-submitted) | -- | -- | -- | Reads `type`, `name`, `email`, `authorId`, and an opaque bridge channel from URL | -- |
-| **Checkout Empty (iframe)** | Distributed Event Mesh bridge (resize + go-shopping) | -- | -- | -- | Reads an opaque bridge channel from URL | -- |
-| **Checkout Items/Summary/Coupon** | -- | -- | -- | Checkout Items reads `window.__APP_SHELL_CART__` | -- | -- |
+| **Checkout Empty (iframe)** | Distributed Event Mesh bridge (resize + go-shopping) → host publishes `navigation.path-requested` | -- | -- | -- | Reads an opaque bridge channel from URL | -- |
+| **Checkout Items/Summary/Coupon** | Publishes cart update/remove, `checkout.coupon-applied`, `checkout.place-order-requested` | -- | -- | Checkout Items receives cart via host `subscribeToCartChanges` | -- | -- |
 | **Login** | -- | `POST /auth/login` | -- | -- | -- | -- |
 | **Account** | -- | -- | -- | -- | -- | -- |
 | **Order Details** | -- | `GET /orders/:id` | -- (host-injected `getAuthToken`) | -- | Reads `orderId` from `window.location.pathname` | -- |

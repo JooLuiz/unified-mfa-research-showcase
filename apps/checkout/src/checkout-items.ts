@@ -1,9 +1,9 @@
 /**
  * Renders editable checkout cart items supplied by the ecommerce shell.
- * Role: Displays cart snapshots and emits quantity/removal intents without owning cart state or mesh configuration.
- * Not in this file: Cart persistence, cart message publishing, or Event Mesh configuration.
- * Key dependencies: Host-provided cart snapshot and cart-change subscription adapter.
- * See also: apps/ecommerce-shell/src/pages/checkoutPage.js.
+ * Role: Displays cart snapshots and publishes cart update/remove intents on the host mesh.
+ * Not in this file: Cart persistence, Event Mesh configuration, or shell-owned cart mutations.
+ * Key dependencies: Host-provided cart snapshot and cart-change subscription; event-mesh/mesh; @shared/catalog-events.
+ * See also: apps/ecommerce-shell/src/pages/checkoutPage.js; MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
 import "@angular/compiler";
@@ -19,7 +19,12 @@ import {
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { createApplication } from "@angular/platform-browser";
+import mesh from "event-mesh/mesh";
+import { createCatalogEvents } from "@shared/catalog-events";
 import "./styles.css";
+
+const { publishCartItemUpdateRequested, publishCartItemRemoveRequested } =
+  createCatalogEvents({ mesh });
 
 type Product = {
   id: string;
@@ -43,8 +48,6 @@ type CheckoutItemsProps = {
   cartItems: CartItem[];
   productsById: ProductsById;
   subscribeToCartChanges: SubscribeToCartChanges;
-  onQuantityChange?: (productId: string, quantity: number) => void;
-  onRemoveItem?: (productId: string) => void;
 };
 
 const normalizeQuantity = (nextQuantity: number): number => {
@@ -213,10 +216,13 @@ export function mountCheckoutItems(
     componentRef.setInput("productsById", props.productsById ?? {});
 
     componentRef.instance.quantityChange.subscribe((payload) => {
-      props.onQuantityChange?.(payload.productId, payload.quantity);
+      publishCartItemUpdateRequested({
+        productId: payload.productId,
+        quantity: payload.quantity,
+      });
     });
     componentRef.instance.removeItem.subscribe((productId) => {
-      props.onRemoveItem?.(productId);
+      publishCartItemRemoveRequested(productId);
     });
   });
 

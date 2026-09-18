@@ -1,9 +1,9 @@
 /**
  * Mounts the empty-checkout iframe and synchronizes its height with the host page.
- * Role: Provides the checkout remote's isolated empty-cart view and navigation bridge.
+ * Role: Provides the checkout remote's isolated empty-cart view and publishes path-requested on go-shopping.
  * Not in this file: The child page UI and its Angular bootstrap.
- * Key dependencies: The checkout-empty.html entry point and @shared/iframe-bridge.
- * See also: src/checkout-empty-page.ts.
+ * Key dependencies: checkout-empty.html; @shared/iframe-bridge; @shared/shell-events; event-mesh/mesh.
+ * See also: src/checkout-empty-page.ts; MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
 import mesh from "event-mesh/mesh";
@@ -11,6 +11,7 @@ import {
   createIframeBridge,
   createIframeChannel,
 } from "@shared/iframe-bridge";
+import { createShellEvents } from "@shared/shell-events";
 
 declare const __webpack_public_path__: string;
 
@@ -18,9 +19,7 @@ const CHECKOUT_EMPTY_HTML_PATH = "checkout-empty.html";
 const CHECKOUT_EMPTY_FRAME_ID = "checkout-empty";
 const CHECKOUT_EMPTY_FALLBACK_HEIGHT_PX = 220;
 
-interface CheckoutEmptyProps {
-  onGoShopping?: () => void;
-}
+const { publishPathRequested } = createShellEvents({ mesh });
 
 function buildCheckoutEmptyUrl(channelId: string): string {
   const baseUrl = new URL(CHECKOUT_EMPTY_HTML_PATH, __webpack_public_path__);
@@ -60,14 +59,10 @@ function updateIframeHeight(
  * Mounts an empty-cart iframe with a visible fallback height.
  *
  * @param containerElement - Host element that receives the iframe.
- * @param props - Optional callback invoked when the child requests product navigation.
  * @returns Cleanup function that removes the bridge subscription and mounted content.
  * @sideEffects Creates an iframe and registers a targeted mesh bridge channel.
  */
-export function mountCheckoutEmpty(
-  containerElement: HTMLElement,
-  props: CheckoutEmptyProps = {},
-): () => void {
+export function mountCheckoutEmpty(containerElement: HTMLElement): () => void {
   const iframeBridge = createIframeBridge({ mesh });
   const channelId = createIframeChannel();
   const iframeSource = buildCheckoutEmptyUrl(channelId);
@@ -102,8 +97,8 @@ export function mountCheckoutEmpty(
         return;
       }
 
-      if (event === "go-shopping" && props.onGoShopping) {
-        props.onGoShopping();
+      if (event === "go-shopping") {
+        publishPathRequested("/products");
       }
     },
   });

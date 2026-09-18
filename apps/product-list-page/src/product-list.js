@@ -27,7 +27,6 @@ export function mountProductList(containerElement, props) {
       apiBaseUrl={props.apiBaseUrl}
       initialFilters={props.initialFilters}
       initialSort={props.initialSort}
-      onFiltersChange={props.onFiltersChange}
     />,
   );
 

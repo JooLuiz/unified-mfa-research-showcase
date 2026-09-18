@@ -246,6 +246,43 @@ function redirectToEcommerceProductDetails(productId) {
   );
 }
 
+/**
+ * Builds an ecommerce PLP URL from promotion filter payload.
+ *
+ * @param {object} filters - PLP filter snapshot from mesh.
+ * @returns {string} Absolute ecommerce /products URL with optional query.
+ */
+function buildEcommerceProductsUrlFromFilters(filters) {
+  const queryParams = new URLSearchParams();
+  if (filters?.searchQuery) {
+    queryParams.set("searchQuery", filters.searchQuery);
+  }
+  if (filters?.minPrice) {
+    queryParams.set("minPrice", filters.minPrice);
+  }
+  if (filters?.maxPrice) {
+    queryParams.set("maxPrice", filters.maxPrice);
+  }
+  if (Array.isArray(filters?.categoryIds) && filters.categoryIds.length > 0) {
+    queryParams.set("categoryIds", filters.categoryIds.join(","));
+  }
+  const querySuffix = queryParams.toString();
+  return querySuffix
+    ? `${ECOMMERCE_SHELL_BASE_URL}/products?${querySuffix}`
+    : `${ECOMMERCE_SHELL_BASE_URL}/products`;
+}
+
+/**
+ * Redirects to ecommerce PLP for a promotion-applied intent.
+ *
+ * @param {{ filters: object }} payload - Promotion mesh payload.
+ * @returns {void}
+ * @sideEffects Assigns window.location to the ecommerce products URL.
+ */
+function handlePromotionApplied({ filters }) {
+  window.location.assign(buildEcommerceProductsUrlFromFilters(filters));
+}
+
 const catalogIntentHandlers = {
   onProductOpenRequested: ({ productId }) => {
     redirectToEcommerceProductDetails(productId);
@@ -253,6 +290,7 @@ const catalogIntentHandlers = {
   onCartItemAddRequested: ({ productId }) => {
     redirectToEcommerceProductDetails(productId);
   },
+  onPromotionApplied: handlePromotionApplied,
 };
 
 const shellEventHandlers = {

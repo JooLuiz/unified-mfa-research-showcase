@@ -19,6 +19,7 @@
     "@shared/iframe-bridge": "*",
     "@shared/notifications": "*",
     "@shared/shell-events": "*",
-    "@shared/catalog-events": "*"
+    "@shared/catalog-events": "*",
+    "@shared/checkout-events": "*"
   }
 }

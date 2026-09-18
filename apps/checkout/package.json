@@ -21,6 +21,10 @@
   },
   "dependencies": {
     "@shared/iframe-bridge": "*",
+    "@shared/catalog-events": "*",
+    "@shared/checkout-events": "*",
+    "@shared/shell-events": "*",
+    "event-mesh": "*",
     "@angular/common": "^21.2.8",
     "@angular/core": "^21.2.8",
     "@angular/elements": "^21.2.8",

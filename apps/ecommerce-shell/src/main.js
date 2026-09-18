@@ -1,6 +1,6 @@
 import "./styles.css";
 
-import { readStoredPLPFilters } from "./utils/PLPFilterActions";
+import { readStoredPLPFilters, storePLPFilters, normalizePlpFilters } from "./utils/PLPFilterActions";
 import {
   readStoredAuth,
   clearAuthSession,
@@ -33,18 +33,23 @@ import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/req
 import {
   ensureCartEventListeners,
   ensureCatalogIntentListeners,
+  ensureCheckoutIntentListeners,
   ensureShellEventListeners,
   publishCartChanged,
   publishPlpFiltersChanged,
   publishRenderRequested,
   resetCartEventListeners,
   resetCatalogIntentListeners,
+  resetCheckoutIntentListeners,
   resetShellEventListeners,
 } from "./events/localMeshEventBus";
 
 import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
 
 import { navigate } from "./utils/navigate";
+import { updateCartItem, removeCartItem } from "./utils/cartActions";
+import { applyPromotionFilters } from "./pages/promotionsPage";
+import { placeCheckoutOrder } from "./commands/placeCheckoutOrder";
 import {
   renderHomePage,
   renderPromotionsPage,
@@ -118,6 +123,7 @@ function startLocalMeshSession() {
   ensureNotificationDisplayListeners();
   ensureShellEventListeners(shellEventHandlers);
   ensureCatalogIntentListeners(catalogIntentHandlers);
+  ensureCheckoutIntentListeners(checkoutIntentHandlers);
   ensureCartEventListeners(shellEventHandlers);
 }
 
@@ -131,6 +137,7 @@ function startAuthenticatedMeshSession() {
     ensureCsvExportListeners();
     ensureShellEventListeners(shellEventHandlers);
     ensureCatalogIntentListeners(catalogIntentHandlers);
+    ensureCheckoutIntentListeners(checkoutIntentHandlers);
     ensureCartEventListeners(shellEventHandlers);
     return;
   }
@@ -139,6 +146,7 @@ function startAuthenticatedMeshSession() {
   resetCsvExportListeners();
   resetShellEventListeners();
   resetCatalogIntentListeners();
+  resetCheckoutIntentListeners();
   resetCartEventListeners();
   mesh.close();
   clearMeshSessionFlags();
@@ -149,6 +157,7 @@ function startAuthenticatedMeshSession() {
   ensureCsvExportListeners();
   ensureShellEventListeners(shellEventHandlers);
   ensureCatalogIntentListeners(catalogIntentHandlers);
+  ensureCheckoutIntentListeners(checkoutIntentHandlers);
   ensureCartEventListeners(shellEventHandlers);
 }
 
@@ -157,6 +166,7 @@ function downgradeToLocalMeshSession() {
   resetNotificationDisplayListeners();
   resetShellEventListeners();
   resetCatalogIntentListeners();
+  resetCheckoutIntentListeners();
   resetCartEventListeners();
   mesh.close();
   clearMeshSessionFlags();
@@ -342,9 +352,92 @@ function handleProductOpenRequested({ productId }) {
   navigate(`/product?productId=${encodeURIComponent(productId)}`);
 }
 
+/**
+ * Persists PLP filters from a filters-apply intent without navigating.
+ *
+ * @param {object} filters - Normalized PLP filter snapshot from mesh.
+ * @returns {void}
+ * @sideEffects Updates appState and localStorage (+ filters-changed publish).
+ */
+function handleFiltersApplyRequested(filters) {
+  appState.plpFilters = normalizePlpFilters(filters);
+  storePLPFilters(appState);
+}
+
+/**
+ * Applies promotion filters and navigates to the product list.
+ *
+ * @param {{ filters: object }} payload - Promotion-applied mesh payload.
+ * @returns {void}
+ * @sideEffects Persists PLP filters and navigates to /products.
+ */
+function handlePromotionApplied({ filters }) {
+  applyPromotionFilters(appState, filters);
+}
+
+/**
+ * Updates a cart line from a checkout items intent.
+ *
+ * @param {{ productId: string, quantity: number }} cartItem - Validated update payload.
+ * @returns {void}
+ * @sideEffects Mutates cart and publishes cart.changed.
+ */
+function handleCartItemUpdateRequested(cartItem) {
+  updateCartItem(appState, cartItem.productId, cartItem.quantity);
+}
+
+/**
+ * Removes a cart line from a checkout items intent.
+ *
+ * @param {{ productId: string }} payload - Validated remove payload.
+ * @returns {void}
+ * @sideEffects Mutates cart, toasts, may re-render when cart empties.
+ */
+function handleCartItemRemoveRequested({ productId }) {
+  const productName = appState.productsById[productId]?.name || "Item";
+  removeCartItem(appState, productId);
+  publishNotification({
+    type: "success",
+    title: "Item removed",
+    message: `${productName} was removed from your cart.`,
+  });
+  if (appState.cartItems.length === 0) {
+    publishRenderRequested();
+  }
+}
+
+/**
+ * Stores an applied coupon from the apply-coupon remote.
+ *
+ * @param {{ code: string, discountPercentage: number }} coupon - Validated coupon payload.
+ * @returns {void}
+ */
+function handleCouponApplied(coupon) {
+  appState.appliedCoupon = coupon;
+}
+
+/**
+ * Places the current order from the checkout-summary remote.
+ *
+ * @returns {void}
+ * @sideEffects Starts the place-order command asynchronously.
+ */
+function handlePlaceOrderRequested() {
+  void placeCheckoutOrder(appState);
+}
+
 const catalogIntentHandlers = {
   onProductOpenRequested: handleProductOpenRequested,
   onCartItemAddRequested: handleCartItemAddRequested,
+  onFiltersApplyRequested: handleFiltersApplyRequested,
+  onPromotionApplied: handlePromotionApplied,
+  onCartItemUpdateRequested: handleCartItemUpdateRequested,
+  onCartItemRemoveRequested: handleCartItemRemoveRequested,
+};
+
+const checkoutIntentHandlers = {
+  onCouponApplied: handleCouponApplied,
+  onPlaceOrderRequested: handlePlaceOrderRequested,
 };
 
 const shellEventHandlers = {

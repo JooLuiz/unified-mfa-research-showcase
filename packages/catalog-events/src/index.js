@@ -1,18 +1,20 @@
-/**
- * Exposes shared catalog Event Mesh event adapters.
- * Role: Public barrel for product-open and cart-add event contracts.
- * Not in this file: Event behavior, mesh configuration, or shell orchestration.
- * Key dependencies: None.
- * See also: src/createCatalogEvents.js; src/catalogEventContracts.js.
- */
-
-export { createCatalogEvents } from "./createCatalogEvents.js";
 export {
   CART_ITEM_ADD_REQUESTED_EVENT,
+  CART_ITEM_REMOVE_REQUESTED_EVENT,
+  CART_ITEM_UPDATE_REQUESTED_EVENT,
   CART_TOPIC,
+  CATALOG_FILTERS_APPLY_REQUESTED_EVENT,
   CATALOG_PRODUCT_OPEN_REQUESTED_EVENT,
+  CATALOG_PROMOTION_APPLIED_EVENT,
   CATALOG_TOPIC,
   createCartAddRequest,
+  createCartUpdateRequest,
+  createPlpFiltersSnapshot,
   isValidCartAddRequest,
+  isValidCartRemoveRequest,
+  isValidCartUpdateRequest,
+  isValidPlpFiltersPayload,
   isValidProductOpenRequest,
+  isValidPromotionAppliedRequest,
 } from "./catalogEventContracts.js";
+export { createCatalogEvents } from "./createCatalogEvents.js";

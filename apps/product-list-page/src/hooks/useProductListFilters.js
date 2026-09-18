@@ -14,20 +14,20 @@ import {
 } from "../productListFilters";
 
 /**
- * Manages draft/active filter state and notifies the host of applied changes.
+ * Manages draft/active filter state and publishes filters-apply intents on the host mesh.
  *
  * @param {object} options - Hook options.
  * @param {object} options.initialFilters - Host-provided initial filters.
  * @param {string} [options.initialSort] - Host-provided initial sort key.
- * @param {(nextFilters: object) => void} [options.onFiltersChange] - Called after filters are applied, cleared, or a tag is removed.
+ * @param {(nextFilters: object) => void} options.publishFiltersApply - Publishes catalog.filters-apply-requested.
  * @param {() => void} options.onFiltersApplied - Called whenever the result window should reset; must be a stable callback.
  * @returns {object} Filter state and handlers for the filter sidebar, toolbar, and tags.
- * @sideEffects Resets draft/active filters when initialFilters change.
+ * @sideEffects Resets draft/active filters when initialFilters change; publishes mesh intents on apply/clear/tag remove.
  */
 function useProductListFilters({
   initialFilters,
   initialSort,
-  onFiltersChange,
+  publishFiltersApply,
   onFiltersApplied,
 }) {
   const normalizedInitialFilters = useMemo(
@@ -47,9 +47,7 @@ function useProductListFilters({
   }, [normalizedInitialFilters, onFiltersApplied]);
 
   const notifyFiltersChange = (nextFilters) => {
-    if (typeof onFiltersChange === "function") {
-      onFiltersChange(nextFilters);
-    }
+    publishFiltersApply(nextFilters);
   };
 
   const closeMobileFiltersOnSmallScreens = () => {

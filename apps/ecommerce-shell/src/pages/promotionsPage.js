@@ -44,8 +44,6 @@ async function renderPromotionsPage(appState, pageMount, modules, activeCleanupF
       modules.mountPromotionalBanner(bannerContainer, {
         bannerId: banner.id,
         apiBaseUrl: MOCK_API_BASE_URL,
-        onApplyPromotion: (promotionFilters) =>
-          applyPromotionFilters(appState, promotionFilters),
       }),
     );
   });

@@ -2,8 +2,8 @@
  * Renders the community posts route.
  * Role: Composes the new-post entry point, grouped post feeds, and interleaved promotional banners.
  * Not in this file: Post persistence (src/commands/postCommands.js) or trending selection (src/pages/feedPage.js).
- * Key dependencies: Ecommerce shell base URL for banner redirects; src/notifications/meshNotificationAdapter.js.
- * See also: src/utils/renderActions.js (public barrel).
+ * Key dependencies: Banner remotes publish promotion intents; social main handles ecommerce redirect.
+ * See also: src/utils/renderActions.js (public barrel); MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
 import { navigate } from "../utils/navigate";
@@ -11,37 +11,11 @@ import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
-import { ECOMMERCE_SHELL_BASE_URL } from "../utils/constants";
 import { publishNotification } from "../notifications/meshNotificationAdapter";
 import { publishRenderRequested } from "../events/shellEventBus";
 import { persistNewPost } from "../commands/postCommands";
 
 const POSTS_PER_BANNER_GROUP = 4;
-
-function buildBannerEcommerceUrl(banner) {
-  const filters = banner?.filters || {};
-  const queryParams = new URLSearchParams();
-  if (filters.searchQuery) {
-    queryParams.set("searchQuery", filters.searchQuery);
-  }
-  if (filters.minPrice) {
-    queryParams.set("minPrice", filters.minPrice);
-  }
-  if (filters.maxPrice) {
-    queryParams.set("maxPrice", filters.maxPrice);
-  }
-  if (Array.isArray(filters.categoryIds) && filters.categoryIds.length > 0) {
-    queryParams.set("categoryIds", filters.categoryIds.join(","));
-  }
-  const querySuffix = queryParams.toString();
-  return querySuffix
-    ? `${ECOMMERCE_SHELL_BASE_URL}/products?${querySuffix}`
-    : `${ECOMMERCE_SHELL_BASE_URL}/products`;
-}
-
-function redirectToEcommerceForBanner(banner) {
-  window.location.href = buildBannerEcommerceUrl(banner);
-}
 
 function mountNewPostFormularyWithProps(containerElement, appState, modules) {
   const currentUser = appState.currentUser;
@@ -174,7 +148,6 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
     activeCleanupFunctions.push(
       modules.mountPromotionalBanner(bannerContainer, {
         banner,
-        onApplyPromotion: () => redirectToEcommerceForBanner(banner),
       }),
     );
   }

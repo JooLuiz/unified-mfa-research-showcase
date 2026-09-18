@@ -1,14 +1,15 @@
 /**
  * Publishes and subscribes to ecommerce Event Mesh messages.
- * Role: Hides cart, catalog-filter, and shared catalog-intent mesh transport behind ecommerce operations.
+ * Role: Hides cart, catalog-filter, catalog-intent, and checkout-intent mesh transport behind ecommerce operations.
  * Not in this file: Shared auth/navigation event internals, cart state mutations, or UI rendering.
- * Key dependencies: event-mesh/mesh; @shared/shell-events; @shared/catalog-events; src/events/ecommerceEventContracts.js.
+ * Key dependencies: event-mesh/mesh; @shared/shell-events; @shared/catalog-events; @shared/checkout-events; src/events/ecommerceEventContracts.js.
  * See also: src/main.js; src/pages/checkoutPage.js; src/utils/PLPFilterActions.js.
  */
 
 import mesh from "event-mesh/mesh";
 import { createShellEvents } from "@shared/shell-events";
 import { createCatalogEvents } from "@shared/catalog-events";
+import { createCheckoutEvents } from "@shared/checkout-events";
 import {
   CART_CHANGED_EVENT,
   CART_TOPIC,
@@ -17,9 +18,15 @@ import {
   createCartSnapshot,
   createPlpFiltersSnapshot,
 } from "./ecommerceEventContracts";
+import {
+  CHECKOUT_COUPON_APPLIED_EVENT,
+  CHECKOUT_TOPIC,
+  isValidCouponAppliedRequest,
+} from "@shared/checkout-events";
 
 const sharedShellEvents = createShellEvents({ mesh });
 const sharedCatalogEvents = createCatalogEvents({ mesh });
+const sharedCheckoutEvents = createCheckoutEvents({ mesh });
 let cartChangedListenersStarted = false;
 
 /**
@@ -112,20 +119,50 @@ function subscribeToPlpFiltersChanges(listener) {
   );
 }
 
+/**
+ * Subscribes the checkout page to coupon-applied so totals can refresh without host callbacks.
+ *
+ * @param {(coupon: { code: string, discountPercentage: number }) => void} listener - Callback for each applied coupon.
+ * @returns {() => void} Removes the mesh subscription.
+ * @sideEffects Registers a local checkout.coupon-applied mesh subscription.
+ */
+function subscribeToCouponApplied(listener) {
+  return mesh.subscribe(
+    CHECKOUT_TOPIC,
+    CHECKOUT_COUPON_APPLIED_EVENT,
+    (message) => {
+      if (isValidCouponAppliedRequest(message.payload)) {
+        listener(message.payload);
+      }
+    },
+  );
+}
+
 export {
   ensureCartEventListeners,
   publishCartChanged,
   publishPlpFiltersChanged,
   resetCartEventListeners,
   subscribeToCartChanges,
+  subscribeToCouponApplied,
   subscribeToPlpFiltersChanges,
 };
 export const {
   ensureCatalogIntentListeners,
   publishCartItemAddRequested,
+  publishCartItemRemoveRequested,
+  publishCartItemUpdateRequested,
+  publishFiltersApplyRequested,
   publishProductOpenRequested,
+  publishPromotionApplied,
   resetCatalogIntentListeners,
 } = sharedCatalogEvents;
+export const {
+  ensureCheckoutIntentListeners,
+  publishCouponApplied,
+  publishPlaceOrderRequested,
+  resetCheckoutIntentListeners,
+} = sharedCheckoutEvents;
 export const {
   ensureShellEventListeners,
   publishAuthSessionChanged,

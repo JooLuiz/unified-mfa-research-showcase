@@ -1,6 +1,18 @@
+/**
+ * Promotional banner remote for catalog promotion intents.
+ * Role: Renders a banner and publishes catalog.promotion-applied on the host mesh when applied.
+ * Not in this file: Mesh configuration (host shell owns configureMesh) or PLP filter ownership.
+ * Key dependencies: event-mesh/mesh singleton; @shared/catalog-events.
+ * See also: MESH_IMPLEMENTATIONS/remote-intents.md.
+ */
+
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import mesh from "event-mesh/mesh";
+import { createCatalogEvents } from "@shared/catalog-events";
 import "./styles.css";
+
+const { publishPromotionApplied } = createCatalogEvents({ mesh });
 
 async function fetchBannerById(apiBaseUrl, bannerId, signal) {
   const response = await fetch(`${apiBaseUrl}/banners/${bannerId}`, { signal });
@@ -12,7 +24,7 @@ async function fetchBannerById(apiBaseUrl, bannerId, signal) {
   return response.json();
 }
 
-function PromotionalBannerView({ banner, bannerId, apiBaseUrl, onApplyPromotion }) {
+function PromotionalBannerView({ banner, bannerId, apiBaseUrl }) {
   const [bannerData, setBannerData] = useState(banner || null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
@@ -66,9 +78,7 @@ function PromotionalBannerView({ banner, bannerId, apiBaseUrl, onApplyPromotion 
   }
 
   const handleApplyPromotion = () => {
-    if (typeof onApplyPromotion === "function") {
-      onApplyPromotion(bannerData.filters || {}, bannerData);
-    }
+    publishPromotionApplied({ filters: bannerData.filters || {} });
   };
 
   return (
@@ -95,7 +105,6 @@ export function mountPromotionalBanner(containerElement, props) {
       banner={props.banner}
       bannerId={props.bannerId}
       apiBaseUrl={props.apiBaseUrl}
-      onApplyPromotion={props.onApplyPromotion}
     />,
   );
 

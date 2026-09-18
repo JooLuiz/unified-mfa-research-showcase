@@ -1,20 +1,29 @@
+/**
+ * Checkout order summary remote.
+ * Role: Displays totals and publishes checkout.place-order-requested on the host mesh.
+ * Not in this file: Order persistence, cart ownership, or Event Mesh configuration.
+ * Key dependencies: event-mesh/mesh singleton; @shared/checkout-events.
+ * See also: MESH_IMPLEMENTATIONS/remote-intents.md.
+ */
+
 import "@angular/compiler";
 import {
   ApplicationRef,
   Component,
   ComponentRef,
-  EventEmitter,
   Input,
-  Output,
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { createApplication } from "@angular/platform-browser";
+import mesh from "event-mesh/mesh";
+import { createCheckoutEvents } from "@shared/checkout-events";
 import "./styles.css";
+
+const { publishPlaceOrderRequested } = createCheckoutEvents({ mesh });
 
 type CheckoutSummaryProps = {
   subtotal: number;
   discountAmount: number;
-  onPlaceOrder?: () => void;
 };
 
 type CheckoutSummaryHandle = {
@@ -56,8 +65,6 @@ class CheckoutSummaryComponent {
 
   @Input() discountAmount = 0;
 
-  @Output() placeOrder = new EventEmitter<void>();
-
   get hasDiscount(): boolean {
     return this.discountAmount > 0;
   }
@@ -67,7 +74,7 @@ class CheckoutSummaryComponent {
   }
 
   handlePlaceOrder(): void {
-    this.placeOrder.emit();
+    publishPlaceOrderRequested();
   }
 }
 
@@ -89,10 +96,6 @@ export function mountCheckoutSummary(
     componentRef = applicationRef.bootstrap(CheckoutSummaryComponent, containerElement);
     componentRef.setInput("subtotal", props.subtotal ?? 0);
     componentRef.setInput("discountAmount", props.discountAmount ?? 0);
-
-    componentRef.instance.placeOrder.subscribe(() => {
-      props.onPlaceOrder?.();
-    });
   });
 
   return {

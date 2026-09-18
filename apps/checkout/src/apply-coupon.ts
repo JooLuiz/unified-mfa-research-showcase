@@ -1,22 +1,25 @@
+/**
+ * Apply-coupon checkout remote.
+ * Role: Validates coupon codes locally and publishes checkout.coupon-applied on the host mesh.
+ * Not in this file: Cart totals ownership or Event Mesh configuration.
+ * Key dependencies: event-mesh/mesh singleton; @shared/checkout-events.
+ * See also: MESH_IMPLEMENTATIONS/remote-intents.md.
+ */
+
 import "@angular/compiler";
 import {
   ApplicationRef,
   Component,
   ComponentRef,
-  EventEmitter,
-  Output,
 } from "@angular/core";
 import { createApplication } from "@angular/platform-browser";
+import mesh from "event-mesh/mesh";
+import { createCheckoutEvents } from "@shared/checkout-events";
 import "./styles.css";
 
-type CouponPayload = {
-  code: string;
-  discountPercentage: number;
-};
+const { publishCouponApplied } = createCheckoutEvents({ mesh });
 
-type ApplyCouponProps = {
-  onCouponApplied?: (payload: CouponPayload) => void;
-};
+type ApplyCouponProps = Record<string, never>;
 
 const couponDiscountMap: Record<string, number> = {
   ten: 10,
@@ -44,8 +47,6 @@ const couponDiscountMap: Record<string, number> = {
   `,
 })
 class ApplyCouponComponent {
-  @Output() couponApplied = new EventEmitter<CouponPayload>();
-
   couponValue = "";
 
   couponMessage = "";
@@ -68,14 +69,17 @@ class ApplyCouponComponent {
     }
 
     this.couponMessage = `Coupon applied: ${discountPercentage}% discount.`;
-    this.couponApplied.emit({
+    publishCouponApplied({
       code: this.couponValue,
       discountPercentage,
     });
   }
 }
 
-export function mountApplyCoupon(containerElement: HTMLElement, props: ApplyCouponProps): () => void {
+export function mountApplyCoupon(
+  containerElement: HTMLElement,
+  _props: ApplyCouponProps = {},
+): () => void {
   let applicationRef: ApplicationRef | null = null;
   let componentRef: ComponentRef<ApplyCouponComponent> | null = null;
   let isUnmounted = false;
@@ -88,9 +92,6 @@ export function mountApplyCoupon(containerElement: HTMLElement, props: ApplyCoup
 
     applicationRef = nextApplicationRef;
     componentRef = applicationRef.bootstrap(ApplyCouponComponent, containerElement);
-    componentRef.instance.couponApplied.subscribe((payload) => {
-      props.onCouponApplied?.(payload);
-    });
   });
 
   return () => {

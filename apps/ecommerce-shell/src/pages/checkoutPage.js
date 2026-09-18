@@ -1,38 +1,30 @@
 /**
  * Renders the checkout and order-placed routes.
- * Role: Composes checkout item, summary, and coupon mounts and owns the place-order flow outcome.
- * Not in this file: Order mesh details (src/commands/placeOrderViaMesh.js) or cart storage (src/utils/cartActions.js).
- * Key dependencies: src/commands/placeOrderViaMesh.js; src/notifications/meshNotificationAdapter.js.
- * See also: src/utils/renderActions.js (public barrel).
+ * Role: Composes checkout remotes with data/inbound adapters; cart/coupon/place-order intents come from mesh.
+ * Not in this file: Persistent mesh handlers (src/main.js) or place-order command (src/commands/placeCheckoutOrder.js).
+ * Key dependencies: src/events/localMeshEventBus.js; checkout remotes.
+ * See also: src/utils/renderActions.js (public barrel); MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
 import { navigate } from "../utils/navigate";
 import {
-  getCartTotalValue,
-  updateCartItem,
-  removeCartItem,
-} from "../utils/cartActions";
-import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
-import { publishNotification } from "../notifications/meshNotificationAdapter";
-import { placeOrderViaMesh } from "../commands/placeOrderViaMesh";
 import {
-  publishCartChanged,
-  publishRenderRequested,
   subscribeToCartChanges,
+  subscribeToCouponApplied,
 } from "../events/localMeshEventBus";
+import { calculateCheckoutTotals } from "../commands/placeCheckoutOrder";
 
 /**
- * Renders checkout, awaiting order persistence before clearing the cart or navigating.
+ * Renders checkout with remotes; summary refreshes from cart.changed while on this route.
  *
  * @param {object} appState - Shell state holding cart, coupon, products, and session.
  * @param {HTMLElement} pageMount - Route container element.
  * @param {object} modules - Loaded remote module mount functions.
  * @param {Array<() => void>} activeCleanupFunctions - Cleanup registry for the current route.
  * @returns {Promise<void>}
- * @sideEffects On order success clears cart/coupon and navigates; on failure keeps the cart.
  */
 async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFunctions) {
   if (!isAuthenticated(appState)) {
@@ -44,11 +36,7 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
   if (appState.cartItems.length === 0) {
     pageMount.innerHTML = `<section id="checkoutEmptyMount"></section>`;
     const checkoutEmptyMount = pageMount.querySelector("#checkoutEmptyMount");
-    activeCleanupFunctions.push(
-      modules.mountCheckoutEmpty(checkoutEmptyMount, {
-        onGoShopping: () => navigate("/products"),
-      }),
-    );
+    activeCleanupFunctions.push(modules.mountCheckoutEmpty(checkoutEmptyMount));
     return;
   }
 
@@ -66,24 +54,12 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
   const checkoutSummaryMount = pageMount.querySelector("#checkoutSummaryMount");
   const applyCouponMount = pageMount.querySelector("#applyCouponMount");
 
-  const calculateTotals = () => {
-    const currentSubtotal = getCartTotalValue(appState);
-    const currentDiscountPercentage =
-      appState.appliedCoupon?.discountPercentage || 0;
-    const currentDiscountAmount =
-      currentSubtotal * (currentDiscountPercentage / 100);
-    return {
-      subtotal: currentSubtotal,
-      discountAmount: currentDiscountAmount,
-    };
-  };
-
   let checkoutSummaryHandle = null;
   const refreshCheckoutSummary = () => {
     if (!checkoutSummaryHandle) {
       return;
     }
-    checkoutSummaryHandle.update(calculateTotals());
+    checkoutSummaryHandle.update(calculateCheckoutTotals(appState));
   };
 
   activeCleanupFunctions.push(
@@ -91,71 +67,26 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
       cartItems: appState.cartItems,
       productsById: appState.productsById,
       subscribeToCartChanges,
-      onQuantityChange: (productId, quantity) => {
-        updateCartItem(appState, productId, quantity);
-        refreshCheckoutSummary();
-      },
-      onRemoveItem: (productId) => {
-        const productName = appState.productsById[productId]?.name || "Item";
-        removeCartItem(appState, productId);
-        publishNotification({
-          type: "success",
-          title: "Item removed",
-          message: `${productName} was removed from your cart.`,
-        });
-        if (appState.cartItems.length === 0) {
-          publishRenderRequested();
-          return;
-        }
-        refreshCheckoutSummary();
-      },
     }),
   );
 
-  const initialTotals = calculateTotals();
+  const initialTotals = calculateCheckoutTotals(appState);
   checkoutSummaryHandle = modules.mountCheckoutSummary(checkoutSummaryMount, {
     subtotal: initialTotals.subtotal,
     discountAmount: initialTotals.discountAmount,
-    onPlaceOrder: async () => {
-      const orderItems = appState.cartItems.map((cartItem) => {
-        const product = appState.productsById[cartItem.productId];
-        return {
-          productId: cartItem.productId,
-          name: product?.name || cartItem.productId,
-          quantity: cartItem.quantity,
-          unitPrice: product?.price || 0,
-        };
-      });
-      const orderTotals = calculateTotals();
-      const totalAmount = orderTotals.subtotal - orderTotals.discountAmount;
-
-      const orderResult = await placeOrderViaMesh({
-        items: orderItems,
-        subtotal: orderTotals.subtotal,
-        discountAmount: orderTotals.discountAmount,
-        totalAmount,
-        appliedCoupon: appState.appliedCoupon,
-        shippingAddress: appState.currentUser?.address || null,
-      });
-
-      if (!orderResult.ok) {
-        return;
-      }
-
-      appState.cartItems = [];
-      appState.appliedCoupon = null;
-      publishCartChanged(appState.cartItems);
-      navigate("/order-placed");
-    },
   });
   activeCleanupFunctions.push(() => checkoutSummaryHandle.unmount());
 
+  activeCleanupFunctions.push(modules.mountApplyCoupon(applyCouponMount));
+
   activeCleanupFunctions.push(
-    modules.mountApplyCoupon(applyCouponMount, {
-      onCouponApplied: (couponPayload) => {
-        appState.appliedCoupon = couponPayload;
-        refreshCheckoutSummary();
-      },
+    subscribeToCartChanges(() => {
+      refreshCheckoutSummary();
+    }),
+  );
+  activeCleanupFunctions.push(
+    subscribeToCouponApplied(() => {
+      refreshCheckoutSummary();
     }),
   );
 }

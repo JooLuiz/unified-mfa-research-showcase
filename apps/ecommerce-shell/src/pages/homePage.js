@@ -1,13 +1,12 @@
 /**
  * Renders the ecommerce home route.
  * Role: Composes banner, showcase, FAQ formulary iframe, and latest-message notice mounts.
- * Not in this file: FAQ persistence (src/commands/faqCommands.js) or promotion filter storage (src/pages/promotionsPage.js).
- * Key dependencies: Formulary remote iframe at FORMULARY_REMOTE_BASE_URL; window "message" events from the FAQ iframe.
+ * Not in this file: FAQ persistence (src/commands/faqCommands.js) or promotion intents (mesh handlers in src/main.js).
+ * Key dependencies: Formulary remote iframe at FORMULARY_REMOTE_BASE_URL; banners publish promotion-applied on mesh.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
 import { MOCK_API_BASE_URL, FORMULARY_REMOTE_BASE_URL } from "../utils/constants";
-import { applyPromotionFilters } from "./promotionsPage";
 import { persistFaqAnswerToApi } from "../commands/faqCommands";
 import { publishRenderRequested } from "../events/localMeshEventBus";
 import mesh from "event-mesh/mesh";
@@ -48,8 +47,6 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
     modules.mountPromotionalBanner(bannerMount, {
       bannerId: firstBannerId,
       apiBaseUrl: MOCK_API_BASE_URL,
-      onApplyPromotion: (promotionFilters) =>
-        applyPromotionFilters(appState, promotionFilters),
     }),
   );
   activeCleanupFunctions.push(
