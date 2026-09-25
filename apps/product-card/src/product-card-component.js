@@ -1,6 +1,6 @@
 /**
- * Product card Vue component for catalog browsing and cart intents.
- * Role: Renders a product card and publishes catalog.product-open-requested / cart.item-add-requested on the host mesh.
+ * Product card Vue component for catalog browsing and explicit action intents.
+ * Role: Renders a product card and publishes catalog.product-open-requested or cart.item-add-requested on the host mesh.
  * Not in this file: Mesh configuration (host shell owns configureMesh) or cart state ownership.
  * Key dependencies: event-mesh/mesh singleton; @shared/catalog-events.
  * See also: src/product-card.js; MESH_IMPLEMENTATIONS/remote-intents.md.
@@ -52,6 +52,10 @@ export const ProductCardComponent = {
     actionLabel: {
       type: String,
       default: "Add to Cart",
+    },
+    actionIntent: {
+      type: String,
+      default: "add-to-cart",
     },
     hideQuantity: {
       type: Boolean,
@@ -163,6 +167,10 @@ export const ProductCardComponent = {
     const handleActionClick = () => {
       const currentProduct = productData.value;
       if (!currentProduct) {
+        return;
+      }
+      if (props.actionIntent === "open-product") {
+        publishProductOpenRequested(currentProduct.id);
         return;
       }
       publishCartItemAddRequested({

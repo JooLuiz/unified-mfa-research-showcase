@@ -6,8 +6,8 @@ Product, checkout, account, community, and login remotes publish local intents o
 
 | Topic | Event | Payload | Publishers | Typical host effect |
 | --- | --- | --- | --- | --- |
-| `catalog` | `product-open-requested` | `{ productId }` | `product-card` | Ecommerce: `navigate(/product?productId=…)`; Social: `location.assign` ecommerce PDP |
-| `cart` | `item-add-requested` | `{ productId, quantity }` | `product-card`, `product-details-page` | Ecommerce: mutate cart + toast; Social: redirect to ecommerce PDP |
+| `catalog` | `product-open-requested` | `{ productId }` | `product-card` | Ecommerce: `navigate(/product?productId=…)`; Social: `location.assign` ecommerce PDP. Social’s “See More” showcase action uses this intent. |
+| `cart` | `item-add-requested` | `{ productId, quantity }` | `product-card`, `product-details-page` | Ecommerce: mutate cart + toast. Product-card defaults to this intent only when `actionIntent` is `add-to-cart`. |
 
 Helpers live in [`packages/catalog-events`](../packages/catalog-events) (`createCatalogEvents`). Scope is always `local`.
 

@@ -51,6 +51,7 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
       title: firstShowcase?.showcaseTitle || "Featured Products",
       products: showcaseProducts,
       actionLabel: "See More",
+      actionIntent: "open-product",
       hideQuantity: true,
       displayMode: "modal",
       defaultCollapsed: false,

@@ -8,8 +8,8 @@ Shell-local UI coordination and product remote intents use **Event Mesh** (`scop
 
 | Triggering App | Entity | What Is Communicated | Method | Affected App(s) |
 |---|---|---|---|---|
-| Product Card | Products | Open product details: `{ productId }` | `catalog.product-open-requested` | Ecommerce navigates to PDP; Social hard-redirects to ecommerce PDP |
-| Product Card / Product Details | Cart | Add item: `{ productId, quantity }` | `cart.item-add-requested` | Ecommerce mutates cart + toast; Social hard-redirects to ecommerce PDP |
+| Product Card | Products | Open product details: `{ productId }` | `catalog.product-open-requested` | Ecommerce navigates to PDP; Social hard-redirects to ecommerce PDP. Social “See More” explicitly uses this intent. |
+| Product Card / Product Details | Cart | Add item: `{ productId, quantity }` | `cart.item-add-requested` | Ecommerce mutates cart + toast. Product Card publishes it when `actionIntent` is `add-to-cart`. |
 
 ### Distributed Event Mesh (iframe boundary)
 

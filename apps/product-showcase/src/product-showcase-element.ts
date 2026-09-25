@@ -253,6 +253,7 @@ export class ProductShowcaseElementComponent
         productIds: this.productIds,
         apiBaseUrl: this.config.apiBaseUrl,
         actionLabel: this.config.actionLabel,
+        actionIntent: this.config.actionIntent,
         hideQuantity: this.config.hideQuantity,
         variant: this.isModal ? "compact" : "default",
         mountProductCard: this.config.mountProductCard,

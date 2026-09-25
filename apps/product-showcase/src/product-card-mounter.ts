@@ -20,6 +20,7 @@ export type CardSlotMountOptions = {
   productIds: string[];
   apiBaseUrl?: string;
   actionLabel?: string;
+  actionIntent?: "add-to-cart" | "open-product";
   hideQuantity?: boolean;
   variant?: "default" | "compact";
   mountProductCard?: MountProductCard;
@@ -74,6 +75,7 @@ export class ProductCardSlotMounter {
     slotElements.forEach((slotElement, index) => {
       const cardProps: MountProductCardProps = {
         actionLabel: options.actionLabel,
+        actionIntent: options.actionIntent,
         hideQuantity: options.hideQuantity,
         variant: options.variant,
       };

@@ -12,6 +12,7 @@ declare module "product_card/ProductCard" {
     apiBaseUrl?: string;
     defaultQuantity?: number;
     actionLabel?: string;
+    actionIntent?: "add-to-cart" | "open-product";
     hideQuantity?: boolean;
   };
 

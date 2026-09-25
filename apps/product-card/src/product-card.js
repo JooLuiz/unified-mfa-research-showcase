@@ -14,7 +14,7 @@ import "./styles.css";
  * Mounts a product card into a host container.
  *
  * @param {HTMLElement} containerElement - Host-owned mount element.
- * @param {{ product?: object, productId?: string, apiBaseUrl?: string, defaultQuantity?: number, actionLabel?: string, hideQuantity?: boolean, variant?: string }} props - Data props only; click/cart intents publish on mesh.
+ * @param {{ product?: object, productId?: string, apiBaseUrl?: string, defaultQuantity?: number, actionLabel?: string, actionIntent?: "add-to-cart" | "open-product", hideQuantity?: boolean, variant?: string }} props - Data props only; catalog/cart intents publish on mesh.
  * @returns {() => void} Cleanup that unmounts the Vue app.
  */
 export function mountProductCard(containerElement, props) {
@@ -24,6 +24,7 @@ export function mountProductCard(containerElement, props) {
     apiBaseUrl: props.apiBaseUrl,
     defaultQuantity: props.defaultQuantity,
     actionLabel: props.actionLabel,
+    actionIntent: props.actionIntent,
     hideQuantity: props.hideQuantity,
     variant: props.variant,
   });

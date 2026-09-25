@@ -16,6 +16,7 @@ export type MountProductCardProps = {
   productId?: string;
   apiBaseUrl?: string;
   actionLabel?: string;
+  actionIntent?: "add-to-cart" | "open-product";
   hideQuantity?: boolean;
   variant?: "default" | "compact";
 };
@@ -36,6 +37,7 @@ export type ProductShowcaseConfiguration = {
   apiBaseUrl?: string;
   fallbackTitle?: string;
   actionLabel?: string;
+  actionIntent?: "add-to-cart" | "open-product";
   hideQuantity?: boolean;
   displayMode?: ProductShowcaseDisplayMode;
   defaultCollapsed?: boolean;
