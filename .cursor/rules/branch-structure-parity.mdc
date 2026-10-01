@@ -1,0 +1,18 @@
+---
+description: Keep app and package folder trees aligned across main and event-mesh branches
+alwaysApply: true
+---
+
+# Branch structure parity
+
+This repo compares the same system with and without Event Mesh. Folder layout is part of that comparison.
+
+- Keep `apps/` and `packages/` trees aligned across `main` and mesh branches.
+- Put the difference in the transport module (HTTP, CustomEvent, `postMessage`, or Event Mesh), not in a different directory.
+- When you add a folder or package on one comparison branch, add the same path on the other in the same change, or state in the module why that path is transport-only.
+- Prefer shared contracts in `packages/` and a branch-specific adapter next to them.
+- Do not add an `event-mesh` dependency on `main`.
+
+Both branches use `apps/mock-data-service/src/domain/orderProcessing.js`. `main` calls it from `src/routes/`. The mesh branch calls it from `src/routes/` and from `src/event-mesh/`.
+
+Both branches use `apps/ecommerce-shell/src/events/eventBus.js`. On `main` it wraps window events. On the mesh branch it wraps the local Event Mesh client.
