@@ -1,78 +1,14 @@
 /**
  * Serves authenticated CSV exports for the mock data service.
  * Role: Maps current-user orders and posts to downloadable CSV responses at GET /exports/*.csv.
- * Not in this file: CSV escaping (src/csv/csvSerializer.js), JSON persistence, or data mutation routes.
- * Key dependencies: JSON store; src/domain/auth.js; src/csv/csvSerializer.js.
+ * Not in this file: CSV row building (src/domain/exportProcessing.js), JSON persistence, or data mutation routes.
+ * Key dependencies: JSON store; src/domain/auth.js; src/domain/exportProcessing.js.
  * See also: src/server.js.
  */
 
 const express = require("express");
 const { extractUserIdFromToken } = require("../domain/auth");
-const { serializeCsv } = require("../csv/csvSerializer");
-
-const ORDER_EXPORT_HEADERS = [
-  "orderId",
-  "placedAt",
-  "productId",
-  "productName",
-  "quantity",
-  "unitPrice",
-  "subtotal",
-  "discountAmount",
-  "totalAmount",
-  "couponCode",
-  "shippingStreet",
-  "shippingCity",
-  "shippingState",
-  "shippingPostalCode",
-  "shippingCountry",
-];
-const POST_EXPORT_HEADERS = [
-  "postId",
-  "createdAt",
-  "content",
-  "imageUrl",
-  "likes",
-  "comments",
-];
-
-function buildOrderExportRows(orders) {
-  return orders.flatMap((order) => {
-    const items = Array.isArray(order.items) && order.items.length > 0
-      ? order.items
-      : [null];
-    const shippingAddress = order.shippingAddress || {};
-
-    return items.map((item) => [
-      order.id,
-      order.placedAt,
-      item?.productId,
-      item?.name,
-      item?.quantity,
-      item?.unitPrice,
-      order.subtotal,
-      order.discountAmount,
-      order.totalAmount,
-      order.appliedCoupon?.code,
-      shippingAddress.street,
-      shippingAddress.city,
-      shippingAddress.state,
-      shippingAddress.postalCode,
-      shippingAddress.country,
-    ]);
-  });
-}
-
-function buildPostExportRows(posts) {
-  return posts.map((post) => [
-    post.id,
-    post.createdAt,
-    post.content,
-    post.imageUrl,
-    post.likes,
-    post.comments,
-  ]);
-}
+const { EXPORT_KINDS, EXPORT_FILE_NAMES, buildExportCsv } = require("../domain/exportProcessing");
 
 function sendCsvAttachment(response, fileName, csvContent) {
   response.set({
@@ -117,13 +53,8 @@ function createExportRouter(jsonStore) {
         return;
       }
 
-      const orders = await jsonStore.readJsonFileWithDefault("orders.json", []);
-      const userOrders = orders.filter((order) => order.userId === user.id);
-      const csvContent = serializeCsv(
-        ORDER_EXPORT_HEADERS,
-        buildOrderExportRows(userOrders),
-      );
-      sendCsvAttachment(response, "my-orders.csv", csvContent);
+      const csvContent = await buildExportCsv(jsonStore, EXPORT_KINDS.orders, user);
+      sendCsvAttachment(response, EXPORT_FILE_NAMES[EXPORT_KINDS.orders], csvContent);
     } catch (error) {
       response.status(500).json({
         message: "Unable to export orders",
@@ -142,13 +73,8 @@ function createExportRouter(jsonStore) {
         return;
       }
 
-      const posts = await jsonStore.readJsonFile("posts.json");
-      const userPosts = posts.filter((post) => post.authorId === user.id);
-      const csvContent = serializeCsv(
-        POST_EXPORT_HEADERS,
-        buildPostExportRows(userPosts),
-      );
-      sendCsvAttachment(response, "my-posts.csv", csvContent);
+      const csvContent = await buildExportCsv(jsonStore, EXPORT_KINDS.posts, user);
+      sendCsvAttachment(response, EXPORT_FILE_NAMES[EXPORT_KINDS.posts], csvContent);
     } catch (error) {
       response.status(500).json({
         message: "Unable to export posts",
