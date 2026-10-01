@@ -1,14 +1,17 @@
 /**
  * Serves order routes for the mock data service.
  * Role: Handles POST /orders, GET /orders, and GET /orders/:orderId, mounted at /api.
- * Not in this file: Token helpers (src/domain/auth.js) or id generation (src/domain/identifiers.js).
+ * Not in this file: Token helpers (src/domain/auth.js) or order persistence (src/domain/orderProcessing.js).
  * Key dependencies: orders.json and users.json via the JSON store.
  * See also: src/server.js.
  */
 
 const express = require("express");
 const { extractUserIdFromToken } = require("../domain/auth");
-const { generateIdentifier } = require("../domain/identifiers");
+const {
+  ORDER_REQUEST_INVALID_CODE,
+  createOrderForUser,
+} = require("../domain/orderProcessing");
 
 /**
  * Creates the order router.
@@ -37,29 +40,22 @@ function createOrderRouter(jsonStore) {
       }
 
       const orderPayload = request.body || {};
-      const orderItems = Array.isArray(orderPayload.items) ? orderPayload.items : [];
-      if (orderItems.length === 0) {
-        response.status(400).json({ message: "An order must include at least one item" });
+      const orderResult = await createOrderForUser({
+        jsonStore,
+        user: matchingUser,
+        orderPayload,
+      });
+
+      if (!orderResult.ok) {
+        if (orderResult.code === ORDER_REQUEST_INVALID_CODE) {
+          response.status(400).json({ message: "An order must include at least one item" });
+          return;
+        }
+        response.status(500).json({ message: "Unable to place order", details: orderResult.code });
         return;
       }
 
-      const newOrder = {
-        id: generateIdentifier("order"),
-        userId: matchingUser.id,
-        items: orderItems,
-        subtotal: Number(orderPayload.subtotal) || 0,
-        discountAmount: Number(orderPayload.discountAmount) || 0,
-        totalAmount: Number(orderPayload.totalAmount) || 0,
-        appliedCoupon: orderPayload.appliedCoupon || null,
-        shippingAddress: orderPayload.shippingAddress || matchingUser.address || null,
-        placedAt: new Date().toISOString(),
-      };
-
-      const ordersData = await jsonStore.readJsonFileWithDefault("orders.json", []);
-      ordersData.push(newOrder);
-      await jsonStore.writeJsonFile("orders.json", ordersData);
-
-      response.status(201).json(newOrder);
+      response.status(201).json(orderResult.order);
     } catch (error) {
       response.status(500).json({
         message: "Unable to place order",
