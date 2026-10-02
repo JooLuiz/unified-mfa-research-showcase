@@ -21,14 +21,14 @@ import {
   ensureNotificationDisplayListeners,
   resetNotificationDisplayListeners,
 } from "./notifications/notificationCenter";
-import { publishNotification } from "./notifications/meshNotificationAdapter";
+import { publishNotification } from "./notifications/notificationAdapter";
 import {
   isLocalMeshStarted,
   isAuthenticatedMeshActive,
   setLocalMeshStarted,
   setAuthenticatedMeshActive,
   clearMeshSessionFlags,
-} from "./notifications/meshSessionState";
+} from "./notifications/sessionState";
 import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
 import {
   ensureAccountIntentListeners,
@@ -44,7 +44,7 @@ import {
   resetCatalogIntentListeners,
   resetCheckoutIntentListeners,
   resetShellEventListeners,
-} from "./events/localMeshEventBus";
+} from "./events/eventBus";
 
 import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
 

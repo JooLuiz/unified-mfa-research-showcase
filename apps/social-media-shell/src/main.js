@@ -34,7 +34,7 @@ import {
   setLocalMeshStarted,
   setAuthenticatedMeshActive,
   clearMeshSessionFlags,
-} from "./notifications/meshSessionState";
+} from "./notifications/sessionState";
 import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
 import {
   ensureAccountIntentListeners,
@@ -46,7 +46,7 @@ import {
   resetCatalogIntentListeners,
   resetCommunityIntentListeners,
   resetShellEventListeners,
-} from "./events/shellEventBus";
+} from "./events/eventBus";
 import {
   feedPageApp,
   postsPageApp,
@@ -55,7 +55,7 @@ import {
 } from "./utils/pageApps";
 import { persistAccountUpdate } from "./commands/accountCommands";
 import { persistNewPost } from "./commands/postCommands";
-import { publishNotification } from "./notifications/meshNotificationAdapter";
+import { publishNotification } from "./notifications/notificationAdapter";
 import { configureMesh } from "event-mesh/mesh";
 import mesh from "event-mesh/mesh";
 

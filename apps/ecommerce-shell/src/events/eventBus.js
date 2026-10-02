@@ -2,7 +2,7 @@
  * Publishes and subscribes to ecommerce Event Mesh messages.
  * Role: Hides cart, catalog-filter, catalog-intent, and checkout-intent mesh transport behind ecommerce operations.
  * Not in this file: Shared auth/navigation event internals, cart state mutations, or UI rendering.
- * Key dependencies: event-mesh/mesh; @shared/shell-events; @shared/catalog-events; @shared/checkout-events; src/events/ecommerceEventContracts.js.
+ * Key dependencies: event-mesh/mesh; @shared/shell-events; @shared/catalog-events; @shared/checkout-events; src/events/eventContracts.js.
  * See also: src/main.js; src/pages/checkoutPage.js; src/utils/PLPFilterActions.js.
  */
 
@@ -18,7 +18,7 @@ import {
   CATALOG_TOPIC,
   createCartSnapshot,
   createPlpFiltersSnapshot,
-} from "./ecommerceEventContracts";
+} from "./eventContracts";
 import {
   CHECKOUT_COUPON_APPLIED_EVENT,
   CHECKOUT_TOPIC,
@@ -34,11 +34,11 @@ let cartChangedListenersStarted = false;
 /**
  * Publishes the current cart state as an immutable-by-convention snapshot.
  *
- * @param {unknown[]} cartItems - Cart items owned by the ecommerce shell.
+ * @param {unknown[]} [cartItems] - Cart items owned by the ecommerce shell.
  * @returns {void}
  * @sideEffects Publishes a local cart.changed message.
  */
-function publishCartChanged(cartItems) {
+function publishCartChanged(cartItems = []) {
   mesh.publish({
     topic: CART_TOPIC,
     event: CART_CHANGED_EVENT,
@@ -140,6 +140,17 @@ function subscribeToCouponApplied(listener) {
   );
 }
 
+/**
+ * Parity no-op for header subscription on mesh branch.
+ *
+ * @param {unknown} _headerElement - Custom element target.
+ * @param {unknown} _handlers - Header action handlers.
+ * @returns {() => void} Unsubscribe no-op.
+ */
+function subscribeToHeaderEvents(_headerElement, _handlers) {
+  return function unsubscribeFromHeaderEvents() {};
+}
+
 export {
   ensureCartEventListeners,
   publishCartChanged,
@@ -147,6 +158,7 @@ export {
   resetCartEventListeners,
   subscribeToCartChanges,
   subscribeToCouponApplied,
+  subscribeToHeaderEvents,
   subscribeToPlpFiltersChanges,
 };
 export const {
@@ -179,4 +191,6 @@ export const {
   publishRenderRequested,
   resetShellEventListeners,
   subscribeToAuthSessionChanges,
+  subscribeToLogoutRequests,
+  subscribeToRenderRequests,
 } = sharedShellEvents;

@@ -2,13 +2,13 @@
  * Renders the all-posts table route for the admin shell.
  * Role: Loads every post via the admin API and renders a read-only table.
  * Not in this file: Auth guard (main.js) or post mutations.
- * Key dependencies: src/utils/fetchJson.js; src/notifications/meshNotificationAdapter.js.
+ * Key dependencies: src/utils/fetchJson.js; src/notifications/notificationAdapter.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
 import fetchJson from "../utils/fetchJson";
 import { MOCK_API_BASE_URL } from "../utils/constants";
-import { publishNotification } from "../notifications/meshNotificationAdapter";
+import { publishNotification } from "../notifications/notificationAdapter";
 
 const CONTENT_EXCERPT_LENGTH = 80;
 

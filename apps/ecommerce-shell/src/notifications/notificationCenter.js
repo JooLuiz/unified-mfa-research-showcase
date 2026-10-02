@@ -3,7 +3,7 @@
  * Role: Delegates toast rendering to the shared mesh-backed notification center.
  * Not in this file: Business outcome decisions, backend transport, or route-specific UI.
  * Key dependencies: @shared/notifications; event-mesh/mesh.
- * See also: src/notifications/meshNotificationAdapter.js; src/main.js.
+ * See also: src/notifications/notificationAdapter.js; src/main.js.
  */
 
 import "@shared/notifications/styles.css";

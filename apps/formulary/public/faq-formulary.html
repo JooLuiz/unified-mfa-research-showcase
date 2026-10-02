@@ -41,18 +41,28 @@
   </head>
   <body>
     <div id="formularyRoot"></div>
-    <script src="/iframe-mesh-client.js"></script>
     <script src="https://unpkg.com/vue@3.5.13/dist/vue.global.prod.js"></script>
+    <script src="/iframe-bridge-client.js"></script>
     <script>
       function publishIframeBridgeMessage(event, payload) {
-        if (window.eventMeshIframeBridge) {
-          window.eventMeshIframeBridge.publish(event, payload);
+        if (window.iframeBridgeClient) {
+          if (event === "resized") {
+            window.iframeBridgeClient.publishIframeResize(payload?.frameId);
+          } else {
+            window.iframeBridgeClient.publishFormularySubmitted(event, payload);
+          }
           return;
         }
 
         window.addEventListener(
           "iframe-mesh-ready",
-          () => window.eventMeshIframeBridge.publish(event, payload),
+          () => {
+            if (event === "resized") {
+              window.iframeBridgeClient.publishIframeResize(payload?.frameId);
+            } else {
+              window.iframeBridgeClient.publishFormularySubmitted(event, payload);
+            }
+          },
           { once: true },
         );
       }
@@ -136,12 +146,8 @@
         FORMULARY_DEFINITIONS[FORMULARY_TYPE_FAQ];
 
       const notifyHostHeight = () => {
-        const contentHeight = Math.max(
-          document.documentElement.scrollHeight,
-          document.body.scrollHeight,
-        );
         publishIframeBridgeMessage("resized", {
-          height: contentHeight,
+          frameId: formularyDefinition.frameId,
         });
       };
 

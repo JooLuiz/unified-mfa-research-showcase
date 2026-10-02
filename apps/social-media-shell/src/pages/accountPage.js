@@ -12,7 +12,7 @@ import {
   rememberPostLoginRedirect,
 } from "../utils/authActions";
 import { requestCsvExport } from "../exports/requestCsvExport";
-import { publishNotification } from "../notifications/meshNotificationAdapter";
+import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
  * Renders the account page with profile, address, and "My Posts" sections.

@@ -2,13 +2,13 @@
  * Places a checkout order from shell-owned cart and coupon state.
  * Role: Builds order payload, calls mesh order command, and clears cart on success.
  * Not in this file: Checkout remotes, cart line mutations, or coupon validation UI.
- * Key dependencies: src/commands/placeOrderViaMesh.js; src/events/localMeshEventBus.js; src/utils/cartActions.js.
+ * Key dependencies: src/commands/placeOrder.js; src/events/eventBus.js; src/utils/cartActions.js.
  * See also: src/pages/checkoutPage.js; MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
 import { getCartTotalValue } from "../utils/cartActions";
-import { placeOrderViaMesh } from "./placeOrderViaMesh";
-import { publishCartChanged } from "../events/localMeshEventBus";
+import { placeOrder } from "./placeOrder";
+import { publishCartChanged } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 
 /**
@@ -28,7 +28,7 @@ function calculateCheckoutTotals(appState) {
  * Places the current cart as an order via mesh and navigates on success.
  *
  * @param {object} appState - Shell state holding cart, coupon, products, and user.
- * @returns {Promise<void>}
+ * @returns {Promise<{ ok: boolean }>} Whether the server accepted the order.
  * @sideEffects May clear cart/coupon, publish cart.changed, and navigate to /order-placed.
  */
 async function placeCheckoutOrder(appState) {
@@ -44,7 +44,7 @@ async function placeCheckoutOrder(appState) {
   const orderTotals = calculateCheckoutTotals(appState);
   const totalAmount = orderTotals.subtotal - orderTotals.discountAmount;
 
-  const orderResult = await placeOrderViaMesh({
+  const orderResult = await placeOrder(appState, {
     items: orderItems,
     subtotal: orderTotals.subtotal,
     discountAmount: orderTotals.discountAmount,
@@ -54,13 +54,14 @@ async function placeCheckoutOrder(appState) {
   });
 
   if (!orderResult.ok) {
-    return;
+    return { ok: false };
   }
 
   appState.cartItems = [];
   appState.appliedCoupon = null;
   publishCartChanged(appState.cartItems);
   navigate("/order-placed");
+  return { ok: true };
 }
 
 export { calculateCheckoutTotals, placeCheckoutOrder };

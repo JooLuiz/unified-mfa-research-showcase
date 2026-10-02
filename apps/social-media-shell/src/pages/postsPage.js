@@ -6,6 +6,7 @@
  * See also: src/utils/renderActions.js (public barrel); MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
+import { publishRenderRequested } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 import {
   isAuthenticated,

@@ -2,13 +2,13 @@
  * Persists new posts for the social media shell.
  * Role: Owns the post HTTP command and reports failures through the shell notifier.
  * Not in this file: New-post form mounting or feed rendering (src/pages/postsPage.js, src/pages/feedPage.js).
- * Key dependencies: Mock data service POST /api/posts; src/notifications/meshNotificationAdapter.js.
+ * Key dependencies: Mock data service POST /api/posts; src/notifications/notificationAdapter.js.
  * See also: src/pages/postsPage.js.
  */
 
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import fetchJson from "../utils/fetchJson";
-import { publishNotification } from "../notifications/meshNotificationAdapter";
+import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
  * Persists a new post and retains the current feed when the command fails.

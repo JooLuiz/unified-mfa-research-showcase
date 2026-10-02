@@ -2,12 +2,12 @@
  * Mounts social shell header and footer Single-SPA applications.
  * Role: Adapts the shared header/footer MFEs to the social shell's auth and navigation events.
  * Not in this file: Authentication state persistence, mesh configuration, or page routing.
- * Key dependencies: src/events/shellEventBus.js; global layout custom elements.
+ * Key dependencies: src/events/eventBus.js; global layout custom elements.
  * See also: src/main.js.
  */
 
 import { isAuthenticated } from "./authActions";
-import { subscribeToAuthSessionChanges } from "../events/shellEventBus";
+import { subscribeToAuthSessionChanges } from "../events/eventBus";
 
 function buildHeaderState(appState) {
   return {

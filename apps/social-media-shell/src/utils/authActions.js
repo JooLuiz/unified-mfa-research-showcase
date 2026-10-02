@@ -1,48 +1,23 @@
 import {
-  AUTH_TOKEN_STORAGE_KEY,
-  AUTH_USER_STORAGE_KEY,
-  POST_LOGIN_REDIRECT_STORAGE_KEY,
-  PROTECTED_ROUTE_PATHS,
-  MOCK_API_BASE_URL,
-} from "./constants";
-import {
   publishAuthSessionChanged,
   publishPostLoginRedirectChanged,
-} from "../events/shellEventBus";
+} from "../events/eventBus";
+import {
+  readStoredAuthRecord,
+  storePostLoginRedirect,
+  takePostLoginRedirect,
+  writeStoredAuthRecord,
+} from "../notifications/sessionState";
+import { MOCK_API_BASE_URL, PROTECTED_ROUTE_PATHS } from "./constants";
 
 function readStoredAuth(appState) {
-  try {
-    const storedToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-    const storedUserRaw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
-
-    if (!storedToken || !storedUserRaw) {
-      appState.authToken = null;
-      appState.currentUser = null;
-      return;
-    }
-
-    appState.authToken = storedToken;
-    appState.currentUser = JSON.parse(storedUserRaw);
-  } catch (error) {
-    console.warn("readStoredAuth - error");
-    console.warn(error);
-    appState.authToken = null;
-    appState.currentUser = null;
-  }
+  const storedAuth = readStoredAuthRecord();
+  appState.authToken = storedAuth?.token || null;
+  appState.currentUser = storedAuth?.user || null;
 }
 
 function persistAuth(appState) {
-  if (appState.authToken && appState.currentUser) {
-    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, appState.authToken);
-    localStorage.setItem(
-      AUTH_USER_STORAGE_KEY,
-      JSON.stringify(appState.currentUser),
-    );
-    return;
-  }
-
-  localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
-  localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+  writeStoredAuthRecord(appState.authToken, appState.currentUser);
 }
 
 function setAuthSession(appState, sessionPayload) {
@@ -78,7 +53,7 @@ function rememberPostLoginRedirect(redirectPath) {
   if (!redirectPath) {
     return;
   }
-  sessionStorage.setItem(POST_LOGIN_REDIRECT_STORAGE_KEY, redirectPath);
+  storePostLoginRedirect(redirectPath);
   queueMicrotask(() => {
     publishPostLoginRedirectChanged(redirectPath);
   });
@@ -91,10 +66,7 @@ function rememberPostLoginRedirect(redirectPath) {
  * @sideEffects Clears sessionStorage immediately; defers navigation.post-login-redirect-changed publish with null.
  */
 function consumePostLoginRedirect() {
-  const redirectPath = sessionStorage.getItem(POST_LOGIN_REDIRECT_STORAGE_KEY);
-  if (redirectPath) {
-    sessionStorage.removeItem(POST_LOGIN_REDIRECT_STORAGE_KEY);
-  }
+  const redirectPath = takePostLoginRedirect();
   queueMicrotask(() => {
     publishPostLoginRedirectChanged(null);
   });
@@ -151,6 +123,7 @@ async function fetchMeshConnectionTicket(authToken) {
 }
 
 export {
+  PROTECTED_ROUTE_PATHS,
   readStoredAuth,
   setAuthSession,
   clearAuthSession,

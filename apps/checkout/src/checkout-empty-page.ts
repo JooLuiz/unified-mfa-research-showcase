@@ -1,53 +1,23 @@
 /**
  * Renders the isolated empty-cart iframe document.
- * Role: Owns the child-page Angular UI and posts resize and navigation messages to the host.
- * Not in this file: Host iframe mounting or share-scope initialization.
- * Key dependencies: src/polyfills.ts loaded by src/checkout-empty-entry.ts.
+ * Role: Owns the child-page Angular UI and delegates bridge messages to src/iframe-bridge-client.js.
+ * Not in this file: Host iframe mounting, share-scope initialization, or mesh bridge implementation.
+ * Key dependencies: src/polyfills.ts loaded by src/checkout-empty-entry.ts; src/iframe-bridge-client.js.
  * See also: src/checkout-empty.ts.
  */
 
 import { Component } from "@angular/core";
 import { bootstrapApplication } from "@angular/platform-browser";
-import { configureMesh } from "event-mesh/mesh";
-import mesh from "event-mesh/mesh";
-import { createIframeBridge } from "@shared/iframe-bridge";
+import {
+  publishCheckoutGoShopping,
+  publishCheckoutIframeResize,
+} from "./iframe-bridge-client.js";
 import "./styles.css";
 
 const CHECKOUT_EMPTY_FRAME_ID = "checkout-empty";
-const iframeQueryParameters = new URLSearchParams(window.location.search);
-const iframeBridgeChannelId = iframeQueryParameters.get("channelId");
-const iframeBridgeFrameId = iframeQueryParameters.get("frameId");
-
-configureMesh({
-  gatewayUrl: "ws://localhost",
-  gatewayPort: 3004,
-  enableWebSocket: true,
-});
-
-const iframeBridge = createIframeBridge({ mesh });
-
-function publishToParent(
-  event: string,
-  payload: Record<string, unknown> = {},
-): void {
-  if (!iframeBridgeChannelId) {
-    return;
-  }
-
-  iframeBridge.publishIframeMessage({
-    channelId: iframeBridgeChannelId,
-    frameId: iframeBridgeFrameId || CHECKOUT_EMPTY_FRAME_ID,
-    event,
-    payload,
-  });
-}
 
 function notifyHostHeight(): void {
-  const contentHeight = Math.max(
-    document.documentElement.scrollHeight,
-    document.body.scrollHeight,
-  );
-  publishToParent("resized", { height: contentHeight });
+  publishCheckoutIframeResize(CHECKOUT_EMPTY_FRAME_ID);
 }
 
 @Component({
@@ -69,7 +39,7 @@ function notifyHostHeight(): void {
 })
 class CheckoutEmptyPageComponent {
   handleGoBackToShopping(): void {
-    publishToParent("go-shopping");
+    publishCheckoutGoShopping();
   }
 }
 

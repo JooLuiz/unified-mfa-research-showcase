@@ -6,9 +6,9 @@ module.exports = {
   mode: "development",
   entry: {
     main: path.resolve(__dirname, "src/index.js"),
-    "iframe-mesh-client": path.resolve(
+    "iframe-bridge-client": path.resolve(
       __dirname,
-      "src/iframe-mesh-client-entry.js",
+      "src/iframe-bridge-client-entry.js",
     ),
   },
   output: {

@@ -8,7 +8,7 @@
 
 import { MOCK_API_BASE_URL, FORMULARY_REMOTE_BASE_URL } from "../utils/constants";
 import { persistFaqAnswerToApi } from "../commands/faqCommands";
-import { publishRenderRequested } from "../events/localMeshEventBus";
+import { publishRenderRequested } from "../events/eventBus";
 import mesh from "event-mesh/mesh";
 import {
   createIframeBridge,
@@ -53,30 +53,22 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
     modules.mountProductShowcase(showcaseMount, {
       showcaseId: firstShowcaseId,
       apiBaseUrl: MOCK_API_BASE_URL,
-      fallbackTitle: "New Products Showcase",
-      mountProductCard: modules.mountProductCard,
     }),
   );
-  if (appState.isFormularySubmitted) {
-    activeCleanupFunctions.push(modules.mountFormularySent(faqMount));
-  } else {
+
+  if (faqMount) {
     const iframeBridge = createIframeBridge({ mesh });
     const channelId = createIframeChannel();
-    const currentUser = appState.currentUser;
-    const faqQueryParameters = new URLSearchParams({
+    const faqIframeSourceUrl = new URL(
+      "faq-formulary.html",
+      FORMULARY_REMOTE_BASE_URL,
+    );
+    faqIframeSourceUrl.search = new URLSearchParams({
       type: "faq",
       channelId,
       frameId: FAQ_FRAME_ID,
-    });
-    const userName = currentUser?.fullName || currentUser?.username || "";
-    const userEmail = currentUser?.email || "";
-    if (userName) {
-      faqQueryParameters.set("name", userName);
-    }
-    if (userEmail) {
-      faqQueryParameters.set("email", userEmail);
-    }
-    const faqIframeSource = `${FORMULARY_REMOTE_BASE_URL}/faq-formulary.html?${faqQueryParameters.toString()}`;
+    }).toString();
+    const faqIframeSource = faqIframeSourceUrl.toString();
 
     faqMount.innerHTML = `
       <section class="frame-container">
@@ -125,8 +117,14 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
     });
   }
 
-  if (appState.lastIframeMessage) {
-    noticeMount.innerHTML = `<div class="notice-box">Latest iframe message: ${appState.lastIframeMessage}</div>`;
+  if (noticeMount && appState.lastIframeMessage) {
+    noticeMount.innerHTML = "";
+    const noticeSection = document.createElement("section");
+    noticeSection.className = "notice-box";
+    const noticeParagraph = document.createElement("p");
+    noticeParagraph.textContent = String(appState.lastIframeMessage);
+    noticeSection.appendChild(noticeParagraph);
+    noticeMount.appendChild(noticeSection);
   }
 }
 

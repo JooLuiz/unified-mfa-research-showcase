@@ -29,21 +29,21 @@ import {
 } from "./notifications/notificationCenter";
 import { mountHeaderAndFooter } from "./utils/mountActions";
 import { navigate } from "./utils/navigate";
-import { publishNotification } from "./notifications/meshNotificationAdapter";
+import { publishNotification } from "./notifications/notificationAdapter";
 import {
   isLocalMeshStarted,
   isAuthenticatedMeshActive,
   setLocalMeshStarted,
   setAuthenticatedMeshActive,
   clearMeshSessionFlags,
-} from "./notifications/meshSessionState";
+} from "./notifications/sessionState";
 import {
   ensureAccountIntentListeners,
   ensureShellEventListeners,
   publishRenderRequested,
   resetAccountIntentListeners,
   resetShellEventListeners,
-} from "./events/shellEventBus";
+} from "./events/eventBus";
 import {
   renderLoginPage,
   renderDashboardPage,

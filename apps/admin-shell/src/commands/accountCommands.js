@@ -2,14 +2,14 @@
  * Persists personal account changes for the admin shell.
  * Role: Owns the account HTTP command and reports its outcome through the shell notifier.
  * Not in this file: Account page layout or form rendering.
- * Key dependencies: Mock data service PUT /api/users/me; src/notifications/meshNotificationAdapter.js.
+ * Key dependencies: Mock data service PUT /api/users/me; src/notifications/notificationAdapter.js.
  * See also: src/pages/accountPage.js.
  */
 
 import { setAuthSession } from "../utils/authActions";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import fetchJson from "../utils/fetchJson";
-import { publishNotification } from "../notifications/meshNotificationAdapter";
+import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
  * Persists profile or address data and refreshes the stored admin session.

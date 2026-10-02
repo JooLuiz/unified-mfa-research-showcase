@@ -14,7 +14,7 @@ import {
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import fetchJson from "../utils/fetchJson";
 import { requestCsvExport } from "../exports/requestCsvExport";
-import { publishNotification } from "../notifications/meshNotificationAdapter";
+import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
  * Renders the account page with profile, address, and order list sections.

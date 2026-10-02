@@ -2,14 +2,14 @@
  * Persists account profile and address updates for the social media shell.
  * Role: Owns the account HTTP command and reports its outcome through the shell notifier.
  * Not in this file: Account page layout or post history (src/pages/accountPage.js).
- * Key dependencies: Mock data service PUT /api/users/me; src/notifications/meshNotificationAdapter.js.
+ * Key dependencies: Mock data service PUT /api/users/me; src/notifications/notificationAdapter.js.
  * See also: src/pages/accountPage.js.
  */
 
 import { setAuthSession } from "../utils/authActions";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import fetchJson from "../utils/fetchJson";
-import { publishNotification } from "../notifications/meshNotificationAdapter";
+import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
  * Persists an account update and reports its HTTP outcome to the shell notifier.

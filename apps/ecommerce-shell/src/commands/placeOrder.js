@@ -87,11 +87,13 @@ function waitForNextOrderNotification() {
 /**
  * Places an order through the mesh gateway and waits for the server notification reply.
  *
- * @param {object} orderPayload - Order values accepted by the gateway order handler.
+ * @param {object} appStateOrOrderPayload - Shell app state or order values.
+ * @param {object} [orderPayload] - Order values accepted by the gateway order handler.
  * @returns {Promise<{ ok: boolean }>} Whether the server accepted the order.
  * @sideEffects Publishes a distributed mesh order request and listens for a targeted reply.
  */
-async function placeOrderViaMesh(orderPayload) {
+async function placeOrder(appStateOrOrderPayload, orderPayload) {
+  const payload = orderPayload || (appStateOrOrderPayload && !appStateOrOrderPayload.currentUser && !appStateOrOrderPayload.authToken ? appStateOrOrderPayload : {});
   try {
     ensureOrderNotificationListeners();
     await mesh.whenConnected({ timeoutMs: MESH_CONNECT_TIMEOUT_MS });
@@ -101,7 +103,7 @@ async function placeOrderViaMesh(orderPayload) {
     mesh.publish({
       topic: ORDERS_TOPIC,
       event: ORDERS_REQUESTED_EVENT,
-      payload: orderPayload,
+      payload,
       scope: "distributed",
     });
 
@@ -112,10 +114,12 @@ async function placeOrderViaMesh(orderPayload) {
 
     return { ok: notificationPayload.type === "success" };
   } catch (error) {
-    console.warn("placeOrderViaMesh - error");
+    console.warn("placeOrder - error");
     console.warn(error);
     return { ok: false };
   }
 }
 
-export { placeOrderViaMesh };
+const placeOrderViaMesh = placeOrder;
+
+export { placeOrder, placeOrderViaMesh };

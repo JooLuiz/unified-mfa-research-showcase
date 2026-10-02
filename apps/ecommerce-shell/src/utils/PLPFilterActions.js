@@ -2,12 +2,12 @@
  * Persists and hydrates ecommerce PLP filter state.
  * Role: Owns localStorage cache for PLP filters and publishes catalog.filters-changed on write.
  * Not in this file: Product list UI, mesh configuration, or route rendering.
- * Key dependencies: src/events/localMeshEventBus.js; src/utils/constants.js FILTER_STORAGE_KEY.
+ * Key dependencies: src/events/eventBus.js; src/utils/constants.js FILTER_STORAGE_KEY.
  * See also: src/pages/catalogPages.js; src/pages/promotionsPage.js; MESH_IMPLEMENTATIONS/storage-coordination.md.
  */
 
 import { FILTER_STORAGE_KEY } from "./constants";
-import { publishPlpFiltersChanged } from "../events/localMeshEventBus";
+import { publishPlpFiltersChanged } from "../events/eventBus";
 
 /**
  * Hydrates appState.plpFilters from localStorage.

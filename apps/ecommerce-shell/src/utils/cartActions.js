@@ -2,11 +2,11 @@
  * Calculates and mutates ecommerce cart state through local mesh messages.
  * Role: Provides cart helpers and publishes shell-owned cart state events after mutations.
  * Not in this file: Cart command handling from remotes (catalog intents), header rendering, or Checkout MFE subscriptions.
- * Key dependencies: src/events/localMeshEventBus.js.
+ * Key dependencies: src/events/eventBus.js.
  * See also: src/main.js; src/pages/checkoutPage.js.
  */
 
-import { publishCartChanged } from "../events/localMeshEventBus";
+import { publishCartChanged } from "../events/eventBus";
 
 function getCartTotalValue(appState) {
   return appState.cartItems.reduce((totalValue, cartItem) => {

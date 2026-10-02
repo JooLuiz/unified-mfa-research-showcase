@@ -2,11 +2,11 @@
  * Updates browser history and requests admin shell rendering through Event Mesh.
  * Role: Provides route navigation without coupling route callers to the shell renderer.
  * Not in this file: Route matching, authentication guards, or page rendering.
- * Key dependencies: src/events/shellEventBus.js.
+ * Key dependencies: src/events/eventBus.js.
  * See also: src/main.js.
  */
 
-import { publishRenderRequested } from "../events/shellEventBus";
+import { publishRenderRequested } from "../events/eventBus";
 
 /**
  * Navigates to a new in-shell path and publishes a render request.

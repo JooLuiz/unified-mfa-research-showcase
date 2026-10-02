@@ -1,5 +1,5 @@
 /**
- * Publishes social shell notifications through event mesh.
+ * Publishes social media shell notifications through event mesh.
  * Role: Producer-side API for raising notifications on the mesh.
  * Not in this file: Toast rendering or mesh client configuration.
  * Key dependencies: @shared/notifications; event-mesh/mesh.

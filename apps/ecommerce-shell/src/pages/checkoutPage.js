@@ -2,10 +2,11 @@
  * Renders the checkout and order-placed routes.
  * Role: Composes checkout remotes with data/inbound adapters; cart/coupon/place-order intents come from mesh.
  * Not in this file: Persistent mesh handlers (src/main.js) or place-order command (src/commands/placeCheckoutOrder.js).
- * Key dependencies: src/events/localMeshEventBus.js; checkout remotes.
+ * Key dependencies: src/events/eventBus.js; checkout remotes.
  * See also: src/utils/renderActions.js (public barrel); MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
+import { publishRenderRequested } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 import {
   isAuthenticated,
@@ -14,7 +15,7 @@ import {
 import {
   subscribeToCartChanges,
   subscribeToCouponApplied,
-} from "../events/localMeshEventBus";
+} from "../events/eventBus";
 import { calculateCheckoutTotals } from "../commands/placeCheckoutOrder";
 
 /**
@@ -34,9 +35,7 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
   }
 
   if (appState.cartItems.length === 0) {
-    pageMount.innerHTML = `<section id="checkoutEmptyMount"></section>`;
-    const checkoutEmptyMount = pageMount.querySelector("#checkoutEmptyMount");
-    activeCleanupFunctions.push(modules.mountCheckoutEmpty(checkoutEmptyMount));
+    modules.mountCheckoutEmpty(pageMount);
     return;
   }
 
