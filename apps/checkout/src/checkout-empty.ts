@@ -2,9 +2,16 @@
  * Mounts the empty-checkout iframe and synchronizes its height with the host page.
  * Role: Provides the checkout remote's isolated empty-cart view and navigation bridge.
  * Not in this file: The child page UI and its Angular bootstrap.
- * Key dependencies: The checkout-empty.html entry point and browser postMessage API.
+ * Key dependencies: The checkout-empty.html entry point and @shared/iframe-bridge.
  * See also: src/checkout-empty-page.ts.
  */
+
+import {
+  GO_SHOPPING_EVENT,
+  RESIZED_EVENT,
+  createIframeBridge,
+  createPostMessageTransport,
+} from "@shared/iframe-bridge";
 
 declare const __webpack_public_path__: string;
 
@@ -21,29 +28,30 @@ function buildCheckoutEmptyUrl(): string {
   return baseUrl.toString();
 }
 
+interface IframeResizePayload {
+  frameId?: unknown;
+  height?: unknown;
+}
+
 /**
- * Applies a valid child-frame resize message to the iframe in this mount only.
+ * Applies a valid child-frame resize payload to the iframe in this mount only.
  *
  * @param containerElement - Host container that owns the checkout iframe.
- * @param event - Cross-window message dispatched by the child frame.
+ * @param payload - Resize payload from the iframe bridge.
  * @returns None.
  * @sideEffects Updates the iframe's inline height when the message is valid.
  */
 function updateIframeHeight(
   containerElement: HTMLElement,
-  event: MessageEvent,
+  payload: unknown,
 ): void {
-  const messageData = event.data;
-  if (!messageData || typeof messageData !== "object") {
+  if (!payload || typeof payload !== "object") {
     return;
   }
 
-  if (messageData.type !== "iframe:resize") {
-    return;
-  }
-
-  const frameId = messageData.payload?.frameId;
-  const rawHeight = Number(messageData.payload?.height);
+  const resizePayload = payload as IframeResizePayload;
+  const frameId = resizePayload.frameId;
+  const rawHeight = Number(resizePayload.height);
 
   if (frameId !== CHECKOUT_EMPTY_FRAME_ID || !Number.isFinite(rawHeight)) {
     return;
@@ -62,8 +70,8 @@ function updateIframeHeight(
  *
  * @param containerElement - Host element that receives the iframe.
  * @param props - Optional callback invoked when the child requests product navigation.
- * @returns Cleanup function that removes message listeners and mounted content.
- * @sideEffects Creates an iframe and registers window message listeners.
+ * @returns Cleanup function that removes bridge subscriptions and mounted content.
+ * @sideEffects Creates an iframe and registers iframe bridge subscriptions.
  */
 export function mountCheckoutEmpty(
   containerElement: HTMLElement,
@@ -88,27 +96,25 @@ export function mountCheckoutEmpty(
     iframeElement.style.height = `${CHECKOUT_EMPTY_FALLBACK_HEIGHT_PX}px`;
   }
 
-  function handlePostMessage(event: MessageEvent): void {
-    const messageData = event.data;
-    if (!messageData || typeof messageData !== "object") {
-      return;
-    }
-
-    if (messageData.type === "checkout:go-shopping" && props.onGoShopping) {
-      props.onGoShopping();
-    }
-  }
-
-  const handleIframeResize = (event: MessageEvent): void => {
-    updateIframeHeight(containerElement, event);
-  };
-
-  window.addEventListener("message", handleIframeResize);
-  window.addEventListener("message", handlePostMessage);
+  const iframeBridge = createIframeBridge(createPostMessageTransport());
+  const unsubscribeFromResize = iframeBridge.subscribeToIframeEvent(
+    RESIZED_EVENT,
+    (payload: unknown) => {
+      updateIframeHeight(containerElement, payload);
+    },
+  );
+  const unsubscribeFromGoShopping = iframeBridge.subscribeToIframeEvent(
+    GO_SHOPPING_EVENT,
+    () => {
+      if (props.onGoShopping) {
+        props.onGoShopping();
+      }
+    },
+  );
 
   return () => {
-    window.removeEventListener("message", handleIframeResize);
-    window.removeEventListener("message", handlePostMessage);
+    unsubscribeFromResize();
+    unsubscribeFromGoShopping();
     containerElement.innerHTML = "";
   };
 }

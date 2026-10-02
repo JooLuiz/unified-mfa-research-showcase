@@ -16,6 +16,9 @@
     "webpack-dev-server": "^5.2.0"
   },
   "dependencies": {
-    "@shared/notifications": "*"
+    "@shared/catalog-events": "*",
+    "@shared/iframe-bridge": "*",
+    "@shared/notifications": "*",
+    "@shared/shell-events": "*"
   }
 }

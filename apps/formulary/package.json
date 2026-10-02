@@ -8,6 +8,7 @@
     "lint": "node -e \"process.stdout.write('formulary lint not configured\\\\n')\""
   },
   "dependencies": {
+    "@shared/iframe-bridge": "*",
     "vue": "^3.5.13"
   },
   "devDependencies": {

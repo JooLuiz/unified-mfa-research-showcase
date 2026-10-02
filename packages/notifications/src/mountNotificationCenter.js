@@ -2,8 +2,8 @@
  * Renders and manages a persistent toast queue for a shell.
  * Role: Converts page-local notification requests into accessible, auto-dismissing toast elements.
  * Not in this file: Business outcome decisions, backend transport, or route-specific UI.
- * Key dependencies: A notification bus created by createNotificationBus.
- * See also: src/createNotificationBus.js.
+ * Key dependencies: A notification adapter created by createNotificationAdapter.
+ * See also: src/createNotificationAdapter.js.
  */
 
 const DEFAULT_DURATION_MS = 5000;

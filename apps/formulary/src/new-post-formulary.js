@@ -1,3 +1,18 @@
+/**
+ * Mounts the new-post formulary iframe and applies host bridge messages.
+ * Role: Builds the post iframe URL and resizes it from iframe bridge events.
+ * Not in this file: The child form page or post persistence.
+ * Key dependencies: @shared/iframe-bridge.
+ * See also: src/faq-formulary.js.
+ */
+
+import {
+  POST_SUBMITTED_EVENT,
+  RESIZED_EVENT,
+  createIframeBridge,
+  createPostMessageTransport,
+} from "@shared/iframe-bridge";
+
 const NEW_POST_FORMULARY_HTML_PATH = "faq-formulary.html";
 const NEW_POST_FRAME_ID = "new-post-formulary";
 
@@ -19,18 +34,13 @@ function buildNewPostFormularyUrl(props) {
   return baseUrl.toString();
 }
 
-function handleIframeResize(event) {
-  const messageData = event.data;
-  if (!messageData || typeof messageData !== "object") {
+function applyNewPostIframeHeight(payload) {
+  if (!payload || typeof payload !== "object") {
     return;
   }
 
-  if (messageData.type !== "iframe:resize") {
-    return;
-  }
-
-  const frameId = messageData.payload?.frameId;
-  const rawHeight = Number(messageData.payload?.height);
+  const frameId = payload.frameId;
+  const rawHeight = Number(payload.height);
 
   if (frameId !== NEW_POST_FRAME_ID || !Number.isFinite(rawHeight)) {
     return;
@@ -63,23 +73,23 @@ export function mountNewPostFormulary(containerElement, props = {}) {
     iframeElement.style.height = "0px";
   }
 
-  function handlePostMessage(event) {
-    const messageData = event.data;
-    if (!messageData || typeof messageData !== "object") {
-      return;
-    }
-
-    if (messageData.type === "post:form-submitted" && props.onFormSubmitted) {
-      props.onFormSubmitted(messageData.payload);
-    }
-  }
-
-  window.addEventListener("message", handleIframeResize);
-  window.addEventListener("message", handlePostMessage);
+  const iframeBridge = createIframeBridge(createPostMessageTransport());
+  const unsubscribeFromResize = iframeBridge.subscribeToIframeEvent(
+    RESIZED_EVENT,
+    applyNewPostIframeHeight,
+  );
+  const unsubscribeFromSubmit = iframeBridge.subscribeToIframeEvent(
+    POST_SUBMITTED_EVENT,
+    (payload) => {
+      if (props.onFormSubmitted) {
+        props.onFormSubmitted(payload);
+      }
+    },
+  );
 
   return () => {
-    window.removeEventListener("message", handleIframeResize);
-    window.removeEventListener("message", handlePostMessage);
+    unsubscribeFromResize();
+    unsubscribeFromSubmit();
     containerElement.innerHTML = "";
   };
 }

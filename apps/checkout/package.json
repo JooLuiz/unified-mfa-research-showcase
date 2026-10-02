@@ -20,6 +20,7 @@
     "webpack-dev-server": "^5.2.0"
   },
   "dependencies": {
+    "@shared/iframe-bridge": "*",
     "@angular/common": "^21.2.8",
     "@angular/core": "^21.2.8",
     "@angular/elements": "^21.2.8",
