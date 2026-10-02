@@ -6,6 +6,7 @@
  * See also: src/utils/renderActions.js (public barrel).
  */
 
+import { publishRenderRequested } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 import { dispatchAddToCartEvent } from "../utils/cartActions";
 import { MOCK_API_BASE_URL, FORMULARY_REMOTE_BASE_URL } from "../utils/constants";
@@ -118,7 +119,7 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
         appState.isFormularySubmitted = true;
         appState.lastIframeMessage = `FAQ submitted by ${payload.name} (${payload.email})`;
         void persistFaqAnswerToApi(appState, payload);
-        window.dispatchEvent(new CustomEvent("global:renderApp"));
+        publishRenderRequested();
       }
     }
 

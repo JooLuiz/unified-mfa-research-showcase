@@ -2,14 +2,14 @@
  * Persists account profile and address updates for the ecommerce shell.
  * Role: Owns the account HTTP command and reports its outcome through the shell notifier.
  * Not in this file: Account page layout or order history (src/pages/accountPage.js).
- * Key dependencies: Mock data service PUT /api/users/me; src/notifications/notificationBus.js.
+ * Key dependencies: Mock data service PUT /api/users/me; src/notifications/notificationAdapter.js.
  * See also: src/pages/accountPage.js.
  */
 
 import { setAuthSession } from "../utils/authActions";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import fetchJson from "../utils/fetchJson";
-import { notify } from "../notifications/notificationBus";
+import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
  * Persists an account update and reports its HTTP outcome to the shell notifier.
@@ -37,7 +37,7 @@ async function persistAccountUpdate(appState, updatePayload) {
       user: updatedUser,
     });
     const isAddressUpdate = Object.hasOwn(updatePayload, "address");
-    notify({
+    publishNotification({
       type: "success",
       title: isAddressUpdate ? "Address updated" : "Profile updated",
       message: "Your account changes have been saved.",
@@ -46,7 +46,7 @@ async function persistAccountUpdate(appState, updatePayload) {
   } catch (error) {
     console.warn("persistAccountUpdate - error");
     console.warn(error);
-    notify({
+    publishNotification({
       type: "error",
       title: "Account update failed",
       message: "Your changes were not saved. Please try again.",

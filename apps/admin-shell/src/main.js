@@ -10,10 +10,16 @@ import {
 } from "./utils/authActions";
 
 import loadRemoteModules from "./utils/loadRemoteModules";
+import {
+  publishRenderRequested,
+  subscribeToAuthSessionChanges,
+  subscribeToLogoutRequests,
+  subscribeToRenderRequests,
+} from "./events/eventBus";
 import { mountNotificationCenter } from "./notifications/notificationCenter";
 import { mountHeaderAndFooter } from "./utils/mountActions";
 import { navigate } from "./utils/navigate";
-import { notify } from "./notifications/notificationBus";
+import { publishNotification } from "./notifications/notificationAdapter";
 import {
   renderLoginPage,
   renderDashboardPage,
@@ -79,18 +85,18 @@ async function renderApp() {
     if (!appState.authToken || !appState.currentUser) {
       rememberPostLoginRedirect(pathName + window.location.search);
       history.replaceState({}, "", "/login");
-      window.dispatchEvent(new CustomEvent("global:renderApp"));
+      publishRenderRequested();
       return;
     }
     if (!isAdminAuthenticated(appState)) {
       clearAuthSession(appState);
-      notify({
+      publishNotification({
         type: "error",
         title: "Access denied",
         message: "This account does not have admin access.",
       });
       history.replaceState({}, "", "/login");
-      window.dispatchEvent(new CustomEvent("global:renderApp"));
+      publishRenderRequested();
       return;
     }
   }
@@ -138,7 +144,7 @@ async function renderApp() {
     .addEventListener("click", () => navigate("/"));
 }
 
-window.addEventListener("global:renderApp", () => {
+subscribeToRenderRequests(() => {
   renderApp();
 });
 
@@ -146,11 +152,11 @@ window.addEventListener("popstate", () => {
   renderApp();
 });
 
-window.addEventListener("auth:changed", () => {
+subscribeToAuthSessionChanges(() => {
   renderApp();
 });
 
-window.addEventListener("auth:logout-request", () => {
+subscribeToLogoutRequests(() => {
   clearAuthSession(appState);
   navigate("/login");
 });

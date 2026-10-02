@@ -15,7 +15,7 @@ import { MOCK_API_BASE_URL } from "../utils/constants";
 import fetchJson from "../utils/fetchJson";
 import { persistAccountUpdate } from "../commands/accountCommands";
 import { requestCsvExport } from "../exports/requestCsvExport";
-import { notify } from "../notifications/notificationBus";
+import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
  * Renders the account page with profile, address, and order list sections.
@@ -113,7 +113,7 @@ async function renderMyOrdersList(appState, ordersContainer, activeCleanupFuncti
       fileName: "my-orders.csv",
       authToken: appState.authToken,
     });
-    notify(
+    publishNotification(
       exportResult.ok
         ? {
             type: "success",

@@ -2,7 +2,7 @@
  * Renders the login route for the admin shell.
  * Role: Mounts the login MFE and owns the post-login admin check, session, toast, and redirect outcome.
  * Not in this file: Login form or credential validation (login MFE); login failure stays in the MFE.
- * Key dependencies: src/utils/authActions.js; src/notifications/notificationBus.js.
+ * Key dependencies: src/utils/authActions.js; src/notifications/notificationAdapter.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
@@ -14,7 +14,7 @@ import {
   consumePostLoginRedirect,
 } from "../utils/authActions";
 import { MOCK_API_BASE_URL } from "../utils/constants";
-import { notify } from "../notifications/notificationBus";
+import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
  * Renders the login page, redirecting away when already authenticated as admin.
@@ -43,7 +43,7 @@ async function renderLoginPage(appState, pageMount, modules, activeCleanupFuncti
       onLoginSuccess: ({ token, user, redirectAfterLogin }) => {
         if (user?.role !== "admin") {
           clearAuthSession(appState);
-          notify({
+          publishNotification({
             type: "error",
             title: "Access denied",
             message: "This account does not have admin access.",
@@ -51,7 +51,7 @@ async function renderLoginPage(appState, pageMount, modules, activeCleanupFuncti
           return;
         }
         setAuthSession(appState, { token, user });
-        notify({
+        publishNotification({
           type: "success",
           title: "Signed in",
           message: `Welcome back, ${user.fullName || user.username}.`,

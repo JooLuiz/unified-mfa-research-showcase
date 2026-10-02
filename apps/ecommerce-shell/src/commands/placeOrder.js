@@ -1,9 +1,9 @@
 /**
  * Persists checkout orders for the ecommerce shell.
  * Role: Owns the order HTTP command so checkout UI code only handles the { ok } outcome.
- * Not in this file: Cart state, toast copy, or post-order navigation (src/pages/checkoutPage.js).
+ * Not in this file: Cart state, toast copy, or post-order navigation (src/commands/placeCheckoutOrder.js).
  * Key dependencies: Mock data service POST /api/orders.
- * See also: src/pages/checkoutPage.js.
+ * See also: src/commands/placeCheckoutOrder.js.
  */
 
 import { MOCK_API_BASE_URL } from "../utils/constants";
@@ -17,7 +17,7 @@ import fetchJson from "../utils/fetchJson";
  * @returns {Promise<{ ok: boolean }>} Whether the server accepted the order.
  * @sideEffects Performs the HTTP order command.
  */
-async function persistOrder(appState, orderPayload) {
+async function placeOrder(appState, orderPayload) {
   if (!appState.authToken) {
     return { ok: false };
   }
@@ -32,10 +32,10 @@ async function persistOrder(appState, orderPayload) {
     });
     return { ok: true };
   } catch (error) {
-    console.warn("persistOrder - error");
+    console.warn("placeOrder - error");
     console.warn(error);
     return { ok: false };
   }
 }
 
-export { persistOrder };
+export { placeOrder };

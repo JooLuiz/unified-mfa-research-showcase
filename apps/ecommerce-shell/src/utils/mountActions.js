@@ -1,3 +1,7 @@
+import {
+  publishLogoutRequested,
+  subscribeToHeaderEvents,
+} from "../events/eventBus";
 import { getCartTotalValue, getCartItemCount } from "./cartActions";
 import { isAuthenticated } from "./authActions";
 import { navigate } from "./navigate";
@@ -23,11 +27,13 @@ function updateHeaderState(appState, headerElement) {
 function mountHeaderAndFooter(appState, layoutMounts) {
   const headerElement = document.createElement("react-header-mfe");
   updateHeaderState(appState, headerElement);
-  headerElement.addEventListener("host:navigate", (event) => {
-    navigate(event.detail.path);
-  });
-  headerElement.addEventListener("host:logout", () => {
-    window.dispatchEvent(new CustomEvent("auth:logout-request"));
+  subscribeToHeaderEvents(headerElement, {
+    onNavigate: (event) => {
+      navigate(event.detail.path);
+    },
+    onLogout: () => {
+      publishLogoutRequested();
+    },
   });
   layoutMounts.headerMount.appendChild(headerElement);
 

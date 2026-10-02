@@ -4,7 +4,10 @@ const { ModuleFederationPlugin } = require("webpack").container;
 
 module.exports = {
   mode: "development",
-  entry: path.resolve(__dirname, "src/index.js"),
+  entry: {
+    main: path.resolve(__dirname, "src/index.js"),
+    "iframe-bridge-client": path.resolve(__dirname, "src/iframe-bridge-client.js"),
+  },
   output: {
     publicPath: "auto",
     clean: true,

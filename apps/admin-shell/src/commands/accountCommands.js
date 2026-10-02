@@ -2,14 +2,14 @@
  * Persists personal account changes for the admin shell.
  * Role: Owns the account HTTP command and reports its outcome through the shell notifier.
  * Not in this file: Account page layout or form rendering.
- * Key dependencies: Mock data service PUT /api/users/me; src/notifications/notificationBus.js.
+ * Key dependencies: Mock data service PUT /api/users/me; src/notifications/notificationAdapter.js.
  * See also: src/pages/accountPage.js.
  */
 
 import { setAuthSession } from "../utils/authActions";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import fetchJson from "../utils/fetchJson";
-import { notify } from "../notifications/notificationBus";
+import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
  * Persists profile or address data and refreshes the stored admin session.
@@ -39,14 +39,14 @@ async function persistAccountUpdate(appState, updatePayload) {
     });
 
     const isAddressUpdate = Object.hasOwn(updatePayload, "address");
-    notify({
+    publishNotification({
       type: "success",
       title: isAddressUpdate ? "Address updated" : "Profile updated",
       message: "Your account changes have been saved.",
     });
     return { ok: true };
   } catch {
-    notify({
+    publishNotification({
       type: "error",
       title: "Account update failed",
       message: "Your changes were not saved. Please try again.",

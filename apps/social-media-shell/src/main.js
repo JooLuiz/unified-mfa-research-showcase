@@ -19,6 +19,11 @@ import {
 
 import loadMockData from "./utils/loadData";
 import loadRemoteModules from "./utils/loadRemoteModules";
+import {
+  subscribeToAuthSessionChanges,
+  subscribeToLogoutRequests,
+  subscribeToRenderRequests,
+} from "./events/eventBus";
 import { navigate } from "./utils/navigate";
 import { createHeaderApp, createFooterApp } from "./utils/mountActions";
 import { mountNotificationCenter } from "./notifications/notificationCenter";
@@ -125,15 +130,15 @@ function registerPageApplications() {
   });
 }
 
-window.addEventListener("global:renderApp", () => {
+subscribeToRenderRequests(() => {
   reloadActivePageApp();
 });
 
-window.addEventListener("auth:changed", () => {
+subscribeToAuthSessionChanges(() => {
   reloadActivePageApp();
 });
 
-window.addEventListener("auth:logout-request", () => {
+subscribeToLogoutRequests(() => {
   clearAuthSession(appState);
   navigate("/");
 });

@@ -1,3 +1,8 @@
+import {
+  publishCartChanged,
+  publishCartItemAddRequested,
+} from "../events/eventBus";
+
 function getCartTotalValue(appState) {
   return appState.cartItems.reduce((totalValue, cartItem) => {
     const product = appState.productsById[cartItem.productId];
@@ -16,11 +21,7 @@ function getCartItemCount(appState) {
 }
 
 function dispatchAddToCartEvent(addToCartPayload) {
-  window.dispatchEvent(
-    new CustomEvent("cart:add-item", {
-      detail: addToCartPayload,
-    }),
-  );
+  publishCartItemAddRequested(addToCartPayload);
 }
 
 function updateCartItem(appState, productId, quantity) {
@@ -33,7 +34,7 @@ function updateCartItem(appState, productId, quantity) {
     appState.cartItems.push({ productId, quantity });
   }
   window.__APP_SHELL_CART__ = appState.cartItems;
-  window.dispatchEvent(new CustomEvent("cart:updateGlobalCart"));
+  publishCartChanged();
 }
 
 function removeCartItem(appState, productId) {
@@ -41,7 +42,7 @@ function removeCartItem(appState, productId) {
     (cartItem) => cartItem.productId !== productId,
   );
   window.__APP_SHELL_CART__ = appState.cartItems;
-  window.dispatchEvent(new CustomEvent("cart:updateGlobalCart"));
+  publishCartChanged();
 }
 
 export {

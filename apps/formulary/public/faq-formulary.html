@@ -42,6 +42,7 @@
   <body>
     <div id="formularyRoot"></div>
     <script src="https://unpkg.com/vue@3.5.13/dist/vue.global.prod.js"></script>
+    <script src="/iframe-bridge-client.js"></script>
     <script>
       const FORMULARY_TYPE_FAQ = "faq";
       const FORMULARY_TYPE_POST = "post";
@@ -122,20 +123,7 @@
         FORMULARY_DEFINITIONS[FORMULARY_TYPE_FAQ];
 
       const notifyHostHeight = () => {
-        const contentHeight = Math.max(
-          document.documentElement.scrollHeight,
-          document.body.scrollHeight,
-        );
-        window.parent.postMessage(
-          {
-            type: "iframe:resize",
-            payload: {
-              frameId: formularyDefinition.frameId,
-              height: contentHeight,
-            },
-          },
-          "*",
-        );
+        window.iframeBridgeClient.publishIframeResize(formularyDefinition.frameId);
       };
 
       const { createApp, reactive, h, onMounted, watch } = Vue;
@@ -180,12 +168,9 @@
               {},
             );
 
-            window.parent.postMessage(
-              {
-                type: formularyDefinition.submittedMessageType,
-                payload: trimmedPayload,
-              },
-              "*",
+            window.iframeBridgeClient.publishFormularySubmitted(
+              formularyDefinition.submittedMessageType,
+              trimmedPayload,
             );
 
             formularyDefinition.fields.forEach((fieldDefinition) => {
