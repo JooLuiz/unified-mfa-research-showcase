@@ -1,144 +1,34 @@
 /**
  * Publishes and subscribes to ecommerce shell window, cart, and header events.
- * Role: The only ecommerce-shell module that dispatches CustomEvents or listens for header element events.
+ * Role: Thin caller of the shared shell and catalog packages over the browser transport.
  * Not in this file: Route rendering, cart item mutation, auth storage, or notification toasts.
- * Key dependencies: src/events/eventContracts.js; window CustomEvent.
+ * Key dependencies: @shared/shell-events; @shared/catalog-events; src/events/browserTransport.js.
  * See also: src/main.js; src/utils/cartActions.js; src/utils/mountActions.js.
  */
 
+import { createCatalogEvents } from "@shared/catalog-events";
+import { createShellEvents } from "@shared/shell-events";
 import {
-  AUTH_CHANGED_EVENT,
-  AUTH_LOGOUT_REQUEST_EVENT,
-  CART_ADD_ITEM_EVENT,
-  CART_UPDATE_GLOBAL_CART_EVENT,
   HOST_LOGOUT_EVENT,
   HOST_NAVIGATE_EVENT,
-  RENDER_APP_EVENT,
-} from "./eventContracts";
+  createBrowserTransport,
+} from "./browserTransport";
+
+const browserTransport = createBrowserTransport();
+const shellEvents = createShellEvents(browserTransport);
+const catalogEvents = createCatalogEvents(browserTransport);
 
 /**
- * Asks the shell to render the current URL.
+ * Subscribes to add-to-cart requests and keeps the existing CustomEvent detail shape.
  *
- * @returns {void}
- * @sideEffects Dispatches the render CustomEvent on window.
- */
-function publishRenderRequested() {
-  window.dispatchEvent(new CustomEvent(RENDER_APP_EVENT));
-}
-
-/**
- * Subscribes to shell render requests.
- *
- * @param {() => void} listener - Callback invoked when a render is requested.
+ * @param {(event: { detail: object }) => void} listener - Callback that receives the event detail.
  * @returns {() => void} Removes the subscription.
- * @sideEffects Registers a window event listener.
- */
-function subscribeToRenderRequests(listener) {
-  window.addEventListener(RENDER_APP_EVENT, listener);
-  return function unsubscribeFromRenderRequests() {
-    window.removeEventListener(RENDER_APP_EVENT, listener);
-  };
-}
-
-/**
- * Announces that the authenticated session changed.
- *
- * @returns {void}
- * @sideEffects Dispatches the auth-changed CustomEvent on window.
- */
-function publishAuthSessionChanged() {
-  window.dispatchEvent(new CustomEvent(AUTH_CHANGED_EVENT));
-}
-
-/**
- * Subscribes to authenticated session changes.
- *
- * @param {() => void} listener - Callback invoked after login, logout, or profile refresh.
- * @returns {() => void} Removes the subscription.
- * @sideEffects Registers a window event listener.
- */
-function subscribeToAuthSessionChanges(listener) {
-  window.addEventListener(AUTH_CHANGED_EVENT, listener);
-  return function unsubscribeFromAuthSessionChanges() {
-    window.removeEventListener(AUTH_CHANGED_EVENT, listener);
-  };
-}
-
-/**
- * Asks the shell to log the current user out.
- *
- * @returns {void}
- * @sideEffects Dispatches the logout-request CustomEvent on window.
- */
-function publishLogoutRequested() {
-  window.dispatchEvent(new CustomEvent(AUTH_LOGOUT_REQUEST_EVENT));
-}
-
-/**
- * Subscribes to logout requests.
- *
- * @param {() => void} listener - Callback that clears the session and navigates.
- * @returns {() => void} Removes the subscription.
- * @sideEffects Registers a window event listener.
- */
-function subscribeToLogoutRequests(listener) {
-  window.addEventListener(AUTH_LOGOUT_REQUEST_EVENT, listener);
-  return function unsubscribeFromLogoutRequests() {
-    window.removeEventListener(AUTH_LOGOUT_REQUEST_EVENT, listener);
-  };
-}
-
-/**
- * Asks the shell to add a product to the cart.
- *
- * @param {object} addToCartPayload - Product id and quantity from the catalog remote.
- * @returns {void}
- * @sideEffects Dispatches the add-to-cart CustomEvent on window.
- */
-function publishCartItemAddRequested(addToCartPayload) {
-  window.dispatchEvent(
-    new CustomEvent(CART_ADD_ITEM_EVENT, {
-      detail: addToCartPayload,
-    }),
-  );
-}
-
-/**
- * Subscribes to add-to-cart requests.
- *
- * @param {(event: CustomEvent) => void} listener - Callback that receives the event detail.
- * @returns {() => void} Removes the subscription.
- * @sideEffects Registers a window event listener.
+ * @sideEffects Registers a window event listener through the catalog package.
  */
 function subscribeToCartItemAddRequests(listener) {
-  window.addEventListener(CART_ADD_ITEM_EVENT, listener);
-  return function unsubscribeFromCartItemAddRequests() {
-    window.removeEventListener(CART_ADD_ITEM_EVENT, listener);
-  };
-}
-
-/**
- * Announces that the shell cart contents changed.
- *
- * @returns {void}
- * @sideEffects Dispatches the cart-updated CustomEvent on window.
- */
-function publishCartChanged() {
-  window.dispatchEvent(new CustomEvent(CART_UPDATE_GLOBAL_CART_EVENT));
-}
-
-/**
- * Subscribes to cart content changes.
- *
- * @param {() => void} listener - Callback that refreshes cart-derived UI.
- * @returns {() => void} Removes the subscription.
- * @sideEffects Registers a window event listener.
- */
-function subscribeToCartChanges(listener) {
-  window.addEventListener(CART_UPDATE_GLOBAL_CART_EVENT, listener);
-  return function unsubscribeFromCartChanges() {
-    window.removeEventListener(CART_UPDATE_GLOBAL_CART_EVENT, listener);
-  };
+  return catalogEvents.subscribeToCartItemAddRequests((payload) => {
+    listener({ detail: payload });
+  });
 }
 
 /**
@@ -166,16 +56,27 @@ function subscribeToHeaderEvents(headerElement, handlers) {
   };
 }
 
-export {
+const {
   publishRenderRequested,
   subscribeToRenderRequests,
   publishAuthSessionChanged,
   subscribeToAuthSessionChanges,
   publishLogoutRequested,
   subscribeToLogoutRequests,
-  publishCartItemAddRequested,
-  subscribeToCartItemAddRequests,
+} = shellEvents;
+
+const { publishCartItemAddRequested, publishCartChanged, subscribeToCartChanges } = catalogEvents;
+
+export {
+  publishAuthSessionChanged,
   publishCartChanged,
+  publishCartItemAddRequested,
+  publishLogoutRequested,
+  publishRenderRequested,
+  subscribeToAuthSessionChanges,
   subscribeToCartChanges,
+  subscribeToCartItemAddRequests,
   subscribeToHeaderEvents,
+  subscribeToLogoutRequests,
+  subscribeToRenderRequests,
 };

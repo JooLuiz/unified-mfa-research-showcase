@@ -1,3 +1,18 @@
+/**
+ * Mounts the FAQ formulary iframe and applies host bridge messages.
+ * Role: Builds the FAQ iframe URL and resizes it from iframe bridge events.
+ * Not in this file: The child form page or FAQ persistence.
+ * Key dependencies: @shared/iframe-bridge.
+ * See also: src/new-post-formulary.js.
+ */
+
+import {
+  FAQ_SUBMITTED_EVENT,
+  RESIZED_EVENT,
+  createIframeBridge,
+  createPostMessageTransport,
+} from "@shared/iframe-bridge";
+
 const FAQ_FORMULARY_HTML_PATH = "faq-formulary.html";
 const FAQ_FRAME_ID = "faq-formulary";
 
@@ -16,18 +31,13 @@ function buildFaqFormularyUrl(props) {
   return baseUrl.toString();
 }
 
-function handleIframeResize(event) {
-  const messageData = event.data;
-  if (!messageData || typeof messageData !== "object") {
+function applyFaqIframeHeight(payload) {
+  if (!payload || typeof payload !== "object") {
     return;
   }
 
-  if (messageData.type !== "iframe:resize") {
-    return;
-  }
-
-  const frameId = messageData.payload?.frameId;
-  const rawHeight = Number(messageData.payload?.height);
+  const frameId = payload.frameId;
+  const rawHeight = Number(payload.height);
 
   if (frameId !== FAQ_FRAME_ID || !Number.isFinite(rawHeight)) {
     return;
@@ -60,23 +70,23 @@ export function mountFaqFormulary(containerElement, props = {}) {
     iframeElement.style.height = "0px";
   }
 
-  function handlePostMessage(event) {
-    const messageData = event.data;
-    if (!messageData || typeof messageData !== "object") {
-      return;
-    }
-
-    if (messageData.type === "faq:form-submitted" && props.onFormSubmitted) {
-      props.onFormSubmitted(messageData.payload);
-    }
-  }
-
-  window.addEventListener("message", handleIframeResize);
-  window.addEventListener("message", handlePostMessage);
+  const iframeBridge = createIframeBridge(createPostMessageTransport());
+  const unsubscribeFromResize = iframeBridge.subscribeToIframeEvent(
+    RESIZED_EVENT,
+    applyFaqIframeHeight,
+  );
+  const unsubscribeFromSubmit = iframeBridge.subscribeToIframeEvent(
+    FAQ_SUBMITTED_EVENT,
+    (payload) => {
+      if (props.onFormSubmitted) {
+        props.onFormSubmitted(payload);
+      }
+    },
+  );
 
   return () => {
-    window.removeEventListener("message", handleIframeResize);
-    window.removeEventListener("message", handlePostMessage);
+    unsubscribeFromResize();
+    unsubscribeFromSubmit();
     containerElement.innerHTML = "";
   };
 }

@@ -1,35 +1,42 @@
 /**
  * Posts formulary iframe messages to the host window.
- * Role: Owns resize and form-submitted postMessage calls for the FAQ and new-post iframe.
+ * Role: Owns resize and form-submitted calls for the FAQ and new-post iframe.
  * Not in this file: Form rendering or host-side message listeners.
- * Key dependencies: window.parent.postMessage.
+ * Key dependencies: @shared/iframe-bridge.
  * See also: public/faq-formulary.html.
  */
 
-const IFRAME_RESIZE_MESSAGE = "iframe:resize";
+import {
+  FAQ_SUBMITTED_EVENT,
+  POST_SUBMITTED_EVENT,
+  RESIZED_EVENT,
+  createIframeBridge,
+  createPostMessageTransport,
+} from "@shared/iframe-bridge";
+
+const EVENT_BY_SUBMITTED_MESSAGE_TYPE = {
+  "faq:form-submitted": FAQ_SUBMITTED_EVENT,
+  "post:form-submitted": POST_SUBMITTED_EVENT,
+};
+
+const iframeBridge = createIframeBridge(createPostMessageTransport());
 
 /**
  * Posts the current document height for one formulary frame.
  *
  * @param {string} frameId - Host iframe identifier, such as faq-formulary.
  * @returns {void}
- * @sideEffects Posts an iframe:resize message to the parent window.
+ * @sideEffects Publishes an iframe resized message to the parent window.
  */
 function publishIframeResize(frameId) {
   const contentHeight = Math.max(
     document.documentElement.scrollHeight,
     document.body.scrollHeight,
   );
-  window.parent.postMessage(
-    {
-      type: IFRAME_RESIZE_MESSAGE,
-      payload: {
-        frameId,
-        height: contentHeight,
-      },
-    },
-    "*",
-  );
+  iframeBridge.publishIframeMessage(RESIZED_EVENT, {
+    frameId,
+    height: contentHeight,
+  });
 }
 
 /**
@@ -38,16 +45,14 @@ function publishIframeResize(frameId) {
  * @param {string} messageType - faq:form-submitted or post:form-submitted.
  * @param {object} payload - Trimmed field values from the form.
  * @returns {void}
- * @sideEffects Posts the submit message to the parent window.
+ * @sideEffects Publishes the submit message to the parent window.
  */
 function publishFormularySubmitted(messageType, payload) {
-  window.parent.postMessage(
-    {
-      type: messageType,
-      payload,
-    },
-    "*",
-  );
+  const eventName = EVENT_BY_SUBMITTED_MESSAGE_TYPE[messageType];
+  if (!eventName) {
+    return;
+  }
+  iframeBridge.publishIframeMessage(eventName, payload);
 }
 
 window.iframeBridgeClient = {

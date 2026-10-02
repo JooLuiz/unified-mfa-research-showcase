@@ -1,0 +1,14 @@
+{
+  "name": "@shared/catalog-events",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "build": "node -e \"process.stdout.write('catalog-events build not required\\n')\"",
+    "lint": "node -e \"process.stdout.write('catalog-events lint not configured\\n')\""
+  }
+}

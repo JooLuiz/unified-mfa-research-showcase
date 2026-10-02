@@ -2,10 +2,16 @@
  * Renders the ecommerce home route.
  * Role: Composes banner, showcase, FAQ formulary iframe, and latest-message notice mounts.
  * Not in this file: FAQ persistence (src/commands/faqCommands.js) or promotion filter storage (src/pages/promotionsPage.js).
- * Key dependencies: Formulary remote iframe at FORMULARY_REMOTE_BASE_URL; window "message" events from the FAQ iframe.
+ * Key dependencies: Formulary remote iframe at FORMULARY_REMOTE_BASE_URL; @shared/iframe-bridge.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
+import {
+  FAQ_SUBMITTED_EVENT,
+  RESIZED_EVENT,
+  createIframeBridge,
+  createPostMessageTransport,
+} from "@shared/iframe-bridge";
 import { publishRenderRequested } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 import { dispatchAddToCartEvent } from "../utils/cartActions";
@@ -23,7 +29,7 @@ const FAQ_FRAME_ID = "faq-formulary";
  * @param {object} modules - Loaded remote module mount functions.
  * @param {Array<() => void>} activeCleanupFunctions - Cleanup registry for the current route.
  * @returns {Promise<void>}
- * @sideEffects Subscribes to window "message" events until the route cleanup runs.
+ * @sideEffects Subscribes to iframe bridge messages until the route cleanup runs.
  */
 async function renderHomePage(appState, pageMount, modules, activeCleanupFunctions) {
   pageMount.innerHTML = `
@@ -90,16 +96,13 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
       faqIframeElement.style.height = "0px";
     }
 
-    function handleFaqIframeResize(event) {
-      const messageData = event.data;
-      if (!messageData || typeof messageData !== "object") {
+    const iframeBridge = createIframeBridge(createPostMessageTransport());
+    const unsubscribeFromResize = iframeBridge.subscribeToIframeEvent(RESIZED_EVENT, (payload) => {
+      if (!payload || typeof payload !== "object") {
         return;
       }
-      if (messageData.type !== "iframe:resize") {
-        return;
-      }
-      const frameId = messageData.payload?.frameId;
-      const rawHeight = Number(messageData.payload?.height);
+      const frameId = payload.frameId;
+      const rawHeight = Number(payload.height);
       if (frameId !== FAQ_FRAME_ID || !Number.isFinite(rawHeight)) {
         return;
       }
@@ -107,28 +110,23 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
       if (frameElement) {
         frameElement.style.height = `${Math.max(rawHeight, 80)}px`;
       }
-    }
-
-    function handleFaqFormSubmitted(event) {
-      const messageData = event.data;
-      if (!messageData || typeof messageData !== "object") {
-        return;
-      }
-      if (messageData.type === "faq:form-submitted") {
-        const payload = messageData.payload;
+    });
+    const unsubscribeFromSubmit = iframeBridge.subscribeToIframeEvent(
+      FAQ_SUBMITTED_EVENT,
+      (payload) => {
+        if (!payload || typeof payload !== "object") {
+          return;
+        }
         appState.isFormularySubmitted = true;
         appState.lastIframeMessage = `FAQ submitted by ${payload.name} (${payload.email})`;
         void persistFaqAnswerToApi(appState, payload);
         publishRenderRequested();
-      }
-    }
-
-    window.addEventListener("message", handleFaqIframeResize);
-    window.addEventListener("message", handleFaqFormSubmitted);
+      },
+    );
 
     activeCleanupFunctions.push(() => {
-      window.removeEventListener("message", handleFaqIframeResize);
-      window.removeEventListener("message", handleFaqFormSubmitted);
+      unsubscribeFromResize();
+      unsubscribeFromSubmit();
       faqMount.innerHTML = "";
     });
   }
