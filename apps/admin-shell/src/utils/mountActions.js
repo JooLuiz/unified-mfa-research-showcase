@@ -1,3 +1,7 @@
+import {
+  publishLogoutRequested,
+  subscribeToHeaderEvents,
+} from "../events/eventBus";
 import { isAuthenticated } from "./authActions";
 import { navigate } from "./navigate";
 
@@ -11,11 +15,13 @@ function mountHeaderAndFooter(appState, layoutMounts) {
     currentUserName:
       appState.currentUser?.fullName || appState.currentUser?.username || "",
   };
-  headerElement.addEventListener("host:navigate", (event) => {
-    navigate(event.detail.path);
-  });
-  headerElement.addEventListener("host:logout", () => {
-    window.dispatchEvent(new CustomEvent("auth:logout-request"));
+  subscribeToHeaderEvents(headerElement, {
+    onNavigate: (event) => {
+      navigate(event.detail.path);
+    },
+    onLogout: () => {
+      publishLogoutRequested();
+    },
   });
   layoutMounts.headerMount.appendChild(headerElement);
 

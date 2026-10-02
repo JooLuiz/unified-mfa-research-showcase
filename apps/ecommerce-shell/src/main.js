@@ -12,8 +12,16 @@ import {
 
 import loadRemoteModules from "./utils/loadRemoteModules";
 import loadMockData from "./utils/loadData";
+import {
+  publishRenderRequested,
+  subscribeToAuthSessionChanges,
+  subscribeToCartChanges,
+  subscribeToCartItemAddRequests,
+  subscribeToLogoutRequests,
+  subscribeToRenderRequests,
+} from "./events/eventBus";
 import { mountNotificationCenter } from "./notifications/notificationCenter";
-import { notify } from "./notifications/notificationBus";
+import { publishNotification } from "./notifications/notificationAdapter";
 
 import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
 
@@ -119,7 +127,7 @@ async function renderApp() {
     if (legacyOrderId) {
       const encodedOrderId = encodeURIComponent(legacyOrderId);
       history.replaceState({}, "", `/order-details/${encodedOrderId}`);
-      window.dispatchEvent(new CustomEvent("global:renderApp"));
+      publishRenderRequested();
       return;
     }
   }
@@ -127,7 +135,7 @@ async function renderApp() {
   if (isProtectedRoute(pathName) && !isAuthenticated(appState)) {
     rememberPostLoginRedirect(pathName + window.location.search);
     history.replaceState({}, "", "/login");
-    window.dispatchEvent(new CustomEvent("global:renderApp"));
+    publishRenderRequested();
     return;
   }
 
@@ -190,12 +198,12 @@ async function renderApp() {
     .addEventListener("click", () => navigate("/"));
 }
 
-window.addEventListener("cart:updateGlobalCart", () => {
+subscribeToCartChanges(() => {
   setGlobalCartVariable();
   updateHeaderState(appState, activeHeaderElement);
 });
 
-window.addEventListener("global:renderApp", () => {
+subscribeToRenderRequests(() => {
   renderApp();
 });
 
@@ -203,16 +211,16 @@ window.addEventListener("popstate", () => {
   renderApp();
 });
 
-window.addEventListener("auth:changed", () => {
+subscribeToAuthSessionChanges(() => {
   renderApp();
 });
 
-window.addEventListener("auth:logout-request", () => {
+subscribeToLogoutRequests(() => {
   clearAuthSession(appState);
   navigate("/");
 });
 
-window.addEventListener("cart:add-item", (event) => {
+subscribeToCartItemAddRequests((event) => {
   const payload = event.detail;
   if (!payload || !payload.productId) {
     return;
@@ -238,7 +246,7 @@ window.addEventListener("cart:add-item", (event) => {
   updateHeaderState(appState, activeHeaderElement);
   const productName =
     appState.productsById[payload.productId]?.name || "Item";
-  notify({
+  publishNotification({
     type: "success",
     title: "Item added",
     message: `${productName} was added to your cart.`,

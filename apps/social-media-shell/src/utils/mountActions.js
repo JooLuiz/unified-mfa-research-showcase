@@ -1,3 +1,8 @@
+import {
+  publishLogoutRequested,
+  subscribeToAuthSessionChanges,
+  subscribeToHeaderEvents,
+} from "../events/eventBus";
 import { isAuthenticated } from "./authActions";
 import { navigate } from "./navigate";
 
@@ -14,9 +19,8 @@ function buildHeaderState(appState) {
 
 function createHeaderApp() {
   let headerElement = null;
-  let onHostNavigate = null;
-  let onHostLogout = null;
-  let onAuthChanged = null;
+  let unsubscribeFromHeaderEvents = null;
+  let unsubscribeFromAuthSessionChanges = null;
   let storedAppState = null;
 
   function bootstrap() {
@@ -30,48 +34,40 @@ function createHeaderApp() {
     headerElement = document.createElement("react-header-mfe");
     headerElement.state = buildHeaderState(appState);
 
-    onHostNavigate = (event) => {
-      const targetPath = event?.detail?.path;
-      if (typeof targetPath === "string") {
-        navigate(targetPath);
-      }
-    };
-    onHostLogout = () => {
-      window.dispatchEvent(new CustomEvent("auth:logout-request"));
-    };
-    onAuthChanged = () => {
+    unsubscribeFromHeaderEvents = subscribeToHeaderEvents(headerElement, {
+      onNavigate: (event) => {
+        const targetPath = event?.detail?.path;
+        if (typeof targetPath === "string") {
+          navigate(targetPath);
+        }
+      },
+      onLogout: () => {
+        publishLogoutRequested();
+      },
+    });
+    unsubscribeFromAuthSessionChanges = subscribeToAuthSessionChanges(() => {
       if (headerElement && storedAppState) {
         headerElement.state = buildHeaderState(storedAppState);
       }
-    };
-
-    headerElement.addEventListener("host:navigate", onHostNavigate);
-    headerElement.addEventListener("host:logout", onHostLogout);
-    window.addEventListener("auth:changed", onAuthChanged);
+    });
 
     domElement.appendChild(headerElement);
     return Promise.resolve();
   }
 
   function unmount() {
-    if (headerElement) {
-      if (onHostNavigate) {
-        headerElement.removeEventListener("host:navigate", onHostNavigate);
-      }
-      if (onHostLogout) {
-        headerElement.removeEventListener("host:logout", onHostLogout);
-      }
-      if (headerElement.parentNode) {
-        headerElement.parentNode.removeChild(headerElement);
-      }
+    if (unsubscribeFromHeaderEvents) {
+      unsubscribeFromHeaderEvents();
     }
-    if (onAuthChanged) {
-      window.removeEventListener("auth:changed", onAuthChanged);
+    if (unsubscribeFromAuthSessionChanges) {
+      unsubscribeFromAuthSessionChanges();
+    }
+    if (headerElement && headerElement.parentNode) {
+      headerElement.parentNode.removeChild(headerElement);
     }
     headerElement = null;
-    onHostNavigate = null;
-    onHostLogout = null;
-    onAuthChanged = null;
+    unsubscribeFromHeaderEvents = null;
+    unsubscribeFromAuthSessionChanges = null;
     storedAppState = null;
     return Promise.resolve();
   }

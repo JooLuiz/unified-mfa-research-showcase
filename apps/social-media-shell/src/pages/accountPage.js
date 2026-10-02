@@ -13,7 +13,7 @@ import {
 } from "../utils/authActions";
 import { persistAccountUpdate } from "../commands/accountCommands";
 import { requestCsvExport } from "../exports/requestCsvExport";
-import { notify } from "../notifications/notificationBus";
+import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
  * Renders the account page with profile, address, and "My Posts" sections.
@@ -103,7 +103,7 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
       fileName: "my-posts.csv",
       authToken: appState.authToken,
     });
-    notify(
+    publishNotification(
       exportResult.ok
         ? {
             type: "success",
