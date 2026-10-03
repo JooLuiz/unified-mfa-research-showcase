@@ -116,6 +116,7 @@ function createShellEvents({ mesh }) {
    * @param {{ onRenderRequested: () => void, onPathRequested: (payload: { path: string }) => void, onAuthSessionChanged: () => void, onLogoutRequested: () => void }} handlers - Shell orchestration handlers.
    * @returns {void}
    * @sideEffects Registers four local mesh subscriptions.
+   * @note UI observers run after the shell handler has resynced auth state.
    */
   function ensureShellEventListeners(handlers) {
     if (shellEventListenersStarted) {
@@ -133,8 +134,8 @@ function createShellEvents({ mesh }) {
       }
     });
     mesh.subscribe(AUTH_TOPIC, AUTH_SESSION_CHANGED_EVENT, () => {
-      authSessionListeners.forEach((listener) => listener());
       handlers.onAuthSessionChanged();
+      authSessionListeners.forEach((listener) => listener());
     });
     mesh.subscribe(AUTH_TOPIC, AUTH_LOGOUT_REQUESTED_EVENT, () => {
       handlers.onLogoutRequested();
