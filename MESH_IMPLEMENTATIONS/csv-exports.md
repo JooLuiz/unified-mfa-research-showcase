@@ -10,7 +10,7 @@ Connection-level mesh authentication ensures the gateway assigns `userId` from a
 
 ## Flow
 
-1. The user logs in. The shell fetches a one-time mesh ticket from `POST /api/auth/mesh-ticket` and opens an authenticated WebSocket to the gateway.
+1. The user logs in. The shell fetches a one-time connection ticket from `POST /api/auth/connection-ticket` and opens an authenticated WebSocket to the gateway.
 2. At bootstrap (or on login), the shell registers long-lived `exports.completed` / `exports.failed` listeners.
 3. The user clicks **Export CSV**. The button shows `Preparing export...`.
 4. The adapter calls `await mesh.whenConnected()`, then publishes `exports.requested` with `{ kind: "orders" | "posts" }` and `scope: "distributed"`.
@@ -20,7 +20,7 @@ Connection-level mesh authentication ensures the gateway assigns `userId` from a
 8. The adapter creates a Blob download and the account page shows the existing success or error toast.
 
 ```text
-Login → POST /api/auth/mesh-ticket → WebSocket ?ticket=...
+Login → POST /api/auth/connection-ticket → WebSocket ?ticket=...
 Account page → mesh.publish exports.requested { kind }
 Gateway handler → create job → generate CSV → gateway.reply(completed|failed)
 Shell listener → targeted reply with requestId

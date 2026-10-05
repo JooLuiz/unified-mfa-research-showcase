@@ -8,7 +8,7 @@ import {
   isProtectedRoute,
   rememberPostLoginRedirect,
   refreshCurrentUserFromApi,
-  fetchMeshConnectionTicket,
+  fetchConnectionTicket,
 } from "./utils/authActions";
 import { AUTH_TOKEN_STORAGE_KEY } from "./utils/constants";
 import { configureMesh } from "event-mesh/mesh";
@@ -106,9 +106,9 @@ function configureAuthenticatedApplicationMesh() {
     getConnectionTicket: async () => {
       const authToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
       if (!authToken) {
-        throw new Error("missing auth token for mesh ticket");
+        throw new Error("missing auth token for connection ticket");
       }
-      return fetchMeshConnectionTicket(authToken);
+      return fetchConnectionTicket(authToken);
     },
   });
 }

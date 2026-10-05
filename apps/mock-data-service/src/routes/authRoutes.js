@@ -9,9 +9,9 @@
 const express = require("express");
 const { buildPublicUser, buildAuthToken, extractUserIdFromToken } = require("../domain/auth");
 const {
-  buildMeshRolesFromUserRole,
-  issueMeshTicket,
-} = require("../domain/meshTickets");
+  buildConnectionRolesFromUserRole,
+  issueConnectionTicket,
+} = require("../domain/connectionTickets");
 
 /**
  * Creates the authentication router.
@@ -22,7 +22,7 @@ const {
 function createAuthRouter(jsonStore) {
   const router = express.Router();
 
-  router.post("/auth/mesh-ticket", async (request, response) => {
+  router.post("/auth/connection-ticket", async (request, response) => {
     try {
       const userId = extractUserIdFromToken(request.headers.authorization);
       if (!userId) {
@@ -37,15 +37,15 @@ function createAuthRouter(jsonStore) {
         return;
       }
 
-      const meshTicket = issueMeshTicket({
+      const connectionTicket = issueConnectionTicket({
         userId: matchingUser.id,
-        roles: buildMeshRolesFromUserRole(matchingUser.role),
+        roles: buildConnectionRolesFromUserRole(matchingUser.role),
       });
 
-      response.type("text/plain").send(meshTicket);
+      response.type("text/plain").send(connectionTicket);
     } catch (error) {
       response.status(500).json({
-        message: "Unable to issue mesh ticket",
+        message: "Unable to issue connection ticket",
         details: error.message,
       });
     }

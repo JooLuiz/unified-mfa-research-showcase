@@ -49,7 +49,7 @@ Base URL: `http://localhost:4000/api`
 - `GET /products`, `GET /products/:productId`
 - `GET /categories`, `GET /showcases`, `GET /banners`
 - `POST /auth/login` - returns `{ token, user }` for the mock users.
-- `POST /auth/mesh-ticket` - requires `Authorization: Bearer <token>`; returns a plain-text one-time mesh connection ticket.
+- `POST /auth/connection-ticket` - requires `Authorization: Bearer <token>`; returns a plain-text one-time connection ticket.
 - `GET /users/me` - requires `Authorization: Bearer <token>` header.
 - `PUT /users/me` - updates the current user (full name, gender, address) and persists to `users.json`.
 - `GET /posts` - returns the social media feed with embedded authors.

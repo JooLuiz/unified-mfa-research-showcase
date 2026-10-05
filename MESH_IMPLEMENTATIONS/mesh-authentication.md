@@ -22,7 +22,7 @@ sequenceDiagram
   participant API as MockDataService_HTTP
   participant GW as EventMeshGateway
 
-  Shell->>API: POST /api/auth/mesh-ticket (Bearer token)
+  Shell->>API: POST /api/auth/connection-ticket (Bearer token)
   API-->>Shell: plain-text ticket
   Shell->>GW: WebSocket upgrade ?ticket=...
   GW->>GW: authenticateConnection consumes ticket
@@ -56,16 +56,16 @@ Roles are derived from `users.json`: `"admin"` → `["admin"]`, everything else 
 
 ### Ticket issuance
 
-**Endpoint:** `POST /api/auth/mesh-ticket`
+**Endpoint:** `POST /api/auth/connection-ticket`
 
 - Requires `Authorization: Bearer <token>`
 - Returns `200` with plain-text ticket body
 - Errors: `401` missing/invalid token, `404` unknown user
 
-**Domain module:** `apps/mock-data-service/src/domain/meshTickets.js`
+**Domain module:** `apps/mock-data-service/src/domain/connectionTickets.js`
 
-- `issueMeshTicket({ userId, roles })`
-- `consumeMeshTicket(ticket)` → credential or `null`
+- `issueConnectionTicket({ userId, roles })`
+- `consumeConnectionTicket(ticket)` → credential or `null`
 
 **Route:** `apps/mock-data-service/src/routes/authRoutes.js`
 
@@ -79,7 +79,7 @@ Roles are derived from `users.json`: `"admin"` → `["admin"]`, everything else 
 async ({ url }) => {
   const ticket = url.searchParams.get("ticket");
   if (!ticket) return null;
-  return consumeMeshTicket(ticket);
+  return consumeConnectionTicket(ticket);
 };
 ```
 
@@ -120,13 +120,13 @@ configureMesh({
   enableWebSocket: true,
   getConnectionTicket: async () => {
     const authToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-    if (!authToken) throw new Error("missing auth token for mesh ticket");
-    return fetchMeshConnectionTicket(authToken);
+    if (!authToken) throw new Error("missing auth token for connection ticket");
+    return fetchConnectionTicket(authToken);
   },
 });
 ```
 
-`fetchMeshConnectionTicket()` lives in each shell's `src/utils/authActions.js` and POSTs to `/api/auth/mesh-ticket`.
+`fetchConnectionTicket()` lives in each shell's `src/utils/authActions.js` and POSTs to `/api/auth/connection-ticket`.
 
 The linked `event-mesh` client calls `getConnectionTicket` on every initial connection and reconnect, then appends the ticket to the WebSocket URL.
 
@@ -154,7 +154,7 @@ The linked `event-mesh` client calls `getConnectionTicket` on every initial conn
 
 | Area | Path |
 | --- | --- |
-| Ticket store | `apps/mock-data-service/src/domain/meshTickets.js` |
+| Ticket store | `apps/mock-data-service/src/domain/connectionTickets.js` |
 | Ticket HTTP route | `apps/mock-data-service/src/routes/authRoutes.js` |
 | Gateway auth callbacks | `apps/mock-data-service/src/event-mesh/gatewayAuth.js` |
 | Gateway startup | `apps/mock-data-service/src/server.js` |

@@ -2,7 +2,7 @@
  * Factory helpers for event-mesh gateway connection and message authorization.
  * Role: Validates mesh tickets at WebSocket upgrade and restricts client publish topics.
  * Not in this file: Ticket issuance or export job handling.
- * Key dependencies: src/domain/meshTickets.js consumeMeshTicket callback.
+ * Key dependencies: src/domain/connectionTickets.js consumeConnectionTicket callback.
  * See also: src/server.js.
  */
 
@@ -20,19 +20,19 @@ const GUEST_CREDENTIAL = Object.freeze({
 });
 
 /**
- * Builds the gateway authenticateConnection callback for mesh ticket validation.
+ * Builds the gateway authenticateConnection callback for connection ticket validation.
  *
- * @param {(ticketValue: string) => { userId: string, roles: string[] } | null} consumeMeshTicket - Ticket consumer from meshTickets domain.
+ * @param {(ticketValue: string) => { userId: string, roles: string[] } | null} consumeConnectionTicket - Ticket consumer from connectionTickets domain.
  * @returns {import("event-mesh/gateway").AuthenticateConnection} Connection authentication callback.
  */
-function createAuthenticateConnection(consumeMeshTicket) {
+function createAuthenticateConnection(consumeConnectionTicket) {
   return async ({ url }) => {
     const ticketValue = url.searchParams.get("ticket");
     if (!ticketValue) {
       return GUEST_CREDENTIAL;
     }
 
-    return consumeMeshTicket(ticketValue);
+    return consumeConnectionTicket(ticketValue);
   };
 }
 

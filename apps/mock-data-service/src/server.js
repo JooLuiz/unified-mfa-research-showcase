@@ -19,7 +19,7 @@ const { createFaqRouter } = require("./routes/faqRoutes");
 const { createOrderRouter } = require("./routes/orderRoutes");
 const { createExportRouter } = require("./routes/exportRoutes");
 const { createAdminRouter } = require("./routes/adminRoutes");
-const { consumeMeshTicket } = require("./domain/meshTickets");
+const { consumeConnectionTicket } = require("./domain/connectionTickets");
 const {
   createAuthenticateConnection,
   createAuthorizeMessage,
@@ -49,7 +49,7 @@ async function configureAndStartEventGateway() {
   configureGateway({
     gatewayPort: 3004,
     peerRebroadcastPolicy: "perMessage",
-    authenticateConnection: createAuthenticateConnection(consumeMeshTicket),
+    authenticateConnection: createAuthenticateConnection(consumeConnectionTicket),
     authorizeMessage: createAuthorizeMessage(),
   });
   await gateway.start();
