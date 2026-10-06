@@ -1,47 +1,65 @@
 /**
  * Renders the all-orders table route for the admin shell.
- * Role: Loads every order via the admin API and renders a read-only table.
- * Not in this file: Auth guard (main.js) or order mutations.
- * Key dependencies: src/utils/fetchJson.js; src/notifications/notificationAdapter.js.
+ * Role: Loads every order via the admin API and renders a read-only table, kept live by
+ *   prepending new rows whenever an order is broadcast over SSE.
+ * Not in this file: Auth guard (main.js), order mutations, or table markup
+ *   (src/pages/ordersTableView.js).
+ * Key dependencies: src/utils/fetchJson.js; src/notifications/notificationAdapter.js;
+ *   src/events/adminLiveEvents.js; src/pages/ordersTableView.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
 import fetchJson from "../utils/fetchJson";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import { publishNotification } from "../notifications/notificationAdapter";
-
-function formatCurrency(value) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(value);
-}
-
-function formatDate(isoDate) {
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(isoDate));
-}
+import { subscribeToAdminLiveEvents } from "../events/adminLiveEvents";
+import { ORDER_CREATED_EVENT_TYPE } from "../events/adminLiveEventsContracts";
+import { buildOrderRowMarkup, buildOrdersTableMarkup } from "./ordersTableView";
 
 /**
- * Returns a safe numeric total from an order record.
+ * Renders the orders table markup, or an empty-state message when there are no orders.
+ *
+ * @param {HTMLElement} tableMount - Container element for the table.
+ * @param {object[]} orderRecords - Orders with their customer embedded.
+ * @returns {void}
+ * @sideEffects Replaces the table mount's contents.
  */
-function getOrderTotalAmount(orderRecord) {
-  return Number.isFinite(orderRecord.totalAmount)
-    ? orderRecord.totalAmount
-    : 0;
+function renderOrdersTable(tableMount, orderRecords) {
+  if (orderRecords.length === 0) {
+    tableMount.innerHTML = `<p class="admin-empty">No orders found.</p>`;
+    return;
+  }
+  tableMount.innerHTML = buildOrdersTableMarkup(orderRecords);
 }
 
 /**
- * Renders the orders page with a table of all users' orders.
+ * Inserts a newly placed order as the first row of the orders table.
+ *
+ * @param {HTMLElement} tableMount - Container element for the table.
+ * @param {object} orderRecord - Order with its customer embedded, as broadcast over SSE.
+ * @returns {void}
+ * @sideEffects Mutates the table mount's DOM.
+ */
+function prependOrderRow(tableMount, orderRecord) {
+  const tableBody = tableMount.querySelector("tbody");
+  if (!tableBody) {
+    renderOrdersTable(tableMount, [orderRecord]);
+    return;
+  }
+  tableBody.insertAdjacentHTML("afterbegin", buildOrderRowMarkup(orderRecord));
+}
+
+/**
+ * Renders the orders page with a table of all users' orders, kept live by prepending new
+ * rows whenever an order is broadcast over SSE.
  *
  * @param {object} appState - Shell state holding the auth session.
  * @param {HTMLElement} pageMount - Route container element.
+ * @param {Array<() => void>} activeCleanupFunctions - Cleanup registry for the current route.
  * @returns {Promise<void>}
- * @sideEffects Fetches admin orders and renders the table; on failure shows an inline error and a toast.
+ * @sideEffects Fetches admin orders, renders the table, and registers a live-events subscription.
  */
-async function renderOrdersPage(appState, pageMount) {
+async function renderOrdersPage(appState, pageMount, activeCleanupFunctions) {
   pageMount.innerHTML = `
     <section class="admin-table-page">
       <h2>All Orders</h2>
@@ -56,50 +74,7 @@ async function renderOrdersPage(appState, pageMount) {
     const ordersPayload = await fetchJson(`${MOCK_API_BASE_URL}/admin/orders`, {
       headers: { Authorization: `Bearer ${appState.authToken}` },
     });
-
-    if (ordersPayload.items.length === 0) {
-      tableMount.innerHTML = `<p class="admin-empty">No orders found.</p>`;
-      return;
-    }
-
-    const tableRows = ordersPayload.items
-      .map((orderRecord) => {
-        const customerName =
-          orderRecord.customer?.fullName ||
-          orderRecord.customer?.username ||
-          "Unknown customer";
-        const itemCount = (orderRecord.items || []).reduce(
-          (accumulator, orderItem) => accumulator + (orderItem.quantity || 0),
-          0,
-        );
-        return `
-          <tr>
-            <td>${orderRecord.id}</td>
-            <td>${customerName}</td>
-            <td>${formatDate(orderRecord.placedAt)}</td>
-            <td>${itemCount}</td>
-            <td class="admin-cell-number">${formatCurrency(
-              getOrderTotalAmount(orderRecord),
-            )}</td>
-          </tr>
-        `;
-      })
-      .join("");
-
-    tableMount.innerHTML = `
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th>Order</th>
-            <th>Customer</th>
-            <th>Placed At</th>
-            <th>Items</th>
-            <th>Total</th>
-          </tr>
-        </thead>
-        <tbody>${tableRows}</tbody>
-      </table>
-    `;
+    renderOrdersTable(tableMount, ordersPayload.items);
   } catch (error) {
     tableMount.innerHTML = `<p class="admin-error">Unable to load orders.</p>`;
     publishNotification({
@@ -108,6 +83,13 @@ async function renderOrdersPage(appState, pageMount) {
       message: "Unable to load all orders.",
     });
   }
+
+  const unsubscribeFromLiveEvents = subscribeToAdminLiveEvents(({ type, data }) => {
+    if (type === ORDER_CREATED_EVENT_TYPE) {
+      prependOrderRow(tableMount, data);
+    }
+  });
+  activeCleanupFunctions.push(unsubscribeFromLiveEvents);
 }
 
 export { renderOrdersPage };

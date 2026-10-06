@@ -1,9 +1,11 @@
 /**
  * Serves post routes for the mock data service.
  * Role: Handles GET and POST /posts, mounted at /api.
- * Not in this file: Token helpers (src/domain/auth.js) or id generation (src/domain/identifiers.js).
+ * Not in this file: Token helpers (src/domain/auth.js), id generation
+ *   (src/domain/identifiers.js), or the admin broadcast implementation
+ *   (src/infrastructure/adminEventStream.js).
  * Key dependencies: posts.json and users.json via the JSON store.
- * See also: src/server.js.
+ * See also: src/server.js; src/routes/adminRoutes.js (admin live-notifications stream).
  */
 
 const express = require("express");
@@ -14,9 +16,10 @@ const { generateIdentifier } = require("../domain/identifiers");
  * Creates the post router.
  *
  * @param {{ readJsonFile: (fileName: string) => Promise<any>, writeJsonFile: (fileName: string, data: any) => Promise<void> }} jsonStore - JSON file store bound to the data directory.
+ * @param {{ broadcastEvent: (eventType: string, payload: object) => void }} adminEventStream - Broadcaster notified when a new post is created.
  * @returns {import("express").Router} Router with the /posts routes.
  */
-function createPostRouter(jsonStore) {
+function createPostRouter(jsonStore, adminEventStream) {
   const router = express.Router();
 
   router.get("/posts", async (_request, response) => {
@@ -91,10 +94,14 @@ function createPostRouter(jsonStore) {
       const updatedPosts = [newPost, ...postsData];
       await jsonStore.writeJsonFile("posts.json", updatedPosts);
 
-      response.status(201).json({
+      const postWithAuthor = {
         ...newPost,
         author: buildPublicUser(matchingUser),
-      });
+      };
+
+      adminEventStream.broadcastEvent("post_created", postWithAuthor);
+
+      response.status(201).json(postWithAuthor);
     } catch (error) {
       response.status(500).json({
         message: "Unable to create post",

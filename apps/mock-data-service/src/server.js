@@ -11,6 +11,7 @@ const cors = require("cors");
 const path = require("path");
 
 const { createJsonStore } = require("./infrastructure/jsonStore");
+const { createAdminEventStream } = require("./infrastructure/adminEventStream");
 const { createCatalogRouter } = require("./routes/catalogRoutes");
 const { createAuthRouter } = require("./routes/authRoutes");
 const { createUserRouter } = require("./routes/userRoutes");
@@ -24,6 +25,7 @@ const app = express();
 const port = process.env.PORT || 4000;
 const dataDirectory = path.resolve(__dirname, "../data");
 const jsonStore = createJsonStore(dataDirectory);
+const adminEventStream = createAdminEventStream();
 
 app.use(cors());
 app.use(express.json());
@@ -35,11 +37,11 @@ app.get("/health", (_request, response) => {
 app.use("/api", createCatalogRouter(jsonStore));
 app.use("/api", createAuthRouter(jsonStore));
 app.use("/api", createUserRouter(jsonStore));
-app.use("/api", createPostRouter(jsonStore));
+app.use("/api", createPostRouter(jsonStore, adminEventStream));
 app.use("/api", createFaqRouter(jsonStore));
-app.use("/api", createOrderRouter(jsonStore));
+app.use("/api", createOrderRouter(jsonStore, adminEventStream));
 app.use("/api", createExportRouter(jsonStore));
-app.use("/api", createAdminRouter(jsonStore));
+app.use("/api", createAdminRouter(jsonStore, adminEventStream));
 
 app.listen(port, () => {
   const startupMessage = `mock-data-service running on http://localhost:${port}`;
