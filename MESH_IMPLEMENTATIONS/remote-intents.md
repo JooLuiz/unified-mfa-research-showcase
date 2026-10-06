@@ -24,7 +24,7 @@ Helpers live in [`packages/catalog-events`](../packages/catalog-events) (`create
 | --- | --- | --- | --- | --- |
 | `cart` | `item-update-requested` | `{ productId, quantity }` | `checkout-items` | Ecommerce: `updateCartItem` (+ toast path via cart.changed UI) |
 | `cart` | `item-remove-requested` | `{ productId }` | `checkout-items` | Ecommerce: `removeCartItem` + toast; empty cart → `render-requested` |
-| `checkout` | `coupon-applied` | `{ code, discountPercentage }` | `apply-coupon` | Ecommerce: set `appState.appliedCoupon`; checkout page refreshes summary |
+| `checkout` | `coupon-applied` | `{ code, discountPercentage }` | `apply-coupon` | Ecommerce: set `appState.appliedCoupon`; checkout page and header refresh |
 | `checkout` | `place-order-requested` | `{}` | `checkout-summary` | Ecommerce: `placeCheckoutOrder` command |
 | `navigation` | `path-requested` | `{ path: "/products" }` | `checkout-empty` (on iframe `go-shopping`) | Ecommerce: `navigate(path)` via existing shell listeners |
 

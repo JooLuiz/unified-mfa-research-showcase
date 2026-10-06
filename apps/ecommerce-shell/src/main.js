@@ -415,13 +415,15 @@ function handleCartItemRemoveRequested({ productId }) {
 }
 
 /**
- * Stores an applied coupon from the apply-coupon remote.
+ * Stores an applied coupon from the apply-coupon remote and refreshes the header total.
  *
  * @param {{ code: string, discountPercentage: number }} coupon - Validated coupon payload.
  * @returns {void}
+ * @sideEffects Updates the mounted header element's discounted total.
  */
 function handleCouponApplied(coupon) {
   appState.appliedCoupon = coupon;
+  updateHeaderState(appState, activeHeaderElement);
 }
 
 /**

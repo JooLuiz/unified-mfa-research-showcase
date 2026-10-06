@@ -6,9 +6,9 @@
  * See also: src/pages/checkoutPage.js; MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
-import { getCartTotalValue } from "../utils/cartActions";
-import { placeOrder } from "./placeOrder";
 import { publishCartChanged } from "../events/eventBus";
+import { calculateCartTotals } from "../utils/cartActions";
+import { placeOrder } from "./placeOrder";
 import { navigate } from "../utils/navigate";
 
 /**
@@ -18,9 +18,7 @@ import { navigate } from "../utils/navigate";
  * @returns {{ subtotal: number, discountAmount: number }} Current totals.
  */
 function calculateCheckoutTotals(appState) {
-  const subtotal = getCartTotalValue(appState);
-  const discountPercentage = appState.appliedCoupon?.discountPercentage || 0;
-  const discountAmount = subtotal * (discountPercentage / 100);
+  const { subtotal, discountAmount } = calculateCartTotals(appState);
   return { subtotal, discountAmount };
 }
 

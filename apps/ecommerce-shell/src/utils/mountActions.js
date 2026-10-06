@@ -1,10 +1,10 @@
-import { getCartTotalValue, getCartItemCount } from "./cartActions";
+import { getCartDiscountedTotal, getCartItemCount } from "./cartActions";
 import { isAuthenticated } from "./authActions";
 
 function buildHeaderState(appState) {
   return {
     appType: "ecommerce",
-    totalPrice: getCartTotalValue(appState),
+    totalPrice: getCartDiscountedTotal(appState),
     itemCount: getCartItemCount(appState),
     isAuthenticated: isAuthenticated(appState),
     currentUserName:
