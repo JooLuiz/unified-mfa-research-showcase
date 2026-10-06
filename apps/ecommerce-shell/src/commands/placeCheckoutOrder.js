@@ -7,7 +7,7 @@
  */
 
 import { publishCartChanged } from "../events/eventBus";
-import { getCartTotalValue } from "../utils/cartActions";
+import { calculateCartTotals } from "../utils/cartActions";
 import { placeOrder } from "./placeOrder";
 
 /**
@@ -17,9 +17,7 @@ import { placeOrder } from "./placeOrder";
  * @returns {{ subtotal: number, discountAmount: number }} Current totals.
  */
 function calculateCheckoutTotals(appState) {
-  const subtotal = getCartTotalValue(appState);
-  const discountPercentage = appState.appliedCoupon?.discountPercentage || 0;
-  const discountAmount = subtotal * (discountPercentage / 100);
+  const { subtotal, discountAmount } = calculateCartTotals(appState);
   return { subtotal, discountAmount };
 }
 

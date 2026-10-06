@@ -6,7 +6,7 @@
  * See also: src/utils/renderActions.js (public barrel).
  */
 
-import { publishRenderRequested } from "../events/eventBus";
+import { publishCartChanged, publishRenderRequested } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 import { updateCartItem, removeCartItem } from "../utils/cartActions";
 import {
@@ -123,6 +123,7 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
       onCouponApplied: (couponPayload) => {
         appState.appliedCoupon = couponPayload;
         refreshCheckoutSummary();
+        publishCartChanged();
       },
     }),
   );
