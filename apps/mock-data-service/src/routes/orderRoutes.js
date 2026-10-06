@@ -1,13 +1,15 @@
 /**
  * Serves order routes for the mock data service.
  * Role: Handles POST /orders, GET /orders, and GET /orders/:orderId, mounted at /api.
- * Not in this file: Token helpers (src/domain/auth.js) or order persistence (src/domain/orderProcessing.js).
+ * Not in this file: Token helpers (src/domain/auth.js), order persistence
+ *   (src/domain/orderProcessing.js), or the admin broadcast implementation
+ *   (src/infrastructure/adminEventStream.js).
  * Key dependencies: orders.json and users.json via the JSON store.
- * See also: src/server.js.
+ * See also: src/server.js; src/routes/adminRoutes.js (admin live-notifications stream).
  */
 
 const express = require("express");
-const { extractUserIdFromToken } = require("../domain/auth");
+const { buildPublicUser, extractUserIdFromToken } = require("../domain/auth");
 const {
   ORDER_REQUEST_INVALID_CODE,
   createOrderForUser,
@@ -17,9 +19,10 @@ const {
  * Creates the order router.
  *
  * @param {{ readJsonFile: (fileName: string) => Promise<any>, readJsonFileWithDefault: (fileName: string, defaultValue: any) => Promise<any>, writeJsonFile: (fileName: string, data: any) => Promise<void> }} jsonStore - JSON file store bound to the data directory.
+ * @param {{ broadcastEvent: (eventType: string, payload: object) => void }} adminEventStream - Broadcaster notified when a new order is placed.
  * @returns {import("express").Router} Router with the /orders routes.
  */
-function createOrderRouter(jsonStore) {
+function createOrderRouter(jsonStore, adminEventStream) {
   const router = express.Router();
 
   router.post("/orders", async (request, response) => {
@@ -54,6 +57,11 @@ function createOrderRouter(jsonStore) {
         response.status(500).json({ message: "Unable to place order", details: orderResult.code });
         return;
       }
+
+      adminEventStream.broadcastEvent("order_created", {
+        ...orderResult.order,
+        customer: buildPublicUser(matchingUser),
+      });
 
       response.status(201).json(orderResult.order);
     } catch (error) {

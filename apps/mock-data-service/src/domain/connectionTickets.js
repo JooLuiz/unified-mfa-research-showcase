@@ -1,11 +1,13 @@
 /**
  * Issues and validates one-time connection tickets for the mock data service.
- * Role: Owns short-lived credentials consumed during WebSocket upgrade authentication.
+ * Role: Owns short-lived credentials consumed when a client can't send an Authorization
+ *   header on the connecting request (SSE and WebSocket upgrades both qualify).
  * Not in this file: HTTP routing or gateway configuration.
  * Key dependencies: src/domain/identifiers.js.
- * See also: Not called by `main`'s src/routes/authRoutes.js today. Kept here for
- *   branch-structure parity; the mesh branch's src/event-mesh/gatewayAuth.js
- *   consumes these tickets during WebSocket upgrade.
+ * See also: On `main`, src/routes/adminRoutes.js issues tickets via POST
+ *   /admin/connection-tickets and consumes them in GET /admin/events to authenticate the
+ *   admin live-notifications SSE stream. On the mesh branch,
+ *   src/event-mesh/gatewayAuth.js consumes these same tickets during WebSocket upgrade.
  */
 
 const { randomBytes } = require("crypto");

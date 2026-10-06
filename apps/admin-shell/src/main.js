@@ -21,6 +21,12 @@ import { mountHeaderAndFooter } from "./utils/mountActions";
 import { navigate } from "./utils/navigate";
 import { publishNotification } from "./notifications/notificationAdapter";
 import {
+  startAdminLiveEvents,
+  stopAdminLiveEvents,
+  subscribeToAdminLiveEvents,
+} from "./events/adminLiveEvents";
+import { ORDER_CREATED_EVENT_TYPE } from "./events/adminLiveEventsContracts";
+import {
   renderLoginPage,
   renderDashboardPage,
   renderOrdersPage,
@@ -35,6 +41,20 @@ const appState = {
 
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
+
+/**
+ * Starts or stops the admin live-notifications SSE stream to match the current session.
+ *
+ * @returns {void}
+ * @sideEffects Opens or closes the SSE connection via src/events/adminLiveEvents.js.
+ */
+function syncAdminLiveEventsWithSession() {
+  if (isAdminAuthenticated(appState)) {
+    void startAdminLiveEvents(appState);
+  } else {
+    stopAdminLiveEvents();
+  }
+}
 
 function clearCurrentPage() {
   activeCleanupFunctions.forEach((cleanup) => {
@@ -110,17 +130,17 @@ async function renderApp() {
   }
 
   if (pathName === "/") {
-    await renderDashboardPage(appState, layoutMounts.pageMount);
+    await renderDashboardPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
     return;
   }
 
   if (pathName === "/orders") {
-    await renderOrdersPage(appState, layoutMounts.pageMount);
+    await renderOrdersPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
     return;
   }
 
   if (pathName === "/posts") {
-    await renderPostsPage(appState, layoutMounts.pageMount);
+    await renderPostsPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
     return;
   }
 
@@ -153,12 +173,22 @@ window.addEventListener("popstate", () => {
 });
 
 subscribeToAuthSessionChanges(() => {
+  syncAdminLiveEventsWithSession();
   renderApp();
 });
 
 subscribeToLogoutRequests(() => {
   clearAuthSession(appState);
   navigate("/login");
+});
+
+subscribeToAdminLiveEvents(({ type }) => {
+  const isOrderEvent = type === ORDER_CREATED_EVENT_TYPE;
+  publishNotification({
+    type: "success",
+    title: isOrderEvent ? "New order" : "New post",
+    message: isOrderEvent ? "A new order was placed" : "A new post was made",
+  });
 });
 
 async function bootstrap() {
@@ -171,6 +201,7 @@ async function bootstrap() {
   if (appState.authToken) {
     void refreshCurrentUserFromApi(appState);
   }
+  syncAdminLiveEventsWithSession();
   await renderApp();
 }
 
