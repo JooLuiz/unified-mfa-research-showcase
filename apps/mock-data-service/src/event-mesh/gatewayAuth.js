@@ -10,6 +10,8 @@ const EXPORT_TOPIC = "exports";
 const EXPORT_REQUESTED_EVENT = "requested";
 const ORDERS_TOPIC = "orders";
 const ORDERS_REQUESTED_EVENT = "requested";
+const ADMIN_TOPIC = "admin";
+const ADMIN_WATCHING_EVENT = "watching";
 const IFRAME_BRIDGE_TOPIC = "iframe-bridge";
 const IFRAME_CHANNEL_REGISTERED_EVENT = "registered";
 const IFRAME_CHANNEL_UNREGISTERED_EVENT = "unregistered";
@@ -57,7 +59,14 @@ function createAuthorizeMessage() {
       return false;
     }
 
+    const isAdminWatchingMessage =
+      message.topic === ADMIN_TOPIC &&
+      message.event === ADMIN_WATCHING_EVENT &&
+      Array.isArray(credential.roles) &&
+      credential.roles.includes("admin");
+
     return (
+      isAdminWatchingMessage ||
       (message.topic === EXPORT_TOPIC &&
         message.event === EXPORT_REQUESTED_EVENT) ||
       (message.topic === ORDERS_TOPIC &&

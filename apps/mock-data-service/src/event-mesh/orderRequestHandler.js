@@ -2,10 +2,12 @@
  * Handles authenticated order placement requests received through the event-mesh gateway.
  * Role: Persists orders from mesh requests and replies with targeted notifications.
  * Not in this file: HTTP order routes or mesh ticket validation.
- * Key dependencies: JSON store; src/domain/orderProcessing.js; src/event-mesh/notificationEvents.js.
+ * Key dependencies: JSON store; src/domain/orderProcessing.js; src/event-mesh/notificationEvents.js;
+ *   src/infrastructure/adminEventStream.js.
  * See also: src/server.js.
  */
 
+const { buildPublicUser } = require("../domain/auth");
 const {
   ORDER_PERSISTENCE_FAILED_CODE,
   ORDER_REQUEST_INVALID_CODE,
@@ -36,10 +38,11 @@ const ORDER_FAILURE_NOTIFICATIONS = Object.freeze({
  * Registers the gateway subscriber that processes orders.requested messages.
  *
  * @param {{ readJsonFile: (fileName: string) => Promise<unknown>, readJsonFileWithDefault: (fileName: string, defaultValue: unknown) => Promise<unknown>, writeJsonFile: (fileName: string, data: unknown) => Promise<void> }} jsonStore - JSON store bound to service data files.
+ * @param {{ broadcastEvent: (eventType: string, payload: object) => void }} adminEventStream - Publisher for admin live order updates.
  * @returns {Promise<void>}
  * @sideEffects Subscribes to order request events on the local gateway singleton.
  */
-async function registerOrderRequestHandler(jsonStore) {
+async function registerOrderRequestHandler(jsonStore, adminEventStream) {
   const gatewayModule = await import("event-mesh/gateway");
   const gateway = gatewayModule.default;
 
@@ -75,6 +78,10 @@ async function registerOrderRequestHandler(jsonStore) {
     }
 
     await replyNotificationRaised(incomingMessage, ORDER_SUCCESS_NOTIFICATION);
+    adminEventStream.broadcastEvent("order_created", {
+      ...orderResult.order,
+      customer: buildPublicUser(user),
+    });
   });
 }
 

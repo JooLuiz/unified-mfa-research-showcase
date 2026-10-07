@@ -1,14 +1,18 @@
 /**
  * Renders the admin dashboard route for the admin shell.
- * Role: Loads all orders and posts and renders summary cards with totals.
- * Not in this file: Table rendering (orders/posts pages) or auth guard (main.js).
- * Key dependencies: src/utils/fetchJson.js; src/notifications/notificationAdapter.js.
+ * Role: Loads all orders and posts and renders summary cards with totals; keeps the totals
+ *   live by re-fetching whenever a new order or post is broadcast over live admin events.
+ * Not in this file: Table rendering (orders/posts pages), auth guard (main.js), or the live-event
+ *   transport itself (src/events/adminLiveEvents.js).
+ * Key dependencies: src/utils/fetchJson.js; src/notifications/notificationAdapter.js;
+ *   src/events/adminLiveEvents.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
 import fetchJson from "../utils/fetchJson";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import { publishNotification } from "../notifications/notificationAdapter";
+import { subscribeToAdminLiveEvents } from "../events/adminLiveEvents";
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("en-US", {
@@ -27,24 +31,14 @@ function getOrderTotalAmount(orderRecord) {
 }
 
 /**
- * Renders the dashboard page with summary cards for all orders and posts.
+ * Fetches all orders and posts and renders the summary cards.
  *
  * @param {object} appState - Shell state holding the auth session.
- * @param {HTMLElement} pageMount - Route container element.
+ * @param {HTMLElement} cardsMount - Container element for the summary cards.
  * @returns {Promise<void>}
  * @sideEffects Fetches admin data and renders summary cards; on failure shows an inline error and a toast.
  */
-async function renderDashboardPage(appState, pageMount) {
-  pageMount.innerHTML = `
-    <section class="admin-dashboard">
-      <h2>Admin Dashboard</h2>
-      <div id="dashboardCards" class="admin-dashboard-cards">
-        <p class="admin-loading">Loading summary…</p>
-      </div>
-    </section>
-  `;
-  const cardsMount = pageMount.querySelector("#dashboardCards");
-
+async function loadAndRenderSummary(appState, cardsMount) {
   try {
     const requestOptions = {
       headers: { Authorization: `Bearer ${appState.authToken}` },
@@ -84,6 +78,35 @@ async function renderDashboardPage(appState, pageMount) {
       message: "Unable to load orders and posts summary.",
     });
   }
+}
+
+/**
+ * Renders the dashboard page with summary cards for all orders and posts, kept live by
+ * re-fetching the summary whenever a new order or post is broadcast over live admin events.
+ *
+ * @param {object} appState - Shell state holding the auth session.
+ * @param {HTMLElement} pageMount - Route container element.
+ * @param {Array<() => void>} activeCleanupFunctions - Cleanup registry for the current route.
+ * @returns {Promise<void>}
+ * @sideEffects Fetches admin data, renders summary cards, and registers a live-events subscription.
+ */
+async function renderDashboardPage(appState, pageMount, activeCleanupFunctions) {
+  pageMount.innerHTML = `
+    <section class="admin-dashboard">
+      <h2>Admin Dashboard</h2>
+      <div id="dashboardCards" class="admin-dashboard-cards">
+        <p class="admin-loading">Loading summary…</p>
+      </div>
+    </section>
+  `;
+  const cardsMount = pageMount.querySelector("#dashboardCards");
+
+  await loadAndRenderSummary(appState, cardsMount);
+
+  const unsubscribeFromLiveEvents = subscribeToAdminLiveEvents(() => {
+    void loadAndRenderSummary(appState, cardsMount);
+  });
+  activeCleanupFunctions.push(unsubscribeFromLiveEvents);
 }
 
 export { renderDashboardPage };

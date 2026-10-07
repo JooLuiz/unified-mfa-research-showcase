@@ -45,6 +45,12 @@ import {
   resetShellEventListeners,
 } from "./events/eventBus";
 import {
+  startAdminLiveEvents,
+  stopAdminLiveEvents,
+  subscribeToAdminLiveEvents,
+} from "./events/adminLiveEvents";
+import { ORDER_CREATED_EVENT_TYPE } from "./events/adminLiveEventsContracts";
+import {
   renderLoginPage,
   renderDashboardPage,
   renderOrdersPage,
@@ -60,6 +66,20 @@ const appState = {
 
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
+
+/**
+ * Starts admin live-event subscriptions when the current user is an admin, and stops them otherwise.
+ *
+ * @returns {void}
+ * @sideEffects Subscribes or unsubscribes the admin activity mesh listeners.
+ */
+function syncAdminLiveEventsWithSession() {
+  if (isAdminAuthenticated(appState)) {
+    void startAdminLiveEvents(appState);
+  } else {
+    stopAdminLiveEvents();
+  }
+}
 
 /**
  * Configures local-only mesh for anonymous notification delivery.
@@ -120,6 +140,7 @@ function startAuthenticatedMeshSession() {
     ensureNotificationDisplayListeners();
     ensureShellEventListeners(shellEventHandlers);
     ensureAccountIntentListeners(accountIntentHandlers);
+    syncAdminLiveEventsWithSession();
     return;
   }
 
@@ -134,9 +155,11 @@ function startAuthenticatedMeshSession() {
   ensureNotificationDisplayListeners();
   ensureShellEventListeners(shellEventHandlers);
   ensureAccountIntentListeners(accountIntentHandlers);
+  syncAdminLiveEventsWithSession();
 }
 
 function downgradeToLocalMeshSession() {
+  stopAdminLiveEvents();
   resetNotificationDisplayListeners();
   resetShellEventListeners();
   resetAccountIntentListeners();
@@ -229,17 +252,17 @@ async function renderApp() {
   }
 
   if (pathName === "/") {
-    await renderDashboardPage(appState, layoutMounts.pageMount);
+    await renderDashboardPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
     return;
   }
 
   if (pathName === "/orders") {
-    await renderOrdersPage(appState, layoutMounts.pageMount);
+    await renderOrdersPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
     return;
   }
 
   if (pathName === "/posts") {
-    await renderPostsPage(appState, layoutMounts.pageMount);
+    await renderPostsPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
     return;
   }
 
@@ -305,6 +328,15 @@ const shellEventHandlers = {
 
 window.addEventListener("popstate", () => {
   void renderApp();
+});
+
+subscribeToAdminLiveEvents(({ type }) => {
+  const isOrderEvent = type === ORDER_CREATED_EVENT_TYPE;
+  publishNotification({
+    type: "success",
+    title: isOrderEvent ? "New order" : "New post",
+    message: isOrderEvent ? "A new order was placed" : "A new post was made",
+  });
 });
 
 async function bootstrap() {
