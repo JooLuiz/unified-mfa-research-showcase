@@ -25,6 +25,9 @@ import { publishNotification } from "./notifications/notificationAdapter";
 
 import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
 
+import { addCartItem } from "./utils/cartActions";
+import { startCartLiveEvents, stopCartLiveEvents } from "./events/cartLiveEvents";
+import { endCartSession, hydrateSavedCart, startCartTabSync } from "./utils/cartSync";
 import { navigate } from "./utils/navigate";
 import {
   renderHomePage,
@@ -211,11 +214,21 @@ window.addEventListener("popstate", () => {
   renderApp();
 });
 
+function syncCartLiveEventsWithSession() {
+  if (appState.authToken) {
+    void startCartLiveEvents(appState);
+  } else {
+    stopCartLiveEvents();
+  }
+}
+
 subscribeToAuthSessionChanges(() => {
+  syncCartLiveEventsWithSession();
   renderApp();
 });
 
 subscribeToLogoutRequests(() => {
+  endCartSession(appState);
   clearAuthSession(appState);
   navigate("/");
 });
@@ -231,19 +244,7 @@ subscribeToCartItemAddRequests((event) => {
     Number.isFinite(incomingQuantity) && incomingQuantity > 0
       ? incomingQuantity
       : 1;
-  const existingItem = appState.cartItems.find(
-    (cartItem) => cartItem.productId === payload.productId,
-  );
-  if (existingItem) {
-    existingItem.quantity += quantityValue;
-  } else {
-    appState.cartItems.push({
-      productId: payload.productId,
-      quantity: quantityValue,
-    });
-  }
-  setGlobalCartVariable();
-  updateHeaderState(appState, activeHeaderElement);
+  addCartItem(appState, payload.productId, quantityValue);
   const productName =
     appState.productsById[payload.productId]?.name || "Item";
   publishNotification({
@@ -262,10 +263,13 @@ async function bootstrap() {
   readStoredPLPFilters(appState);
   readStoredAuth(appState);
   await loadMockData(appState);
-  setGlobalCartVariable();
+  startCartTabSync(appState);
+  syncCartLiveEventsWithSession();
   if (appState.authToken) {
+    await hydrateSavedCart(appState);
     void refreshCurrentUserFromApi(appState);
   }
+  setGlobalCartVariable();
   await renderApp();
 }
 

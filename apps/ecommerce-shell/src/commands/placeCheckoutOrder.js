@@ -2,12 +2,12 @@
  * Places a checkout order from shell-owned cart and coupon state.
  * Role: Builds the order payload, calls the HTTP order command, and clears the cart on success.
  * Not in this file: Checkout remotes, toast copy, or post-order navigation (src/pages/checkoutPage.js).
- * Key dependencies: src/commands/placeOrder.js; src/events/eventBus.js; src/utils/cartActions.js.
+ * Key dependencies: src/commands/placeOrder.js; src/utils/cartActions.js; src/utils/cartSync.js.
  * See also: src/pages/checkoutPage.js.
  */
 
-import { publishCartChanged } from "../events/eventBus";
 import { calculateCartTotals } from "../utils/cartActions";
+import { clearLocalCart, flushCartPersist, resumeCartPersist, scheduleCartPersist, suspendCartPersist } from "../utils/cartSync";
 import { placeOrder } from "./placeOrder";
 
 /**
@@ -26,9 +26,11 @@ function calculateCheckoutTotals(appState) {
  *
  * @param {object} appState - Shell state holding cart, coupon, products, and user.
  * @returns {Promise<{ ok: boolean }>} Whether the server accepted the order.
- * @sideEffects On success clears cart and coupon and publishes a cart change.
+ * @sideEffects On success clears the local cart and tells other tabs. The order write removes the saved row.
  */
 async function placeCheckoutOrder(appState) {
+  await flushCartPersist();
+  suspendCartPersist();
   const orderItems = appState.cartItems.map((cartItem) => {
     const product = appState.productsById[cartItem.productId];
     return {
@@ -51,12 +53,13 @@ async function placeCheckoutOrder(appState) {
   });
 
   if (!orderResult.ok) {
+    resumeCartPersist();
+    scheduleCartPersist(appState);
     return { ok: false };
   }
 
-  appState.cartItems = [];
-  appState.appliedCoupon = null;
-  publishCartChanged();
+  clearLocalCart(appState);
+  resumeCartPersist();
   return { ok: true };
 }
 

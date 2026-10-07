@@ -1,11 +1,12 @@
 /**
  * Persists authenticated orders for the mock data service.
- * Role: Validates order payloads and writes new orders to orders.json.
+ * Role: Validates order payloads, writes new orders to orders.json, and removes that user's cart.
  * Not in this file: HTTP routing or id generation (src/domain/identifiers.js).
- * Key dependencies: JSON store; src/domain/identifiers.js.
+ * Key dependencies: JSON store; src/domain/identifiers.js; src/domain/cartProcessing.js.
  * See also: src/routes/orderRoutes.js.
  */
 
+const { clearCartForUser } = require("./cartProcessing");
 const { generateIdentifier } = require("./identifiers");
 
 const ORDER_REQUEST_INVALID_CODE = "invalid-order-request";
@@ -16,6 +17,7 @@ const ORDER_PERSISTENCE_FAILED_CODE = "order-persistence-failed";
  *
  * @param {{ jsonStore: { readJsonFile: (fileName: string) => Promise<unknown>, readJsonFileWithDefault: (fileName: string, defaultValue: unknown) => Promise<unknown>, writeJsonFile: (fileName: string, data: unknown) => Promise<void> }, user: { id: string, address?: object | null }, orderPayload: object }} processingInput - Store, user, and request payload.
  * @returns {Promise<{ ok: true, order: object } | { ok: false, code: string }>} Persistence outcome.
+ * @sideEffects On success appends orders.json and removes the user's carts.json row.
  */
 async function createOrderForUser({ jsonStore, user, orderPayload }) {
   const orderItems = Array.isArray(orderPayload.items) ? orderPayload.items : [];
@@ -40,6 +42,10 @@ async function createOrderForUser({ jsonStore, user, orderPayload }) {
     const ordersData = await jsonStore.readJsonFileWithDefault("orders.json", []);
     ordersData.push(newOrder);
     await jsonStore.writeJsonFile("orders.json", ordersData);
+    const clearResult = await clearCartForUser({ jsonStore, userId: user.id });
+    if (!clearResult.ok) {
+      return { ok: false, code: ORDER_PERSISTENCE_FAILED_CODE };
+    }
     return { ok: true, order: newOrder };
   } catch (error) {
     console.error("createOrderForUser - error");
