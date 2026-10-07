@@ -2,10 +2,10 @@
  * Serves order routes for the mock data service.
  * Role: Handles POST /orders, GET /orders, and GET /orders/:orderId, mounted at /api.
  * Not in this file: Token helpers (src/domain/auth.js), order persistence
- *   (src/domain/orderProcessing.js), or the admin broadcast implementation
- *   (src/infrastructure/adminEventStream.js).
+ *   (src/domain/orderProcessing.js), or the broadcast implementations
+ *   (src/infrastructure/adminEventStream.js, src/infrastructure/cartEventStream.js).
  * Key dependencies: orders.json and users.json via the JSON store.
- * See also: src/server.js; src/routes/adminRoutes.js (admin live-notifications stream).
+ * See also: src/server.js; src/routes/adminRoutes.js; src/routes/cartRoutes.js.
  */
 
 const express = require("express");
@@ -20,9 +20,10 @@ const {
  *
  * @param {{ readJsonFile: (fileName: string) => Promise<any>, readJsonFileWithDefault: (fileName: string, defaultValue: any) => Promise<any>, writeJsonFile: (fileName: string, data: any) => Promise<void> }} jsonStore - JSON file store bound to the data directory.
  * @param {{ broadcastEvent: (eventType: string, payload: object) => void }} adminEventStream - Broadcaster notified when a new order is placed.
+ * @param {{ broadcastCartChanged: (userId: string, cart: object) => void }} cartEventStream - Notifies that user's open cart streams after the cart row is removed.
  * @returns {import("express").Router} Router with the /orders routes.
  */
-function createOrderRouter(jsonStore, adminEventStream) {
+function createOrderRouter(jsonStore, adminEventStream, cartEventStream) {
   const router = express.Router();
 
   router.post("/orders", async (request, response) => {
@@ -61,6 +62,11 @@ function createOrderRouter(jsonStore, adminEventStream) {
       adminEventStream.broadcastEvent("order_created", {
         ...orderResult.order,
         customer: buildPublicUser(matchingUser),
+      });
+      cartEventStream.broadcastCartChanged(matchingUser.id, {
+        items: [],
+        appliedCoupon: null,
+        updatedAt: new Date().toISOString(),
       });
 
       response.status(201).json(orderResult.order);

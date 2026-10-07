@@ -14,6 +14,7 @@ import {
 } from "../utils/authActions";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import { publishNotification } from "../notifications/notificationAdapter";
+import { mergeGuestCartOnLogin, scheduleCartPersist } from "../utils/cartSync";
 
 /**
  * Renders the login page, redirecting away when already authenticated.
@@ -23,7 +24,7 @@ import { publishNotification } from "../notifications/notificationAdapter";
  * @param {object} modules - Loaded remote module mount functions.
  * @param {Array<() => void>} activeCleanupFunctions - Cleanup registry for the current route.
  * @returns {Promise<void>}
- * @sideEffects On login success stores the session, notifies, and navigates.
+ * @sideEffects On login success merges any guest cart, stores the session, notifies, and navigates.
  */
 async function renderLoginPage(appState, pageMount, modules, activeCleanupFunctions) {
   if (isAuthenticated(appState)) {
@@ -39,8 +40,12 @@ async function renderLoginPage(appState, pageMount, modules, activeCleanupFuncti
     modules.mountLoginForm(loginMount, {
       apiBaseUrl: MOCK_API_BASE_URL,
       redirectAfterLogin: consumePostLoginRedirect(),
-      onLoginSuccess: ({ token, user, redirectAfterLogin }) => {
+      onLoginSuccess: async ({ token, user, redirectAfterLogin }) => {
+        const mergeResult = await mergeGuestCartOnLogin(appState, token, user?.id || null);
         setAuthSession(appState, { token, user });
+        if (mergeResult.needsPersist) {
+          scheduleCartPersist(appState);
+        }
         publishNotification({
           type: "success",
           title: "Signed in",

@@ -2,13 +2,14 @@
  * Renders the checkout and order-placed routes.
  * Role: Composes checkout item, summary, and coupon mounts and owns the place-order flow outcome.
  * Not in this file: Order HTTP details (src/commands/placeOrder.js) or the place-order sequence (src/commands/placeCheckoutOrder.js).
- * Key dependencies: src/commands/placeCheckoutOrder.js; src/notifications/notificationAdapter.js.
+ * Key dependencies: src/commands/placeCheckoutOrder.js; src/notifications/notificationAdapter.js; src/utils/cartSync.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
-import { publishCartChanged, publishRenderRequested } from "../events/eventBus";
+import { publishCartChanged, publishRenderRequested, subscribeToCartChanges } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 import { updateCartItem, removeCartItem } from "../utils/cartActions";
+import { scheduleCartPersist } from "../utils/cartSync";
 import {
   isAuthenticated,
   rememberPostLoginRedirect,
@@ -36,6 +37,27 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
     return;
   }
 
+  let checkoutSummaryHandle = null;
+  const refreshCheckoutSummary = () => {
+    if (!checkoutSummaryHandle) {
+      return;
+    }
+    checkoutSummaryHandle.update(calculateCheckoutTotals(appState));
+  };
+  let renderedItemCount = appState.cartItems.length;
+  activeCleanupFunctions.push(
+    subscribeToCartChanges(() => {
+      const nextItemCount = appState.cartItems.length;
+      const emptinessChanged = (renderedItemCount === 0) !== (nextItemCount === 0);
+      renderedItemCount = nextItemCount;
+      if (emptinessChanged) {
+        publishRenderRequested();
+        return;
+      }
+      refreshCheckoutSummary();
+    }),
+  );
+
   if (appState.cartItems.length === 0) {
     pageMount.innerHTML = `<section id="checkoutEmptyMount"></section>`;
     const checkoutEmptyMount = pageMount.querySelector("#checkoutEmptyMount");
@@ -61,14 +83,6 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
   const checkoutSummaryMount = pageMount.querySelector("#checkoutSummaryMount");
   const applyCouponMount = pageMount.querySelector("#applyCouponMount");
 
-  let checkoutSummaryHandle = null;
-  const refreshCheckoutSummary = () => {
-    if (!checkoutSummaryHandle) {
-      return;
-    }
-    checkoutSummaryHandle.update(calculateCheckoutTotals(appState));
-  };
-
   activeCleanupFunctions.push(
     modules.mountCheckoutItems(checkoutItemsMount, {
       productsById: appState.productsById,
@@ -84,11 +98,9 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
           title: "Item removed",
           message: `${productName} was removed from your cart.`,
         });
-        if (appState.cartItems.length === 0) {
-          publishRenderRequested();
-          return;
+        if (appState.cartItems.length > 0) {
+          refreshCheckoutSummary();
         }
-        refreshCheckoutSummary();
       },
     }),
   );
@@ -124,6 +136,7 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
         appState.appliedCoupon = couponPayload;
         refreshCheckoutSummary();
         publishCartChanged();
+        scheduleCartPersist(appState);
       },
     }),
   );

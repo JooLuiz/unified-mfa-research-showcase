@@ -52,8 +52,12 @@ Base URL: `http://localhost:4000/api`
 - `GET /posts` - returns the social media feed with embedded authors.
 - `POST /posts` - creates a new post for the authenticated user and persists to `posts.json`.
 - `POST /faq` - persists FAQ answers to `faq-answers.json`.
-- `POST /orders` - persists an order for the authenticated user to `orders.json`.
+- `POST /orders` - persists an order for the authenticated user to `orders.json` and removes that user's saved cart.
 - `GET /orders` - returns the orders placed by the authenticated user.
+- `GET /cart` - returns the authenticated user's saved cart (`items`, `appliedCoupon`). An unknown user gets an empty cart. Requires a Bearer token.
+- `PUT /cart` - replaces the authenticated user's saved cart. Items are `{ productId, quantity }` with a whole quantity of at least 1. `appliedCoupon` is `null` or `{ code, discountPercentage }`. Other signed-in browsers for that user receive the saved cart on the cart stream.
+- `POST /cart/connection-tickets` - exchanges a Bearer token for a one-time ticket. Any signed-in user, including an admin, can request one.
+- `GET /cart/events?ticket=` - Server-Sent Events stream of `cart_changed` for that ticket's user. The first event is the current cart. Placing an order pushes an empty cart with a new `updatedAt`.
 - `GET /exports/orders.csv` - downloads the authenticated user's order history as CSV.
 - `GET /exports/posts.csv` - downloads the authenticated user's posts as CSV.
 - `GET /admin/orders` - returns all users' orders with embedded customers. Requires an admin Bearer token.
@@ -104,6 +108,8 @@ E-commerce shell (`http://localhost:4200`):
 - `/promotions` - Promotional banner aggregation.
 - `/product?productId=p-01` - Product Details Page.
 - `/checkout` - Checkout (Items + Summary + Coupon, or Angular empty-cart iframe). Auth-guarded.
+
+A signed-in shopper has one saved cart. Reloading or opening another ecommerce-shell tab shows that cart, including an applied coupon. Placing an order removes the saved cart. Signing out clears it in the open tabs only; the saved cart returns on the next sign-in. Items added before sign-in stay in that tab and are merged into the saved cart at login. A refresh before sign-in still starts from an empty cart.
 - `/order-placed` - Order confirmation.
 - `/login` - Login form.
 - `/account` - Profile, address, and "My Orders" list. Auth-guarded.
