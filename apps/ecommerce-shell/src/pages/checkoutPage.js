@@ -34,6 +34,27 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
     return;
   }
 
+  let checkoutSummaryHandle = null;
+  const refreshCheckoutSummary = () => {
+    if (!checkoutSummaryHandle) {
+      return;
+    }
+    checkoutSummaryHandle.update(calculateCheckoutTotals(appState));
+  };
+  let renderedItemCount = appState.cartItems.length;
+  activeCleanupFunctions.push(
+    subscribeToCartChanges(() => {
+      const nextItemCount = appState.cartItems.length;
+      const emptinessChanged = (renderedItemCount === 0) !== (nextItemCount === 0);
+      renderedItemCount = nextItemCount;
+      if (emptinessChanged) {
+        publishRenderRequested();
+        return;
+      }
+      refreshCheckoutSummary();
+    }),
+  );
+
   if (appState.cartItems.length === 0) {
     modules.mountCheckoutEmpty(pageMount);
     return;
@@ -53,14 +74,6 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
   const checkoutSummaryMount = pageMount.querySelector("#checkoutSummaryMount");
   const applyCouponMount = pageMount.querySelector("#applyCouponMount");
 
-  let checkoutSummaryHandle = null;
-  const refreshCheckoutSummary = () => {
-    if (!checkoutSummaryHandle) {
-      return;
-    }
-    checkoutSummaryHandle.update(calculateCheckoutTotals(appState));
-  };
-
   activeCleanupFunctions.push(
     modules.mountCheckoutItems(checkoutItemsMount, {
       cartItems: appState.cartItems,
@@ -78,11 +91,6 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
 
   activeCleanupFunctions.push(modules.mountApplyCoupon(applyCouponMount));
 
-  activeCleanupFunctions.push(
-    subscribeToCartChanges(() => {
-      refreshCheckoutSummary();
-    }),
-  );
   activeCleanupFunctions.push(
     subscribeToCouponApplied(() => {
       refreshCheckoutSummary();

@@ -12,12 +12,14 @@ const path = require("path");
 
 const { createJsonStore } = require("./infrastructure/jsonStore");
 const { createAdminEventStream } = require("./infrastructure/adminEventStream");
+const { createCartEventStream } = require("./infrastructure/cartEventStream");
 const { createCatalogRouter } = require("./routes/catalogRoutes");
 const { createAuthRouter } = require("./routes/authRoutes");
 const { createUserRouter } = require("./routes/userRoutes");
 const { createPostRouter } = require("./routes/postRoutes");
 const { createFaqRouter } = require("./routes/faqRoutes");
 const { createOrderRouter } = require("./routes/orderRoutes");
+const { createCartRouter } = require("./routes/cartRoutes");
 const { createExportRouter } = require("./routes/exportRoutes");
 const { createAdminRouter } = require("./routes/adminRoutes");
 const { consumeConnectionTicket } = require("./domain/connectionTickets");
@@ -27,6 +29,7 @@ const {
 } = require("./event-mesh/gatewayAuth");
 const { registerExportRequestHandler } = require("./event-mesh/exportRequestHandler");
 const { registerOrderRequestHandler } = require("./event-mesh/orderRequestHandler");
+const { registerCartUpsertHandler } = require("./event-mesh/cartUpsertHandler");
 const { registerIframeBridgeHandler } = require("./event-mesh/iframeBridgeHandler");
 
 const app = express();
@@ -34,6 +37,7 @@ const port = process.env.PORT || 4000;
 const dataDirectory = path.resolve(__dirname, "../data");
 const jsonStore = createJsonStore(dataDirectory);
 const adminEventStream = createAdminEventStream();
+const cartEventStream = createCartEventStream();
 
 app.use(cors());
 app.use(express.json());
@@ -53,12 +57,17 @@ async function configureAndStartEventGateway() {
     peerRebroadcastPolicy: "perMessage",
     authenticateConnection: createAuthenticateConnection(consumeConnectionTicket),
     authorizeMessage: createAuthorizeMessage(),
-    onClientDisconnect: adminEventStream.forgetClient,
+    onClientDisconnect: (clientId) => {
+      adminEventStream.forgetClient(clientId);
+      cartEventStream.forgetClient(clientId);
+    },
   });
   await gateway.start();
   await adminEventStream.registerWithGateway();
+  await cartEventStream.registerWithGateway();
   await registerExportRequestHandler(jsonStore);
-  await registerOrderRequestHandler(jsonStore, adminEventStream);
+  await registerOrderRequestHandler(jsonStore, adminEventStream, cartEventStream);
+  await registerCartUpsertHandler(jsonStore, cartEventStream);
   await registerIframeBridgeHandler();
   return gateway;
 }
@@ -73,6 +82,7 @@ app.use("/api", createUserRouter(jsonStore));
 app.use("/api", createPostRouter(jsonStore, adminEventStream));
 app.use("/api", createFaqRouter(jsonStore));
 app.use("/api", createOrderRouter(jsonStore));
+app.use("/api", createCartRouter(jsonStore));
 app.use("/api", createExportRouter(jsonStore));
 app.use("/api", createAdminRouter(jsonStore));
 

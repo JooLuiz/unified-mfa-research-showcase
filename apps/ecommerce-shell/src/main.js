@@ -30,13 +30,13 @@ import {
   clearMeshSessionFlags,
 } from "./notifications/sessionState";
 import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
+import { resetCartSaveListeners } from "./commands/cartCommands";
 import {
   ensureAccountIntentListeners,
   ensureCartEventListeners,
   ensureCatalogIntentListeners,
   ensureCheckoutIntentListeners,
   ensureShellEventListeners,
-  publishCartChanged,
   publishPlpFiltersChanged,
   publishRenderRequested,
   resetAccountIntentListeners,
@@ -48,6 +48,9 @@ import {
 
 import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
 
+import { addCartItem } from "./utils/cartActions";
+import { startCartLiveEvents, stopCartLiveEvents } from "./events/cartLiveEvents";
+import { endCartSession, hydrateSavedCart, mergeGuestCartOnLogin, scheduleCartPersist, startCartTabSync } from "./utils/cartSync";
 import { navigate } from "./utils/navigate";
 import { updateCartItem, removeCartItem } from "./utils/cartActions";
 import { applyPromotionFilters } from "./pages/promotionsPage";
@@ -113,6 +116,14 @@ function configureAuthenticatedApplicationMesh() {
   });
 }
 
+function syncCartLiveEventsWithSession() {
+  if (appState.authToken) {
+    void startCartLiveEvents(appState);
+  } else {
+    stopCartLiveEvents();
+  }
+}
+
 function startLocalMeshSession() {
   if (isAuthenticatedMeshActive()) {
     return;
@@ -144,6 +155,7 @@ function startAuthenticatedMeshSession() {
     ensureCheckoutIntentListeners(checkoutIntentHandlers);
     ensureAccountIntentListeners(accountIntentHandlers);
     ensureCartEventListeners(shellEventHandlers);
+    syncCartLiveEventsWithSession();
     return;
   }
 
@@ -154,6 +166,8 @@ function startAuthenticatedMeshSession() {
   resetCheckoutIntentListeners();
   resetAccountIntentListeners();
   resetCartEventListeners();
+  resetCartSaveListeners();
+  stopCartLiveEvents();
   mesh.close();
   clearMeshSessionFlags();
 
@@ -166,6 +180,7 @@ function startAuthenticatedMeshSession() {
   ensureCheckoutIntentListeners(checkoutIntentHandlers);
   ensureAccountIntentListeners(accountIntentHandlers);
   ensureCartEventListeners(shellEventHandlers);
+  syncCartLiveEventsWithSession();
 }
 
 function downgradeToLocalMeshSession() {
@@ -176,6 +191,8 @@ function downgradeToLocalMeshSession() {
   resetCheckoutIntentListeners();
   resetAccountIntentListeners();
   resetCartEventListeners();
+  resetCartSaveListeners();
+  stopCartLiveEvents();
   mesh.close();
   clearMeshSessionFlags();
   startLocalMeshSession();
@@ -327,19 +344,7 @@ function handleCartChanged() {
 }
 
 function handleCartItemAddRequested(cartItem) {
-  const existingItem = appState.cartItems.find(
-    (existingCartItem) => existingCartItem.productId === cartItem.productId,
-  );
-  if (existingItem) {
-    existingItem.quantity += cartItem.quantity;
-  } else {
-    appState.cartItems.push({
-      productId: cartItem.productId,
-      quantity: cartItem.quantity,
-    });
-  }
-
-  publishCartChanged(appState.cartItems);
+  addCartItem(appState, cartItem.productId, cartItem.quantity);
   const productName =
     appState.productsById[cartItem.productId]?.name || "Item";
   publishNotification({
@@ -424,6 +429,7 @@ function handleCartItemRemoveRequested({ productId }) {
 function handleCouponApplied(coupon) {
   appState.appliedCoupon = coupon;
   updateHeaderState(appState, activeHeaderElement);
+  scheduleCartPersist(appState);
 }
 
 /**
@@ -473,6 +479,7 @@ const shellEventHandlers = {
     const isNowAuthenticated = Boolean(appState.authToken);
     handleAuthMeshLifecycle();
     if (!wasAuthenticated && isNowAuthenticated) {
+      void mergeGuestCartAfterLogin();
       const welcomeName =
         appState.currentUser?.fullName ||
         appState.currentUser?.username ||
@@ -486,10 +493,22 @@ const shellEventHandlers = {
     void renderApp();
   },
   onLogoutRequested: () => {
+    endCartSession(appState);
     clearAuthSession(appState);
     navigate("/");
   },
 };
+
+async function mergeGuestCartAfterLogin() {
+  const mergeResult = await mergeGuestCartOnLogin(
+    appState,
+    appState.authToken,
+    appState.currentUser?.id || null,
+  );
+  if (mergeResult.needsPersist) {
+    scheduleCartPersist(appState);
+  }
+}
 
 window.addEventListener("popstate", () => {
   void renderApp();
@@ -503,6 +522,7 @@ async function bootstrap() {
 
   readStoredPLPFilters(appState);
   readStoredAuth(appState);
+  startCartTabSync(appState);
   if (appState.authToken) {
     startAuthenticatedMeshSession();
   } else {
@@ -511,6 +531,7 @@ async function bootstrap() {
   publishPlpFiltersChanged(appState.plpFilters);
   await loadMockData(appState);
   if (appState.authToken) {
+    await hydrateSavedCart(appState);
     void refreshCurrentUserFromApi(appState);
   }
   await renderApp();

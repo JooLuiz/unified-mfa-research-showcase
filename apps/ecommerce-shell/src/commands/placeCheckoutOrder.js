@@ -1,13 +1,13 @@
 /**
  * Places a checkout order from shell-owned cart and coupon state.
- * Role: Builds order payload, calls mesh order command, and clears cart on success.
+ * Role: Builds the order payload, calls the mesh order command, and clears the cart on success.
  * Not in this file: Checkout remotes, cart line mutations, or coupon validation UI.
- * Key dependencies: src/commands/placeOrder.js; src/events/eventBus.js; src/utils/cartActions.js.
+ * Key dependencies: src/commands/placeOrder.js; src/utils/cartActions.js; src/utils/cartSync.js.
  * See also: src/pages/checkoutPage.js; MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
-import { publishCartChanged } from "../events/eventBus";
 import { calculateCartTotals } from "../utils/cartActions";
+import { clearLocalCart, flushCartPersist, resumeCartPersist, scheduleCartPersist, suspendCartPersist } from "../utils/cartSync";
 import { placeOrder } from "./placeOrder";
 import { navigate } from "../utils/navigate";
 
@@ -27,9 +27,11 @@ function calculateCheckoutTotals(appState) {
  *
  * @param {object} appState - Shell state holding cart, coupon, products, and user.
  * @returns {Promise<{ ok: boolean }>} Whether the server accepted the order.
- * @sideEffects May clear cart/coupon, publish cart.changed, and navigate to /order-placed.
+ * @sideEffects On success clears the local cart and navigates to /order-placed. The order write removes the saved row and pushes an empty cart.
  */
 async function placeCheckoutOrder(appState) {
+  await flushCartPersist();
+  suspendCartPersist();
   const orderItems = appState.cartItems.map((cartItem) => {
     const product = appState.productsById[cartItem.productId];
     return {
@@ -52,12 +54,13 @@ async function placeCheckoutOrder(appState) {
   });
 
   if (!orderResult.ok) {
+    resumeCartPersist();
+    scheduleCartPersist(appState);
     return { ok: false };
   }
 
-  appState.cartItems = [];
-  appState.appliedCoupon = null;
-  publishCartChanged(appState.cartItems);
+  clearLocalCart(appState);
+  resumeCartPersist();
   navigate("/order-placed");
   return { ok: true };
 }

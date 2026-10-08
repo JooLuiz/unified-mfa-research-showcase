@@ -39,10 +39,11 @@ const ORDER_FAILURE_NOTIFICATIONS = Object.freeze({
  *
  * @param {{ readJsonFile: (fileName: string) => Promise<unknown>, readJsonFileWithDefault: (fileName: string, defaultValue: unknown) => Promise<unknown>, writeJsonFile: (fileName: string, data: unknown) => Promise<void> }} jsonStore - JSON store bound to service data files.
  * @param {{ broadcastEvent: (eventType: string, payload: object) => void }} adminEventStream - Publisher for admin live order updates.
+ * @param {{ broadcastCartChanged: (userId: string, cart: object) => void }} cartEventStream - Notifies that user's watching clients after the cart row is removed.
  * @returns {Promise<void>}
  * @sideEffects Subscribes to order request events on the local gateway singleton.
  */
-async function registerOrderRequestHandler(jsonStore, adminEventStream) {
+async function registerOrderRequestHandler(jsonStore, adminEventStream, cartEventStream) {
   const gatewayModule = await import("event-mesh/gateway");
   const gateway = gatewayModule.default;
 
@@ -81,6 +82,11 @@ async function registerOrderRequestHandler(jsonStore, adminEventStream) {
     adminEventStream.broadcastEvent("order_created", {
       ...orderResult.order,
       customer: buildPublicUser(user),
+    });
+    cartEventStream.broadcastCartChanged(user.id, {
+      items: [],
+      appliedCoupon: null,
+      updatedAt: new Date().toISOString(),
     });
   });
 }

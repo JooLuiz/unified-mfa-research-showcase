@@ -25,6 +25,7 @@ import {
  * @param {object} modules - Loaded remote module mount functions.
  * @param {Array<() => void>} activeCleanupFunctions - Cleanup registry for the current route.
  * @returns {Promise<void>}
+ * @sideEffects The login MFE writes storage and publishes auth.session-changed. Guest-cart merge runs in src/main.js.
  */
 async function renderLoginPage(appState, pageMount, modules, activeCleanupFunctions) {
   if (isAuthenticated(appState)) {

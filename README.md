@@ -55,7 +55,8 @@ Base URL: `http://localhost:4000/api`
 - `GET /posts` - returns the social media feed with embedded authors.
 - `POST /posts` - creates a new post for the authenticated user and persists to `posts.json`.
 - `POST /faq` - persists FAQ answers to `faq-answers.json`.
-- `GET /orders` - returns the orders placed by the authenticated user. Order creation is over Event Mesh (`orders.requested`); see `MESH_IMPLEMENTATIONS/notifications.md`.
+- `GET /orders` - returns the orders placed by the authenticated user. Order creation is over Event Mesh (`orders.requested`) and removes that user's saved cart; see `MESH_IMPLEMENTATIONS/notifications.md`.
+- `GET /cart` - returns the authenticated user's saved cart (`items`, `appliedCoupon`, `updatedAt`). An unknown user gets an empty cart. Requires a Bearer token. Replacing the cart is `cart-sync.upsert` on Event Mesh.
 - `GET /exports/:requestId/download` - downloads the completed CSV for the job owner. Export jobs are created over authenticated Event Mesh (`exports.requested`); see `MESH_IMPLEMENTATIONS/csv-exports.md`.
 - `GET /admin/orders` - returns all users' orders with embedded customers. Requires an admin Bearer token.
 - `GET /admin/posts` - returns all users' posts with embedded authors. Requires an admin Bearer token.
@@ -63,7 +64,7 @@ Base URL: `http://localhost:4000/api`
 
 ## Event Mesh
 
-Event Mesh transports authenticated backend commands (`orders.requested`, `exports.requested`), shell-local UI coordination, and channel-scoped iframe relays. Ecommerce and social-media start a restricted guest WebSocket connection for iframe bridge traffic, then upgrade to an authenticated connection after login. Admin remains local-only when logged out. See [`MESH_IMPLEMENTATIONS/iframe-bridge.md`](./MESH_IMPLEMENTATIONS/iframe-bridge.md) for bridge contracts and delivery scope.
+Event Mesh transports authenticated backend commands (`orders.requested`, `exports.requested`, `cart-sync.upsert`), saved-cart pushes (`cart-sync.watching` then targeted `cart-sync.changed`), shell-local UI coordination, and channel-scoped iframe relays. Ecommerce and social-media start a restricted guest WebSocket connection for iframe bridge traffic, then upgrade to an authenticated connection after login. Admin remains local-only when logged out. See [`MESH_IMPLEMENTATIONS/iframe-bridge.md`](./MESH_IMPLEMENTATIONS/iframe-bridge.md) for bridge contracts and delivery scope.
 
 ### Demo accounts
 
@@ -109,6 +110,8 @@ E-commerce shell (`http://localhost:4200`):
 - `/promotions` - Promotional banner aggregation.
 - `/product?productId=p-01` - Product Details Page.
 - `/checkout` - Checkout (Items + Summary + Coupon, or Angular empty-cart iframe). Auth-guarded.
+
+A signed-in shopper has one saved cart. Reloading or opening another ecommerce-shell tab shows that cart, including an applied coupon. Placing an order removes the saved cart. Signing out clears it in the open tabs only; the saved cart returns on the next sign-in. Items added before sign-in stay in that tab and are merged into the saved cart at login. A refresh before sign-in still starts from an empty cart.
 - `/order-placed` - Order confirmation.
 - `/login` - Login form.
 - `/account` - Profile, address, and "My Orders" list. Auth-guarded.
@@ -140,7 +143,7 @@ Admin shell (`http://localhost:4600`):
 - **CSV Exports** - Account pages create an authenticated export job over HTTP, wait for `exports.completed` / `exports.failed` on Event Mesh, then download the CSV with a second authenticated HTTP request. Details: `MESH_IMPLEMENTATIONS/csv-exports.md`.
 - **Admin Reads** - The admin shell reads all orders and posts over HTTP with an admin Bearer token; this is also part of the no-event-mesh control group.
 - **Web Storage** - Auth tokens, PLP filters, and post-login redirects remain `localStorage`/`sessionStorage` caches for reload. Live redirect and PLP filter coordination uses local Event Mesh; Order Details receives auth via host-injected `getAuthToken`. Details: `MESH_IMPLEMENTATIONS/storage-coordination.md`.
-- **Global State** - Each shell keeps an in-memory `appState` object. Cart live sync uses `cart.changed` on Event Mesh (not `window.__APP_SHELL_CART__`).
+- **Global State** - Each shell keeps an in-memory `appState` object. Same-tab cart coordination uses local `cart.changed`. The saved cart for a signed-in user is replaced with `cart-sync.upsert` and pushed to that user's other sockets as `cart-sync.changed` (not `window.__APP_SHELL_CART__`).
 - **Query Params** - PDP uses `?productId=`; cross-host banner redirects pass filters as query params.
 - **URL Changes** - Routing uses `history.pushState` and `popstate`; protected routes redirect to `/login`.
 
