@@ -21,6 +21,8 @@
     "@shared/shell-events": "*",
     "@shared/catalog-events": "*",
     "@shared/checkout-events": "*",
-    "@shared/account-events": "*"
+    "@shared/account-events": "*",
+    "@shared/stock-events": "*",
+    "event-mesh": "*"
   }
 }

@@ -2,13 +2,14 @@
  * Product card Vue component for catalog browsing and explicit action intents.
  * Role: Renders a product card and publishes catalog.product-open-requested or cart.item-add-requested on the host mesh.
  * Not in this file: Mesh configuration (host shell owns configureMesh) or cart state ownership.
- * Key dependencies: event-mesh/mesh singleton; @shared/catalog-events.
- * See also: src/product-card.js; MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Key dependencies: event-mesh/mesh singleton; @shared/catalog-events; @shared/stock-events (via useProductAvailability).
+ * See also: src/product-card.js; src/useProductAvailability.js; MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
-import { h, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, h, onMounted, onUnmounted, ref, watch } from "vue";
 import mesh from "event-mesh/mesh";
 import { createCatalogEvents } from "@shared/catalog-events";
+import { useProductAvailability } from "./useProductAvailability";
 
 const { publishProductOpenRequested, publishCartItemAddRequested } =
   createCatalogEvents({ mesh });
@@ -73,6 +74,17 @@ export const ProductCardComponent = {
     const loadError = ref(null);
     let activeAbortController = null;
 
+    const { availableCount } = useProductAvailability({
+      productRef: productData,
+      quantityRef: quantityValue,
+    });
+    const isOutOfStock = computed(() => availableCount.value === 0);
+    const isAtMaxQuantity = computed(
+      () => typeof availableCount.value === "number" && quantityValue.value >= availableCount.value,
+    );
+    const availableLabel = computed(() =>
+      availableCount.value === null ? "" : `${availableCount.value} available`,
+    );
 
     const loadProduct = async () => {
       if (props.product) {
@@ -144,12 +156,20 @@ export const ProductCardComponent = {
     };
 
     const increaseQuantity = () => {
-      quantityValue.value += 1;
+      const maxAllowed = availableCount.value;
+      quantityValue.value =
+        typeof maxAllowed === "number"
+          ? Math.min(quantityValue.value + 1, maxAllowed)
+          : quantityValue.value + 1;
     };
 
     const handleQuantityChange = (changeEvent) => {
       const targetInput = changeEvent.target;
-      const nextQuantity = normalizeQuantity(Number(targetInput?.value));
+      const maxAllowed = availableCount.value;
+      let nextQuantity = normalizeQuantity(Number(targetInput?.value));
+      if (typeof maxAllowed === "number") {
+        nextQuantity = Math.min(nextQuantity, maxAllowed);
+      }
       quantityValue.value = nextQuantity;
       if (targetInput) {
         targetInput.value = String(nextQuantity);
@@ -166,7 +186,7 @@ export const ProductCardComponent = {
 
     const handleActionClick = () => {
       const currentProduct = productData.value;
-      if (!currentProduct) {
+      if (!currentProduct || isOutOfStock.value) {
         return;
       }
       if (props.actionIntent === "open-product") {
@@ -177,6 +197,17 @@ export const ProductCardComponent = {
         productId: currentProduct.id,
         quantity: props.hideQuantity ? 1 : quantityValue.value,
       });
+    };
+
+    const renderAvailability = () => {
+      if (availableCount.value === null) {
+        return null;
+      }
+      return h(
+        "span",
+        { class: isOutOfStock.value ? "product-availability out-of-stock" : "product-availability" },
+        isOutOfStock.value ? "Out of stock" : availableLabel.value,
+      );
     };
 
     const renderQuantityControls = () =>
@@ -194,6 +225,7 @@ export const ProductCardComponent = {
           class: "quantity-value-input",
           type: "number",
           min: "1",
+          max: availableCount.value ?? undefined,
           value: quantityValue.value,
           onChange: handleQuantityChange,
         }),
@@ -202,6 +234,7 @@ export const ProductCardComponent = {
           {
             class: "quantity-control-button",
             type: "button",
+            disabled: isAtMaxQuantity.value,
             onClick: increaseQuantity,
           },
           "+",
@@ -241,15 +274,18 @@ export const ProductCardComponent = {
               { class: "product-name card-compact-name" },
               currentProduct.name,
             ),
-            h(
-              "button",
-              {
-                class: "button-like add-cart-button",
-                type: "button",
-                onClick: handleActionClick,
-              },
-              props.actionLabel,
-            ),
+            renderAvailability(),
+            isOutOfStock.value
+              ? null
+              : h(
+                  "button",
+                  {
+                    class: "button-like add-cart-button",
+                    type: "button",
+                    onClick: handleActionClick,
+                  },
+                  props.actionLabel,
+                ),
           ]),
         ]);
       }
@@ -263,16 +299,19 @@ export const ProductCardComponent = {
         }),
         h("strong", { class: "product-name" }, currentProduct.name),
         h("span", `$${Number(currentProduct.price).toFixed(2)}`),
-        props.hideQuantity ? null : renderQuantityControls(),
-        h(
-          "button",
-          {
-            class: "button-like add-cart-button",
-            type: "button",
-            onClick: handleActionClick,
-          },
-          props.actionLabel,
-        ),
+        renderAvailability(),
+        props.hideQuantity || isOutOfStock.value ? null : renderQuantityControls(),
+        isOutOfStock.value
+          ? null
+          : h(
+              "button",
+              {
+                class: "button-like add-cart-button",
+                type: "button",
+                onClick: handleActionClick,
+              },
+              props.actionLabel,
+            ),
       ]);
     };
   },

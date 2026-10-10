@@ -33,6 +33,8 @@ import {
   ProductRequestTracker,
   readProductIdFromQueryParams,
 } from "./product-loader";
+import { ProductAvailabilityWatcher } from "./product-availability-watcher";
+import { PRODUCT_DETAILS_TEMPLATE } from "./product-details.template";
 
 const normalizeQuantity = (nextQuantity: number): number => {
   const parsedQuantity = Number(nextQuantity);
@@ -46,54 +48,7 @@ const normalizeQuantity = (nextQuantity: number): number => {
   standalone: true,
   selector: "angular-product-details",
   imports: [CommonModule],
-  template: `
-    <ng-container *ngIf="isLoading; else loadedTemplate">
-      <section class="pdp-shell">
-        <p>Loading product details...</p>
-      </section>
-    </ng-container>
-    <ng-template #loadedTemplate>
-      <ng-container *ngIf="product; else productNotFoundTemplate">
-        <section class="pdp-shell">
-          <div>
-            <img [src]="product.image" [alt]="product.name" />
-          </div>
-          <div class="pdp-details-column">
-            <h2>{{ product.name }}</h2>
-            <div>
-              <p>Price: \${{ product.price.toFixed(2) }}</p>
-            </div>
-            <div class="pdp-quantity-shell">
-              <button class="pdp-quantity-control-button" type="button" (click)="decreaseQuantity()">-</button>
-              <input
-                class="pdp-quantity-value-input"
-                type="number"
-                min="1"
-                [value]="quantityValue"
-                (change)="handleQuantityChange($event)"
-              />
-              <button class="pdp-quantity-control-button" type="button" (click)="increaseQuantity()">+</button>
-            </div>
-            <button class="pdp-add-to-cart-button" type="button" (click)="handleAddToCart()">
-              Add to Cart
-            </button>
-          </div>
-        </section>
-        <section #similarProductsMount></section>
-      </ng-container>
-    </ng-template>
-
-    <ng-template #productNotFoundTemplate>
-      <section class="pdp-shell">
-        <p *ngIf="isMissingProductId; else missingProductTemplate">
-          No product id was provided.
-        </p>
-        <ng-template #missingProductTemplate>
-          <p>Product not found.</p>
-        </ng-template>
-      </section>
-    </ng-template>
-  `,
+  template: PRODUCT_DETAILS_TEMPLATE,
 })
 export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() inputProduct: Product | null = null;
@@ -115,11 +70,29 @@ export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDest
 
   quantityValue = 1;
 
+  availableCount: number | null = null;
+
   private hasViewInitialized = false;
 
   private cleanupSimilarProducts?: () => void;
 
   private readonly requestTracker = new ProductRequestTracker();
+
+  private readonly availabilityWatcher = new ProductAvailabilityWatcher((nextAvailable) => {
+    this.availableCount = nextAvailable;
+    if (nextAvailable > 0 && this.quantityValue > nextAvailable) {
+      this.quantityValue = nextAvailable;
+    }
+    this.changeDetectorRef.detectChanges();
+  });
+
+  get isOutOfStock(): boolean {
+    return this.availableCount === 0;
+  }
+
+  get isAtMaxQuantity(): boolean {
+    return typeof this.availableCount === "number" && this.quantityValue >= this.availableCount;
+  }
 
   constructor(private readonly changeDetectorRef: ChangeDetectorRef) {}
 
@@ -138,6 +111,7 @@ export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDest
 
   ngOnDestroy(): void {
     this.cleanupSimilarProductsView();
+    this.availabilityWatcher.stopWatching();
     this.requestTracker.abort();
   }
 
@@ -146,14 +120,23 @@ export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDest
   }
 
   increaseQuantity(): void {
-    this.quantityValue += 1;
+    const maxAllowed = this.availableCount;
+    this.quantityValue =
+      typeof maxAllowed === "number"
+        ? Math.min(this.quantityValue + 1, maxAllowed)
+        : this.quantityValue + 1;
   }
 
   handleQuantityChange(event: Event): void {
     const targetInput = event.target as HTMLInputElement | null;
-    this.quantityValue = normalizeQuantity(Number(targetInput?.value));
+    const maxAllowed = this.availableCount;
+    let nextQuantity = normalizeQuantity(Number(targetInput?.value));
+    if (typeof maxAllowed === "number") {
+      nextQuantity = Math.min(nextQuantity, maxAllowed);
+    }
+    this.quantityValue = nextQuantity;
     if (targetInput) {
-      targetInput.value = String(this.quantityValue);
+      targetInput.value = String(nextQuantity);
     }
   }
 
@@ -175,6 +158,7 @@ export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDest
       this.product = this.inputProduct;
       this.isLoading = false;
       this.isMissingProductId = false;
+      this.availableCount = this.availabilityWatcher.startWatching(this.product);
       if (this.hasViewInitialized) {
         queueMicrotask(() => this.renderSimilarProducts());
       }
@@ -188,6 +172,7 @@ export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDest
       this.product = null;
       this.isLoading = false;
       this.isMissingProductId = !currentProductId;
+      this.availableCount = this.availabilityWatcher.startWatching(null);
       this.requestTracker.reset();
       if (this.hasViewInitialized) {
         queueMicrotask(() => this.renderSimilarProducts());
@@ -212,6 +197,7 @@ export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDest
         }
         this.product = fetchedProduct;
         this.isLoading = false;
+        this.availableCount = this.availabilityWatcher.startWatching(this.product);
         this.changeDetectorRef.detectChanges();
         if (this.hasViewInitialized) {
           queueMicrotask(() => this.renderSimilarProducts());
@@ -225,6 +211,7 @@ export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDest
         console.warn(error);
         this.product = null;
         this.isLoading = false;
+        this.availableCount = this.availabilityWatcher.startWatching(null);
         this.changeDetectorRef.detectChanges();
       });
   }

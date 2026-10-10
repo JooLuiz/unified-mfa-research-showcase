@@ -14,6 +14,7 @@ import {
   EventEmitter,
   Input,
   OnChanges,
+  OnDestroy,
   Output,
   SimpleChanges,
 } from "@angular/core";
@@ -22,6 +23,7 @@ import { createApplication } from "@angular/platform-browser";
 import mesh from "event-mesh/mesh";
 import { createCatalogEvents } from "@shared/catalog-events";
 import "./styles.css";
+import { CheckoutAvailabilityWatcher } from "./checkout-availability-watcher";
 
 const { publishCartItemUpdateRequested, publishCartItemRemoveRequested } =
   createCatalogEvents({ mesh });
@@ -122,23 +124,28 @@ function normalizeCartItems(cartItems: unknown): CartItem[] {
               class="checkout-quantity-input"
               type="number"
               min="1"
+              [attr.max]="getMaxAllowedQuantity(cartItem)"
               [value]="cartItem.quantity"
               (change)="handleQuantityChange($event, cartItem.productId)"
             />
             <button
               class="checkout-quantity-button"
               type="button"
+              [disabled]="isAtMaxQuantity(cartItem)"
               (click)="handleIncreaseQuantity(cartItem)"
             >
               +
             </button>
           </div>
+          <p *ngIf="isAtMaxQuantity(cartItem)" class="checkout-item-max-reached">
+            No more available
+          </p>
         </ng-container>
       </article>
     </section>
   `,
 })
-class CheckoutItemsComponent implements OnChanges {
+class CheckoutItemsComponent implements OnChanges, OnDestroy {
   @Input() cartItems: CartItem[] = [];
 
   @Input() productsById: ProductsById = {};
@@ -150,12 +157,45 @@ class CheckoutItemsComponent implements OnChanges {
 
   @Output() removeItem = new EventEmitter<string>();
 
-  ngOnChanges(_changes: SimpleChanges): void {
-    // Inputs are reflected automatically; no extra work needed.
+  availableByProductId: Record<string, number> = {};
+
+  private readonly availabilityWatcher = new CheckoutAvailabilityWatcher(
+    (productId, nextAvailable) => {
+      this.availableByProductId = { ...this.availableByProductId, [productId]: nextAvailable };
+    },
+  );
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes["cartItems"]) {
+      this.availabilityWatcher.syncWatchedProductIds(
+        this.cartItems.map((cartItem) => cartItem.productId),
+      );
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.availabilityWatcher.stopWatchingAll();
   }
 
   trackByProductId(_index: number, cartItem: CartItem): string {
     return cartItem.productId;
+  }
+
+  /**
+   * The highest quantity this line can be set to given its own held quantity plus the live
+   * available count, or null when the available count for this product is not yet known.
+   */
+  getMaxAllowedQuantity(cartItem: CartItem): number | null {
+    const available = this.availableByProductId[cartItem.productId];
+    if (typeof available !== "number") {
+      return null;
+    }
+    return cartItem.quantity + available;
+  }
+
+  isAtMaxQuantity(cartItem: CartItem): boolean {
+    const maxAllowed = this.getMaxAllowedQuantity(cartItem);
+    return typeof maxAllowed === "number" && cartItem.quantity >= maxAllowed;
   }
 
   handleDecreaseQuantity(cartItem: CartItem): void {
@@ -167,15 +207,29 @@ class CheckoutItemsComponent implements OnChanges {
   }
 
   handleIncreaseQuantity(cartItem: CartItem): void {
+    const maxAllowed = this.getMaxAllowedQuantity(cartItem);
+    const desiredQuantity = cartItem.quantity + 1;
+    const nextQuantity =
+      typeof maxAllowed === "number" ? Math.min(desiredQuantity, maxAllowed) : desiredQuantity;
+    if (nextQuantity === cartItem.quantity) {
+      return;
+    }
     this.quantityChange.emit({
       productId: cartItem.productId,
-      quantity: cartItem.quantity + 1,
+      quantity: nextQuantity,
     });
   }
 
   handleQuantityChange(event: Event, productId: string): void {
     const targetInput = event.target as HTMLInputElement | null;
-    const nextQuantity = normalizeQuantity(Number(targetInput?.value));
+    const cartItem = this.cartItems.find((item) => item.productId === productId);
+    const maxAllowed = cartItem ? this.getMaxAllowedQuantity(cartItem) : null;
+
+    let nextQuantity = normalizeQuantity(Number(targetInput?.value));
+    if (typeof maxAllowed === "number") {
+      nextQuantity = Math.min(nextQuantity, maxAllowed);
+    }
+
     if (targetInput) {
       targetInput.value = String(nextQuantity);
     }

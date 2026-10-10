@@ -45,6 +45,7 @@ module.exports = {
           singleton: true,
           requiredVersion: false,
         },
+        "@shared/stock-events": { singleton: true },
       },
     }),
     new HtmlWebpackPlugin({

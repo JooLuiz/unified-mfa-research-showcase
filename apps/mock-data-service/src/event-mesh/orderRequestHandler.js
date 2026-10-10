@@ -40,10 +40,11 @@ const ORDER_FAILURE_NOTIFICATIONS = Object.freeze({
  * @param {{ readJsonFile: (fileName: string) => Promise<unknown>, readJsonFileWithDefault: (fileName: string, defaultValue: unknown) => Promise<unknown>, writeJsonFile: (fileName: string, data: unknown) => Promise<void> }} jsonStore - JSON store bound to service data files.
  * @param {{ broadcastEvent: (eventType: string, payload: object) => void }} adminEventStream - Publisher for admin live order updates.
  * @param {{ broadcastCartChanged: (userId: string, cart: object) => void }} cartEventStream - Notifies that user's watching clients after the cart row is removed.
+ * @param {{ broadcastStockChanged: (productId: string, available: number) => void }} stockEventStream - Notifies stock watchers after the sold products' stock is decremented.
  * @returns {Promise<void>}
  * @sideEffects Subscribes to order request events on the local gateway singleton.
  */
-async function registerOrderRequestHandler(jsonStore, adminEventStream, cartEventStream) {
+async function registerOrderRequestHandler(jsonStore, adminEventStream, cartEventStream, stockEventStream) {
   const gatewayModule = await import("event-mesh/gateway");
   const gateway = gatewayModule.default;
 
@@ -87,6 +88,11 @@ async function registerOrderRequestHandler(jsonStore, adminEventStream, cartEven
       items: [],
       appliedCoupon: null,
       updatedAt: new Date().toISOString(),
+    });
+    // Defensive broadcast: decrementing stock and removing this user's hold by the same
+    // quantity nets to no visible change in `available`, but every watcher stays consistent.
+    orderResult.stockAvailability.forEach(({ productId, available }) => {
+      stockEventStream.broadcastStockChanged(productId, available);
     });
   });
 }

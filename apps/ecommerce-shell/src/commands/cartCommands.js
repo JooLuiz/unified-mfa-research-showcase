@@ -2,11 +2,12 @@
  * Loads and replaces the authenticated cart for the ecommerce shell.
  * Role: Reads the saved cart over HTTP and replaces it with a cart-sync/upsert mesh message.
  * Not in this file: Local cart mutation, login merge, or applying pushed carts (src/utils/cartSync.js).
- * Key dependencies: Mock data service GET /api/cart; event-mesh/mesh.
+ * Key dependencies: Mock data service GET /api/cart; event-mesh/mesh; @shared/stock-events.
  * See also: src/utils/cartSync.js; apps/mock-data-service/src/event-mesh/cartUpsertHandler.js.
  */
 
 import mesh from "event-mesh/mesh";
+import { GUEST_STOCK_SESSION_RELEASE_FIELD } from "@shared/stock-events";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import fetchJson from "../utils/fetchJson";
 import {
@@ -114,10 +115,13 @@ async function fetchSavedCart(authToken) {
  *
  * @param {string} _authToken - Unused. The open mesh connection already carries the user credential.
  * @param {{ items: object[], appliedCoupon: object | null }} cartPayload - Items and coupon to store.
+ * @param {string | null} [guestStockSessionIdToRelease] - Guest stock session id whose
+ *   guestHolds.json row the server should delete, since this login merge already folded that
+ *   session's held quantities into the saved cart. Only the login-merge call site passes this.
  * @returns {Promise<{ ok: boolean }>} Whether the gateway accepted the cart.
  * @sideEffects Publishes cart-sync/watching and cart-sync/upsert, then waits for the stored cart or a rejection.
  */
-async function saveSavedCart(_authToken, cartPayload) {
+async function saveSavedCart(_authToken, cartPayload, guestStockSessionIdToRelease) {
   const requestId = `cart-save-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   try {
     ensureCartSaveListeners();
@@ -136,6 +140,9 @@ async function saveSavedCart(_authToken, cartPayload) {
         items: cartPayload.items,
         appliedCoupon: cartPayload.appliedCoupon,
         requestId,
+        ...(guestStockSessionIdToRelease
+          ? { [GUEST_STOCK_SESSION_RELEASE_FIELD]: guestStockSessionIdToRelease }
+          : {}),
       },
       scope: "distributed",
     });

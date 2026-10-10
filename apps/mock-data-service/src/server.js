@@ -13,6 +13,7 @@ const path = require("path");
 const { createJsonStore } = require("./infrastructure/jsonStore");
 const { createAdminEventStream } = require("./infrastructure/adminEventStream");
 const { createCartEventStream } = require("./infrastructure/cartEventStream");
+const { createStockEventStream } = require("./infrastructure/stockEventStream");
 const { createCatalogRouter } = require("./routes/catalogRoutes");
 const { createAuthRouter } = require("./routes/authRoutes");
 const { createUserRouter } = require("./routes/userRoutes");
@@ -23,6 +24,7 @@ const { createCartRouter } = require("./routes/cartRoutes");
 const { createExportRouter } = require("./routes/exportRoutes");
 const { createAdminRouter } = require("./routes/adminRoutes");
 const { consumeConnectionTicket } = require("./domain/connectionTickets");
+const { releaseGuestSession } = require("./domain/stock");
 const {
   createAuthenticateConnection,
   createAuthorizeMessage,
@@ -30,6 +32,7 @@ const {
 const { registerExportRequestHandler } = require("./event-mesh/exportRequestHandler");
 const { registerOrderRequestHandler } = require("./event-mesh/orderRequestHandler");
 const { registerCartUpsertHandler } = require("./event-mesh/cartUpsertHandler");
+const { registerStockHandler } = require("./event-mesh/stockHandler");
 const { registerIframeBridgeHandler } = require("./event-mesh/iframeBridgeHandler");
 
 const app = express();
@@ -38,6 +41,7 @@ const dataDirectory = path.resolve(__dirname, "../data");
 const jsonStore = createJsonStore(dataDirectory);
 const adminEventStream = createAdminEventStream();
 const cartEventStream = createCartEventStream();
+const stockEventStream = createStockEventStream();
 
 app.use(cors());
 app.use(express.json());
@@ -60,14 +64,28 @@ async function configureAndStartEventGateway() {
     onClientDisconnect: (clientId) => {
       adminEventStream.forgetClient(clientId);
       cartEventStream.forgetClient(clientId);
+      const guestSessionId = stockEventStream.takeGuestSessionForClient(clientId);
+      stockEventStream.forgetClient(clientId);
+      if (guestSessionId) {
+        void releaseGuestSession({ jsonStore, sessionId: guestSessionId }).then((releaseResult) => {
+          if (!releaseResult.ok) {
+            return;
+          }
+          releaseResult.affectedProducts.forEach(({ productId, available }) => {
+            stockEventStream.broadcastStockChanged(productId, available);
+          });
+        });
+      }
     },
   });
   await gateway.start();
   await adminEventStream.registerWithGateway();
   await cartEventStream.registerWithGateway();
+  await stockEventStream.registerWithGateway();
   await registerExportRequestHandler(jsonStore);
-  await registerOrderRequestHandler(jsonStore, adminEventStream, cartEventStream);
-  await registerCartUpsertHandler(jsonStore, cartEventStream);
+  await registerOrderRequestHandler(jsonStore, adminEventStream, cartEventStream, stockEventStream);
+  await registerCartUpsertHandler(jsonStore, cartEventStream, stockEventStream);
+  await registerStockHandler(jsonStore, stockEventStream);
   await registerIframeBridgeHandler();
   return gateway;
 }

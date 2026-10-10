@@ -48,11 +48,15 @@ import {
 
 import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
 
-import { addCartItem } from "./utils/cartActions";
 import { startCartLiveEvents, stopCartLiveEvents } from "./events/cartLiveEvents";
+import { startStockGating } from "./events/stockGating";
 import { endCartSession, hydrateSavedCart, mergeGuestCartOnLogin, scheduleCartPersist, startCartTabSync } from "./utils/cartSync";
 import { navigate } from "./utils/navigate";
-import { updateCartItem, removeCartItem } from "./utils/cartActions";
+import {
+  addCartItemWithStockCheck,
+  setCartItemQuantityWithStockCheck,
+  STOCK_ISSUE_NOTIFICATION_MESSAGE,
+} from "./utils/cartActions";
 import { applyPromotionFilters } from "./pages/promotionsPage";
 import { placeCheckoutOrder } from "./commands/placeCheckoutOrder";
 import { persistAccountUpdate } from "./commands/accountCommands";
@@ -140,6 +144,11 @@ function startLocalMeshSession() {
   ensureCheckoutIntentListeners(checkoutIntentHandlers);
   ensureAccountIntentListeners(accountIntentHandlers);
   ensureCartEventListeners(shellEventHandlers);
+  // Re-send this guest's in-memory cart line holds now that its mesh session is up. This
+  // covers initial bootstrap and the post-logout downgrade; it does not cover an in-place
+  // WebSocket reconnect on an already-guest tab, since event-mesh's public client API does not
+  // expose a reconnect callback to hook into.
+  startStockGating(appState);
 }
 
 function startAuthenticatedMeshSession() {
@@ -205,6 +214,10 @@ function handleAuthMeshLifecycle() {
   }
 
   downgradeToLocalMeshSession();
+}
+
+function setGlobalCartVariable() {
+  window.__APP_SHELL_CART__ = appState.cartItems;
 }
 
 function clearCurrentPage() {
@@ -340,18 +353,38 @@ async function renderApp() {
 }
 
 function handleCartChanged() {
+  setGlobalCartVariable();
   updateHeaderState(appState, activeHeaderElement);
 }
 
+/**
+ * Adds a catalog product-card's requested quantity to the cart from a catalog add-to-cart
+ * intent, holding stock for it first.
+ *
+ * @param {{ productId: string, quantity: number }} cartItem - Validated add-to-cart payload.
+ * @returns {void}
+ * @sideEffects Reserves stock over the mesh, mutates cart, and toasts success or rejection.
+ */
 function handleCartItemAddRequested(cartItem) {
-  addCartItem(appState, cartItem.productId, cartItem.quantity);
-  const productName =
-    appState.productsById[cartItem.productId]?.name || "Item";
-  publishNotification({
-    type: "success",
-    title: "Item added",
-    message: `${productName} was added to your cart.`,
-  });
+  void addCartItemWithStockCheck(appState, cartItem.productId, cartItem.quantity).then(
+    (reservationResult) => {
+      if (!reservationResult.ok) {
+        publishNotification({
+          type: "error",
+          title: "Stock issue",
+          message: STOCK_ISSUE_NOTIFICATION_MESSAGE,
+        });
+        return;
+      }
+      const productName =
+        appState.productsById[cartItem.productId]?.name || "Item";
+      publishNotification({
+        type: "success",
+        title: "Item added",
+        message: `${productName} was added to your cart.`,
+      });
+    },
+  );
 }
 
 /**
@@ -389,34 +422,56 @@ function handlePromotionApplied({ filters }) {
 }
 
 /**
- * Updates a cart line from a checkout items intent.
+ * Updates a cart line's quantity from a checkout items intent, holding the matching stock first.
  *
  * @param {{ productId: string, quantity: number }} cartItem - Validated update payload.
  * @returns {void}
- * @sideEffects Mutates cart and publishes cart.changed.
+ * @sideEffects Reserves stock over the mesh; mutates cart and publishes cart.changed only on
+ *   success, otherwise toasts a stock-issue notification and leaves the cart unchanged.
  */
 function handleCartItemUpdateRequested(cartItem) {
-  updateCartItem(appState, cartItem.productId, cartItem.quantity);
+  void setCartItemQuantityWithStockCheck(appState, cartItem.productId, cartItem.quantity).then(
+    (stockCheckResult) => {
+      if (stockCheckResult.ok) {
+        return;
+      }
+      publishNotification({
+        type: "error",
+        title: "Stock issue",
+        message: STOCK_ISSUE_NOTIFICATION_MESSAGE,
+      });
+    },
+  );
 }
 
 /**
- * Removes a cart line from a checkout items intent.
+ * Removes a cart line from a checkout items intent by releasing its stock hold first.
  *
  * @param {{ productId: string }} payload - Validated remove payload.
  * @returns {void}
- * @sideEffects Mutates cart, toasts, may re-render when cart empties.
+ * @sideEffects Releases the stock hold over the mesh; mutates cart and toasts success, or toasts
+ *   a stock-issue notification and leaves the cart unchanged on failure.
  */
 function handleCartItemRemoveRequested({ productId }) {
   const productName = appState.productsById[productId]?.name || "Item";
-  removeCartItem(appState, productId);
-  publishNotification({
-    type: "success",
-    title: "Item removed",
-    message: `${productName} was removed from your cart.`,
+  void setCartItemQuantityWithStockCheck(appState, productId, 0).then((stockCheckResult) => {
+    if (!stockCheckResult.ok) {
+      publishNotification({
+        type: "error",
+        title: "Stock issue",
+        message: STOCK_ISSUE_NOTIFICATION_MESSAGE,
+      });
+      return;
+    }
+    publishNotification({
+      type: "success",
+      title: "Item removed",
+      message: `${productName} was removed from your cart.`,
+    });
+    if (appState.cartItems.length === 0) {
+      publishRenderRequested();
+    }
   });
-  if (appState.cartItems.length === 0) {
-    publishRenderRequested();
-  }
 }
 
 /**
@@ -534,6 +589,7 @@ async function bootstrap() {
     await hydrateSavedCart(appState);
     void refreshCurrentUserFromApi(appState);
   }
+  setGlobalCartVariable();
   await renderApp();
 }
 

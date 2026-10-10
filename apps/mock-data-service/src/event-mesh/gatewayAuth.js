@@ -19,6 +19,10 @@ const IFRAME_MESSAGE_EVENT = "message";
 const CART_SYNC_TOPIC = "cart-sync";
 const CART_WATCHING_EVENT = "watching";
 const CART_UPSERT_EVENT = "upsert";
+const STOCK_TOPIC = "stock";
+const STOCK_WATCHING_EVENT = "watching";
+const STOCK_RESERVE_EVENT = "reserve";
+const STOCK_RELEASE_EVENT = "release";
 const GUEST_CREDENTIAL = Object.freeze({
   kind: "guest",
   roles: ["guest"],
@@ -54,8 +58,16 @@ function createAuthorizeMessage() {
         message.event === IFRAME_CHANNEL_UNREGISTERED_EVENT ||
         message.event === IFRAME_MESSAGE_EVENT);
 
+    const isStockMessage =
+      message.topic === STOCK_TOPIC &&
+      (message.event === STOCK_WATCHING_EVENT ||
+        message.event === STOCK_RESERVE_EVENT ||
+        message.event === STOCK_RELEASE_EVENT);
+
     if (credential?.kind === "guest") {
-      return isIframeBridgeMessage;
+      // Guests may watch, reserve, and release stock, and relay iframe-bridge messages, but
+      // never publish cart-sync — a guest hold lives in guestHolds.json, not a saved cart.
+      return isIframeBridgeMessage || isStockMessage;
     }
 
     if (!credential?.userId) {
@@ -75,6 +87,7 @@ function createAuthorizeMessage() {
     return (
       isAdminWatchingMessage ||
       isCartSyncMessage ||
+      isStockMessage ||
       (message.topic === EXPORT_TOPIC &&
         message.event === EXPORT_REQUESTED_EVENT) ||
       (message.topic === ORDERS_TOPIC &&

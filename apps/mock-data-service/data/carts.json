@@ -1,23 +1,20 @@
 [
   {
     "userId": "u-01",
-    "items": [
-      {
-        "productId": "p-08",
-        "quantity": 1
-      },
-      {
-        "productId": "p-11",
-        "quantity": 1
-      }
-    ],
+    "items": [],
     "appliedCoupon": null,
-    "updatedAt": "2026-10-08T01:59:21.305Z"
+    "updatedAt": "2026-10-07T12:56:41.200Z"
   },
   {
     "userId": "u-02",
     "items": [],
     "appliedCoupon": null,
-    "updatedAt": "2026-10-08T01:58:52.551Z"
+    "updatedAt": "2026-10-09T17:26:36.661Z"
+  },
+  {
+    "userId": "u-03",
+    "items": [],
+    "appliedCoupon": null,
+    "updatedAt": "2026-10-09T17:27:20.892Z"
   }
 ]
