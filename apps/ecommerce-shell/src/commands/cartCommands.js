@@ -6,6 +6,7 @@
  * See also: src/utils/cartSync.js.
  */
 
+import { STOCK_SESSION_RELEASE_HEADER_NAME } from "@shared/stock-events";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import fetchJson from "../utils/fetchJson";
 
@@ -36,17 +37,24 @@ async function fetchSavedCart(authToken) {
  *
  * @param {string} authToken - Bearer token for the current user.
  * @param {{ items: object[], appliedCoupon: object | null }} cartPayload - Items and coupon to store.
+ * @param {string | null} [guestStockSessionIdToRelease] - Guest stock session id whose
+ *   guestHolds.json row the server should delete, since this login merge already folded that
+ *   session's held quantities into the saved cart. Only the login-merge call site passes this.
  * @returns {Promise<{ ok: boolean }>} Whether the server accepted the cart.
  * @sideEffects Performs the HTTP cart write.
  */
-async function saveSavedCart(authToken, cartPayload) {
+async function saveSavedCart(authToken, cartPayload, guestStockSessionIdToRelease) {
   try {
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authToken}`,
+    };
+    if (guestStockSessionIdToRelease) {
+      headers[STOCK_SESSION_RELEASE_HEADER_NAME] = guestStockSessionIdToRelease;
+    }
     await fetchJson(`${MOCK_API_BASE_URL}/cart`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
+      headers,
       body: JSON.stringify(cartPayload),
     });
     return { ok: true };

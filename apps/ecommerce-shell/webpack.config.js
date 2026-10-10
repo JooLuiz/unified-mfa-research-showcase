@@ -4,7 +4,7 @@ const { ModuleFederationPlugin } = require("webpack").container;
 
 module.exports = {
   mode: "development",
-  entry: path.resolve(__dirname, "src/main.js"),
+  entry: path.resolve(__dirname, "src/index.js"),
   output: {
     publicPath: "auto",
     clean: true,
@@ -44,6 +44,9 @@ module.exports = {
         account: "account@http://localhost:4310/remoteEntry.js",
         login: "login@http://localhost:4311/remoteEntry.js",
         order_details: "order_details@http://localhost:4313/remoteEntry.js",
+      },
+      shared: {
+        "@shared/stock-events": { singleton: true },
       },
     }),
     new HtmlWebpackPlugin({

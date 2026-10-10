@@ -8,6 +8,7 @@
     "lint": "node -e \"process.stdout.write('product-card lint not configured\\\\n')\""
   },
   "dependencies": {
+    "@shared/stock-events": "*",
     "vue": "^3.5.13"
   },
   "devDependencies": {

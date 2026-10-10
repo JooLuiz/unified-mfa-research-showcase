@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@shared/iframe-bridge": "*",
+    "@shared/stock-events": "*",
     "@angular/common": "^21.2.8",
     "@angular/core": "^21.2.8",
     "@angular/elements": "^21.2.8",

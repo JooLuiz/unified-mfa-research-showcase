@@ -7,17 +7,14 @@
   },
   {
     "userId": "u-02",
-    "items": [
-      {
-        "productId": "p-02",
-        "quantity": 1
-      },
-      {
-        "productId": "p-03",
-        "quantity": 1
-      }
-    ],
+    "items": [],
     "appliedCoupon": null,
-    "updatedAt": "2026-10-07T12:56:23.680Z"
+    "updatedAt": "2026-10-09T17:26:36.661Z"
+  },
+  {
+    "userId": "u-03",
+    "items": [],
+    "appliedCoupon": null,
+    "updatedAt": "2026-10-09T17:27:20.892Z"
   }
 ]
