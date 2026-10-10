@@ -6,6 +6,7 @@
  * See also: src/main.js; src/commands/placeCheckoutOrder.js.
  */
 
+import { getOrCreateGuestStockSessionId } from "@shared/stock-events";
 import { fetchSavedCart, saveSavedCart } from "../commands/cartCommands";
 import { subscribeToCartLiveEvents } from "../events/cartLiveEvents";
 import { publishCartChanged } from "../events/eventBus";
@@ -193,7 +194,9 @@ async function hydrateSavedCart(appState) {
  * @param {string} authToken - Token from the login response, not yet stored on appState.
  * @param {string | null} userId - Signed-in user id used to address other tabs.
  * @returns {Promise<{ needsPersist: boolean }>} Whether the caller should save again after the session is stored.
- * @sideEffects Replaces local cart state. PUTs the merged cart when the guest tab contributed lines.
+ * @sideEffects Replaces local cart state. PUTs the merged cart when the guest tab contributed
+ *   lines, telling the server to release this tab's guest stock session in the same request
+ *   (its held quantities are now folded into the saved cart).
  * Note: A failed cart read leaves the guest lines in memory and does not overwrite the saved cart.
  */
 async function mergeGuestCartOnLogin(appState, authToken, userId) {
@@ -213,10 +216,11 @@ async function mergeGuestCartOnLogin(appState, authToken, userId) {
     return { needsPersist: false };
   }
 
-  const saveResult = await saveSavedCart(authToken, {
-    items: mergedItems,
-    appliedCoupon,
-  });
+  const saveResult = await saveSavedCart(
+    authToken,
+    { items: mergedItems, appliedCoupon },
+    getOrCreateGuestStockSessionId(),
+  );
   if (!saveResult.ok) {
     return { needsPersist: true };
   }

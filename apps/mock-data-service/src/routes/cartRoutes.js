@@ -4,8 +4,8 @@
  * Not in this file: Cart persistence (src/domain/cartProcessing.js) or the stream map
  *   (src/infrastructure/cartEventStream.js).
  * Key dependencies: carts.json via src/domain/cartProcessing.js; src/domain/auth.js;
- *   src/domain/connectionTickets.js.
- * See also: src/server.js; src/routes/orderRoutes.js.
+ *   src/domain/connectionTickets.js; src/domain/guestHolds.js for the login-merge hand-off.
+ * See also: src/server.js; src/routes/orderRoutes.js; src/routes/stockRoutes.js.
  */
 
 const express = require("express");
@@ -20,6 +20,9 @@ const {
   getCartForUser,
   saveCartForUser,
 } = require("../domain/cartProcessing");
+const { deleteGuestHoldSession } = require("../domain/guestHolds");
+
+const GUEST_STOCK_SESSION_HEADER_NAME = "x-stock-session-to-release";
 
 const CART_SSE_HEARTBEAT_INTERVAL_MS = 20_000;
 
@@ -99,6 +102,16 @@ function createCartRouter(jsonStore, cartEventStream) {
         response.status(500).json({ message: "Unable to save cart" });
         return;
       }
+
+      const guestStockSessionIdToRelease = request.headers[GUEST_STOCK_SESSION_HEADER_NAME];
+      if (typeof guestStockSessionIdToRelease === "string" && guestStockSessionIdToRelease.trim() !== "") {
+        // The login merge already folded this session's guest-held quantities into the saved
+        // cart above. Deleting the guestHolds.json row here avoids double-counting the same
+        // units against `available` on both sides. No stock_changed broadcast: the hold moved
+        // from guest to user, so the available count does not change.
+        await deleteGuestHoldSession({ jsonStore, sessionId: guestStockSessionIdToRelease.trim() });
+      }
+
       cartEventStream.broadcastCartChanged(authenticatedUser.userId, cartResult.cart);
       response.json(cartResult.cart);
     } catch (error) {

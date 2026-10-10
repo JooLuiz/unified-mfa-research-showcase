@@ -13,6 +13,7 @@ const path = require("path");
 const { createJsonStore } = require("./infrastructure/jsonStore");
 const { createAdminEventStream } = require("./infrastructure/adminEventStream");
 const { createCartEventStream } = require("./infrastructure/cartEventStream");
+const { createStockEventStream } = require("./infrastructure/stockEventStream");
 const { createCatalogRouter } = require("./routes/catalogRoutes");
 const { createAuthRouter } = require("./routes/authRoutes");
 const { createUserRouter } = require("./routes/userRoutes");
@@ -20,6 +21,7 @@ const { createPostRouter } = require("./routes/postRoutes");
 const { createFaqRouter } = require("./routes/faqRoutes");
 const { createOrderRouter } = require("./routes/orderRoutes");
 const { createCartRouter } = require("./routes/cartRoutes");
+const { createStockRouter } = require("./routes/stockRoutes");
 const { createExportRouter } = require("./routes/exportRoutes");
 const { createAdminRouter } = require("./routes/adminRoutes");
 
@@ -29,6 +31,7 @@ const dataDirectory = path.resolve(__dirname, "../data");
 const jsonStore = createJsonStore(dataDirectory);
 const adminEventStream = createAdminEventStream();
 const cartEventStream = createCartEventStream();
+const stockEventStream = createStockEventStream();
 
 app.use(cors());
 app.use(express.json());
@@ -42,8 +45,9 @@ app.use("/api", createAuthRouter(jsonStore));
 app.use("/api", createUserRouter(jsonStore));
 app.use("/api", createPostRouter(jsonStore, adminEventStream));
 app.use("/api", createFaqRouter(jsonStore));
-app.use("/api", createOrderRouter(jsonStore, adminEventStream, cartEventStream));
+app.use("/api", createOrderRouter(jsonStore, adminEventStream, cartEventStream, stockEventStream));
 app.use("/api", createCartRouter(jsonStore, cartEventStream));
+app.use("/api", createStockRouter(jsonStore, stockEventStream));
 app.use("/api", createExportRouter(jsonStore));
 app.use("/api", createAdminRouter(jsonStore, adminEventStream));
 

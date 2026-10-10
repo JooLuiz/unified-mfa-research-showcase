@@ -2,11 +2,13 @@
  * Serves read-only catalog routes for the mock data service.
  * Role: Handles GET /products(+/:productId), /categories, /showcases(+/:showcaseId), and /banners(+/:bannerId), mounted at /api.
  * Not in this file: Auth, user, post, FAQ, or order routes.
- * Key dependencies: products.json, categories.json, showcases.json, banners.json via the JSON store.
+ * Key dependencies: products.json, categories.json, showcases.json, banners.json via the JSON store;
+ *   src/domain/stock.js for the live `available` count on product reads.
  * See also: src/server.js.
  */
 
 const express = require("express");
+const { getProductsWithAvailability } = require("../domain/stock");
 
 function parseNumericFilter(value, fallbackValue) {
   const parsedValue = Number(value);
@@ -24,7 +26,12 @@ function createCatalogRouter(jsonStore) {
 
   router.get("/products", async (request, response) => {
     try {
-      const productsData = await jsonStore.readJsonFile("products.json");
+      const availabilityResult = await getProductsWithAvailability(jsonStore);
+      if (!availabilityResult.ok) {
+        response.status(500).json({ message: "Unable to load products" });
+        return;
+      }
+      const productsData = availabilityResult.products;
       const searchQuery = (request.query.search || "").toString().toLowerCase().trim();
       const minPrice = parseNumericFilter(request.query.minPrice, Number.NEGATIVE_INFINITY);
       const maxPrice = parseNumericFilter(request.query.maxPrice, Number.POSITIVE_INFINITY);
@@ -83,8 +90,14 @@ function createCatalogRouter(jsonStore) {
 
   router.get("/products/:productId", async (request, response) => {
     try {
-      const productsData = await jsonStore.readJsonFile("products.json");
-      const selectedProduct = productsData.find((product) => product.id === request.params.productId);
+      const availabilityResult = await getProductsWithAvailability(jsonStore);
+      if (!availabilityResult.ok) {
+        response.status(500).json({ message: "Unable to load product" });
+        return;
+      }
+      const selectedProduct = availabilityResult.products.find(
+        (product) => product.id === request.params.productId,
+      );
 
       if (!selectedProduct) {
         response.status(404).json({ message: "Product not found" });

@@ -8,8 +8,12 @@
 
 import { publishCartChanged, publishRenderRequested, subscribeToCartChanges } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
-import { updateCartItem, removeCartItem } from "../utils/cartActions";
+import {
+  STOCK_ISSUE_NOTIFICATION_MESSAGE,
+  setCartItemQuantityWithStockCheck,
+} from "../utils/cartActions";
 import { scheduleCartPersist } from "../utils/cartSync";
+import { MOCK_API_BASE_URL } from "../utils/constants";
 import {
   isAuthenticated,
   rememberPostLoginRedirect,
@@ -86,13 +90,34 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
   activeCleanupFunctions.push(
     modules.mountCheckoutItems(checkoutItemsMount, {
       productsById: appState.productsById,
-      onQuantityChange: (productId, quantity) => {
-        updateCartItem(appState, productId, quantity);
+      apiBaseUrl: MOCK_API_BASE_URL,
+      onQuantityChange: async (productId, quantity) => {
+        const stockCheckResult = await setCartItemQuantityWithStockCheck(
+          appState,
+          productId,
+          quantity,
+        );
+        if (!stockCheckResult.ok) {
+          publishNotification({
+            type: "error",
+            title: "Stock issue",
+            message: STOCK_ISSUE_NOTIFICATION_MESSAGE,
+          });
+          return;
+        }
         refreshCheckoutSummary();
       },
-      onRemoveItem: (productId) => {
+      onRemoveItem: async (productId) => {
         const productName = appState.productsById[productId]?.name || "Item";
-        removeCartItem(appState, productId);
+        const stockCheckResult = await setCartItemQuantityWithStockCheck(appState, productId, 0);
+        if (!stockCheckResult.ok) {
+          publishNotification({
+            type: "error",
+            title: "Stock issue",
+            message: STOCK_ISSUE_NOTIFICATION_MESSAGE,
+          });
+          return;
+        }
         publishNotification({
           type: "success",
           title: "Item removed",

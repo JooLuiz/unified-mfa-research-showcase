@@ -16,17 +16,15 @@ import {
   publishRenderRequested,
   subscribeToAuthSessionChanges,
   subscribeToCartChanges,
-  subscribeToCartItemAddRequests,
   subscribeToLogoutRequests,
   subscribeToRenderRequests,
 } from "./events/eventBus";
 import { mountNotificationCenter } from "./notifications/notificationCenter";
-import { publishNotification } from "./notifications/notificationAdapter";
 
 import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
 
-import { addCartItem } from "./utils/cartActions";
 import { startCartLiveEvents, stopCartLiveEvents } from "./events/cartLiveEvents";
+import { startStockGating } from "./events/stockGating";
 import { endCartSession, hydrateSavedCart, startCartTabSync } from "./utils/cartSync";
 import { navigate } from "./utils/navigate";
 import {
@@ -65,6 +63,8 @@ let currentRenderId = 0;
 let activeCleanupFunctions = [];
 let activeHeaderElement = null;
 const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
+
+startStockGating(appState);
 
 function setGlobalCartVariable() {
   window.__APP_SHELL_CART__ = appState.cartItems;
@@ -231,27 +231,6 @@ subscribeToLogoutRequests(() => {
   endCartSession(appState);
   clearAuthSession(appState);
   navigate("/");
-});
-
-subscribeToCartItemAddRequests((event) => {
-  const payload = event.detail;
-  if (!payload || !payload.productId) {
-    return;
-  }
-
-  const incomingQuantity = Number(payload.quantity);
-  const quantityValue =
-    Number.isFinite(incomingQuantity) && incomingQuantity > 0
-      ? incomingQuantity
-      : 1;
-  addCartItem(appState, payload.productId, quantityValue);
-  const productName =
-    appState.productsById[payload.productId]?.name || "Item";
-  publishNotification({
-    type: "success",
-    title: "Item added",
-    message: `${productName} was added to your cart.`,
-  });
 });
 
 async function bootstrap() {

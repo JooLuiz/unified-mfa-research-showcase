@@ -147,6 +147,8 @@ test("createOrderForUser removes the user cart only after the order is stored", 
         updatedAt: "2026-01-01T00:00:00.000Z",
       },
     ],
+    "products.json": [{ id: "p-01", name: "Minimalist Desk Lamp", price: 45, stock: 2 }],
+    "guestHolds.json": {},
   });
   const user = { id: "u-01", address: null };
 
@@ -172,4 +174,5 @@ test("createOrderForUser removes the user cart only after the order is stored", 
   assert.equal(placedOrder.ok, true);
   assert.equal(jsonStore.files["orders.json"].length, 1);
   assert.equal(jsonStore.files["carts.json"].length, 0);
+  assert.equal(jsonStore.files["products.json"][0].stock, 0);
 });

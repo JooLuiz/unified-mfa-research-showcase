@@ -52,6 +52,7 @@ module.exports = {
         "@angular/platform-browser": { singleton: true },
         rxjs: { singleton: true },
         "zone.js": { singleton: true },
+        "@shared/stock-events": { singleton: true },
       },
     }),
     new AngularWebpackPlugin({

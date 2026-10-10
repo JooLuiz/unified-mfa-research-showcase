@@ -12,6 +12,7 @@ export type Product = {
   price: number;
   image: string;
   similarProducts?: string[];
+  available?: number;
 };
 
 export type AddToCartPayload = {

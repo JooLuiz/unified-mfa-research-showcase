@@ -3,9 +3,10 @@
  * Role: Handles POST /orders, GET /orders, and GET /orders/:orderId, mounted at /api.
  * Not in this file: Token helpers (src/domain/auth.js), order persistence
  *   (src/domain/orderProcessing.js), or the broadcast implementations
- *   (src/infrastructure/adminEventStream.js, src/infrastructure/cartEventStream.js).
+ *   (src/infrastructure/adminEventStream.js, src/infrastructure/cartEventStream.js,
+ *   src/infrastructure/stockEventStream.js).
  * Key dependencies: orders.json and users.json via the JSON store.
- * See also: src/server.js; src/routes/adminRoutes.js; src/routes/cartRoutes.js.
+ * See also: src/server.js; src/routes/adminRoutes.js; src/routes/cartRoutes.js; src/routes/stockRoutes.js.
  */
 
 const express = require("express");
@@ -21,9 +22,10 @@ const {
  * @param {{ readJsonFile: (fileName: string) => Promise<any>, readJsonFileWithDefault: (fileName: string, defaultValue: any) => Promise<any>, writeJsonFile: (fileName: string, data: any) => Promise<void> }} jsonStore - JSON file store bound to the data directory.
  * @param {{ broadcastEvent: (eventType: string, payload: object) => void }} adminEventStream - Broadcaster notified when a new order is placed.
  * @param {{ broadcastCartChanged: (userId: string, cart: object) => void }} cartEventStream - Notifies that user's open cart streams after the cart row is removed.
+ * @param {{ broadcastStockChanged: (productId: string, available: number) => void }} stockEventStream - Notifies stock watchers after the sold products' stock is decremented.
  * @returns {import("express").Router} Router with the /orders routes.
  */
-function createOrderRouter(jsonStore, adminEventStream, cartEventStream) {
+function createOrderRouter(jsonStore, adminEventStream, cartEventStream, stockEventStream) {
   const router = express.Router();
 
   router.post("/orders", async (request, response) => {
@@ -67,6 +69,11 @@ function createOrderRouter(jsonStore, adminEventStream, cartEventStream) {
         items: [],
         appliedCoupon: null,
         updatedAt: new Date().toISOString(),
+      });
+      // Defensive broadcast: decrementing stock and removing this user's hold by the same
+      // quantity nets to no visible change in `available`, but every watcher stays consistent.
+      orderResult.stockAvailability.forEach(({ productId, available }) => {
+        stockEventStream.broadcastStockChanged(productId, available);
       });
 
       response.status(201).json(orderResult.order);
