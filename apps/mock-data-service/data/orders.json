@@ -33,7 +33,8 @@
       "postalCode": "73301",
       "country": "USA"
     },
-    "placedAt": "2026-05-12T02:25:11.140Z"
+    "placedAt": "2026-05-12T02:25:11.140Z",
+    "status": "delivered"
   },
   {
     "id": "order-mp4ve3gd-kb6od6",
@@ -108,6 +109,7 @@
       "postalCode": "73301",
       "country": "USA"
     },
-    "placedAt": "2026-05-28T21:47:06.931Z"
+    "placedAt": "2026-05-28T21:47:06.931Z",
+    "status": "shipped"
   }
 ]

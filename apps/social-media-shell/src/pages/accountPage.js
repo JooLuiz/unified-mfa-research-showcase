@@ -89,9 +89,13 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
               : `${currentUserPosts.length} post${currentUserPosts.length === 1 ? "" : "s"} shared.`
           }</p>
         </div>
-        <button id="exportPostsButton" class="account-action-button" type="button">
+        ${
+          currentUserPosts.length > 0
+            ? `<button id="exportPostsButton" class="account-action-button" type="button">
           Export CSV
-        </button>
+        </button>`
+            : ""
+        }
       </header>
       ${currentUserPosts.length > 0 ? '<div id="accountPostsFeedMount"></div>' : ""}
     </section>

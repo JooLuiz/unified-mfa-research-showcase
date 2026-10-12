@@ -2,7 +2,8 @@
  * Persists authenticated orders for the mock data service.
  * Role: Validates order payloads, writes new orders to orders.json, removes that user's cart,
  *   and decrements the stock sold.
- * Not in this file: HTTP routing or id generation (src/domain/identifiers.js).
+ * Not in this file: HTTP routing, id generation (src/domain/identifiers.js), or later status
+ *   changes (src/domain/orderStatus.js).
  * Key dependencies: JSON store; src/domain/identifiers.js; src/domain/cartProcessing.js; src/domain/stock.js.
  * See also: src/routes/orderRoutes.js.
  */
@@ -39,6 +40,7 @@ async function createOrderForUser({ jsonStore, user, orderPayload }) {
     shippingAddress:
       orderPayload.shippingAddress || user.address || null,
     placedAt: new Date().toISOString(),
+    status: "placed",
   };
 
   try {

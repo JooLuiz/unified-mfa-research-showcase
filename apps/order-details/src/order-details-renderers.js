@@ -7,26 +7,81 @@
  */
 
 import { h } from "vue";
+import { formatOrderStatus } from "@shared/order-status-events";
 import {
   buildAddressLines,
   formatCurrencyValue,
   formatDateValue,
 } from "./order-details-utils";
 
+const ADMIN_STATUS_ACTIONS = {
+  placed: [
+    { label: "Ship", status: "shipped" },
+    { label: "Cancel", status: "cancelled" },
+  ],
+  shipped: [{ label: "Deliver", status: "delivered" }],
+  "cancellation-requested": [
+    { label: "Accept", status: "cancelled" },
+    { label: "Decline", status: "placed" },
+  ],
+};
+
 /**
- * Renders the order header with id and placement date.
+ * Returns the status actions for this viewer. The action row is always rendered so the header
+ * does not shift when the list is empty.
+ *
+ * @param {string} currentStatus - Stored order status, defaulting to placed.
+ * @param {string} actor - "admin" or "customer".
+ * @returns {Array<{ label: string, status: string }>} Actions for the current status.
+ */
+function resolveHeaderActions(currentStatus, actor) {
+  if (actor === "admin") {
+    return ADMIN_STATUS_ACTIONS[currentStatus] || [];
+  }
+  if (currentStatus === "placed") {
+    return [{ label: "Request cancellation", status: "cancellation-requested" }];
+  }
+  return [];
+}
+
+/**
+ * Renders the order header. The id and placed date stay on the left. Status and actions stay
+ * on the right, including when there are no actions.
  *
  * @param {object} order - Order record.
+ * @param {{ actor: string, onStatusAction: (nextStatus: string) => void }} headerActions - Who is viewing, and the handler for a status button.
  * @returns {import("vue").VNode} Header fragment.
  */
-function renderOrderHeader(order) {
+function renderOrderHeader(order, { actor, onStatusAction }) {
+  const currentStatus = order.status || "placed";
+  const headerActions = resolveHeaderActions(currentStatus, actor);
   return h("header", { class: "order-details-header" }, [
-    h("h2", { class: "order-details-title" }, `Order ${order.id}`),
-    h(
-      "span",
-      { class: "order-details-status" },
-      `Placed on ${formatDateValue(order.placedAt)}`,
-    ),
+    h("div", { class: "order-details-header-identity" }, [
+      h("h2", { class: "order-details-title" }, `Order ${order.id}`),
+      h(
+        "span",
+        { class: "order-details-placed" },
+        `Placed on ${formatDateValue(order.placedAt)}`,
+      ),
+    ]),
+    h("div", { class: "order-details-header-aside" }, [
+      h("span", { class: "order-details-status" }, formatOrderStatus(currentStatus)),
+      h(
+        "div",
+        { class: "order-details-actions" },
+        headerActions.map((headerAction) =>
+          h(
+            "button",
+            {
+              class: "order-details-action-button",
+              type: "button",
+              onClick: () => onStatusAction(headerAction.status),
+            },
+            headerAction.label,
+          ),
+        ),
+      ),
+    ]),
   ]);
 }
 

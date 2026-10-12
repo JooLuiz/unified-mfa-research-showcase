@@ -17,6 +17,7 @@ const {
   setAbsoluteStock,
   releaseGuestSession,
   consumeStockForSale,
+  restoreStockForOrder,
 } = require("./stock");
 
 /**
@@ -209,4 +210,18 @@ test("consumeStockForSale never drives stock below zero", async () => {
   await consumeStockForSale({ jsonStore, items: [{ productId: "p-01", quantity: 5 }] });
 
   assert.equal(jsonStore.files["products.json"][0].stock, 0);
+});
+
+test("restoreStockForOrder adds the cancelled quantities back onto stock", async () => {
+  const jsonStore = createBaseStore();
+  await consumeStockForSale({ jsonStore, items: [{ productId: "p-01", quantity: 2 }] });
+
+  const restoreResult = await restoreStockForOrder({
+    jsonStore,
+    items: [{ productId: "p-01", quantity: 2 }],
+  });
+
+  assert.equal(restoreResult.ok, true);
+  assert.deepEqual(restoreResult.affectedProducts, [{ productId: "p-01", available: 2 }]);
+  assert.equal(jsonStore.files["products.json"][0].stock, 2);
 });

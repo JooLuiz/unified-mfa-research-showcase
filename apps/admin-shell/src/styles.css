@@ -121,6 +121,26 @@ react-header-mfe {
   text-align: right;
 }
 
+.admin-order-row {
+  cursor: pointer;
+}
+
+.admin-order-row:hover {
+  background: #f4f4f4;
+}
+
+.admin-order-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.admin-order-details-header h2 {
+  margin: 0;
+}
+
 .admin-loading,
 .admin-empty {
   border: 1px solid #222;
