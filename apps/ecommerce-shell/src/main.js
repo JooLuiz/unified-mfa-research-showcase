@@ -24,6 +24,12 @@ import { mountNotificationCenter } from "./notifications/notificationCenter";
 import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
 
 import { startCartLiveEvents, stopCartLiveEvents } from "./events/cartLiveEvents";
+import {
+  startCustomerOrderStatusStream,
+  stopCustomerOrderStatusStream,
+} from "@shared/order-status-events";
+import { registerCustomerOrderStatusToasts } from "./events/customerOrderStatusToasts";
+import { MOCK_API_BASE_URL } from "./utils/constants";
 import { startStockGating } from "./events/stockGating";
 import { endCartSession, hydrateSavedCart, startCartTabSync } from "./utils/cartSync";
 import { navigate } from "./utils/navigate";
@@ -217,10 +223,17 @@ window.addEventListener("popstate", () => {
 function syncCartLiveEventsWithSession() {
   if (appState.authToken) {
     void startCartLiveEvents(appState);
+    void startCustomerOrderStatusStream({
+      apiBaseUrl: MOCK_API_BASE_URL,
+      authToken: appState.authToken,
+    });
   } else {
     stopCartLiveEvents();
+    stopCustomerOrderStatusStream();
   }
 }
+
+registerCustomerOrderStatusToasts(appState);
 
 subscribeToAuthSessionChanges(() => {
   syncCartLiveEventsWithSession();

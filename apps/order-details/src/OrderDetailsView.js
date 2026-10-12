@@ -19,7 +19,8 @@ import {
 
 /**
  * Order details component.
- * Props: order (object, optional pre-loaded order) and apiBaseUrl (string, mock API base URL).
+ * Props: order (object, optional pre-loaded order), apiBaseUrl (string), actor ("customer" or "admin"),
+ *   authToken (string, optional override), onStatusRejected (function, admin rejection toast).
  * Renders: loading, missing-id, error, not-found, or the full order details section.
  */
 const OrderDetailsComponent = {
@@ -32,9 +33,21 @@ const OrderDetailsComponent = {
       type: String,
       default: "",
     },
+    actor: {
+      type: String,
+      default: "customer",
+    },
+    authToken: {
+      type: String,
+      default: "",
+    },
+    onStatusRejected: {
+      type: Function,
+      default: null,
+    },
   },
   setup(props) {
-    const { orderData, isLoading, loadError, isMissingOrderId } =
+    const { orderData, isLoading, loadError, isMissingOrderId, actor, applyStatusAction } =
       useOrderDetails(props);
 
     return () => {
@@ -74,7 +87,7 @@ const OrderDetailsComponent = {
       const orderItems = Array.isArray(order.items) ? order.items : [];
 
       return h("section", { class: "order-details-shell" }, [
-        renderOrderHeader(order),
+        renderOrderHeader(order, { actor, onStatusAction: applyStatusAction }),
         renderOrderMeta(order, orderItems.length),
         orderItems.length > 0 ? renderItemsTable(orderItems) : null,
         renderTotalsSection(order),

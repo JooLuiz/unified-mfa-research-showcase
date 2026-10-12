@@ -5,7 +5,8 @@
  * Not in this file: HTTP routing (src/routes/stockRoutes.js, src/routes/catalogRoutes.js) or the
  *   SSE watcher registry (src/infrastructure/stockEventStream.js).
  * Key dependencies: products.json; src/domain/cartProcessing.js; src/domain/guestHolds.js.
- * See also: src/domain/orderProcessing.js (consumes stock on sale).
+ * See also: src/domain/orderProcessing.js (consumes stock on sale); src/domain/orderStatus.js
+ *   (restores stock when an order is cancelled).
  */
 
 const { getCartForUser, saveCartForUser } = require("./cartProcessing");
@@ -354,6 +355,57 @@ async function consumeStockForSale({ jsonStore, items }) {
   return { ok: true, affectedProducts };
 }
 
+/**
+ * Adds each cancelled order line's quantity back onto `product.stock`.
+ *
+ * @param {{ jsonStore: object, items: Array<{ productId: string, quantity: number }> }} restoreInput - Store and the cancelled order's line items.
+ * @returns {Promise<{ ok: true, affectedProducts: Array<{ productId: string, available: number }> } | { ok: false, code: string }>} Products restored, with their resulting available count.
+ * @sideEffects Writes products.json. Does not change carts or guest holds.
+ */
+async function restoreStockForOrder({ jsonStore, items }) {
+  const restoredItems = Array.isArray(items) ? items : [];
+  if (restoredItems.length === 0) {
+    return { ok: true, affectedProducts: [] };
+  }
+
+  const productsResult = await readProductsData(jsonStore);
+  if (!productsResult.ok) {
+    return productsResult;
+  }
+
+  const nextProducts = productsResult.products.map((product) => {
+    const matchingRestoredItem = restoredItems.find((item) => item.productId === product.id);
+    if (!matchingRestoredItem) {
+      return product;
+    }
+    const restoredQuantity = Number(matchingRestoredItem.quantity) || 0;
+    const nextStock = (Number(product.stock) || 0) + restoredQuantity;
+    return { ...product, stock: nextStock };
+  });
+
+  try {
+    await jsonStore.writeJsonFile(PRODUCTS_FILE_NAME, nextProducts);
+  } catch (error) {
+    console.error("restoreStockForOrder - error");
+    console.error(error);
+    return { ok: false, code: STOCK_PERSISTENCE_FAILED_CODE };
+  }
+
+  const context = await getAvailabilityContext(jsonStore);
+  const affectedProducts = restoredItems.map((restoredItem) => {
+    const matchingProduct = context.ok
+      ? context.products.find((product) => product.id === restoredItem.productId)
+      : nextProducts.find((product) => product.id === restoredItem.productId);
+    const available =
+      context.ok && matchingProduct
+        ? computeAvailableForContext(context, restoredItem.productId, matchingProduct)
+        : 0;
+    return { productId: restoredItem.productId, available };
+  });
+
+  return { ok: true, affectedProducts };
+}
+
 module.exports = {
   STOCK_INSUFFICIENT_CODE,
   STOCK_REQUEST_INVALID_CODE,
@@ -365,4 +417,5 @@ module.exports = {
   setAbsoluteStock,
   releaseGuestSession,
   consumeStockForSale,
+  restoreStockForOrder,
 };
