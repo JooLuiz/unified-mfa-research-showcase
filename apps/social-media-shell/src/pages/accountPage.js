@@ -1,11 +1,15 @@
 /**
  * Renders the account route with profile, address, and own-posts sections.
- * Role: Composes the account MFE mounts and the current user's post feed.
- * Not in this file: Account HTTP updates (src/commands/accountCommands.js) or post creation (src/pages/postsPage.js).
- * Key dependencies: account/AccountProfile and account/AccountAddress remotes.
+ * Role: Composes the account MFE mounts and the current user's post feed, kept live by
+ *   patching likes whenever someone else likes one of this user's posts.
+ * Not in this file: Account HTTP updates (src/commands/accountCommands.js), post creation
+ *   (src/pages/postsPage.js), or the toggle write itself (src/commands/postLikeCommands.js).
+ * Key dependencies: account/AccountProfile and account/AccountAddress remotes;
+ *   @shared/post-like-events; src/commands/postLikeCommands.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
+import { subscribeToPostLikesChanged } from "@shared/post-like-events";
 import { navigate } from "../utils/navigate";
 import {
   isAuthenticated,
@@ -14,6 +18,8 @@ import {
 import { persistAccountUpdate } from "../commands/accountCommands";
 import { requestCsvExport } from "../exports/requestCsvExport";
 import { publishNotification } from "../notifications/notificationAdapter";
+import { toggleLikeForPost } from "../commands/postLikeCommands";
+import { MOCK_API_BASE_URL } from "../utils/constants";
 
 /**
  * Renders the account page with profile, address, and "My Posts" sections.
@@ -136,21 +142,38 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
     "#accountPostsFeedMount",
   );
 
+  const handleLike = (postId) =>
+    toggleLikeForPost(appState, appState.posts.find((post) => post.id === postId));
+  const handleAuthorClick = (author) => {
+    if (author?.username) {
+      console.log("renderAccountPage - authorClicked");
+      console.log(author);
+    }
+  };
+
+  const accountPostFeedHandle = modules.mountPostFeed(accountPostsFeedMount, {
+    title: "",
+    layoutMode: "grid",
+    posts: currentUserPosts,
+    currentUserId,
+    onLike: handleLike,
+    onAuthorClick: handleAuthorClick,
+  });
+  activeCleanupFunctions.push(accountPostFeedHandle);
+
   activeCleanupFunctions.push(
-    modules.mountPostFeed(accountPostsFeedMount, {
-      title: "",
-      layoutMode: "grid",
-      posts: currentUserPosts,
-      onLike: (postId) => {
-        console.log("renderAccountPage - postId");
-        console.log(postId);
-      },
-      onAuthorClick: (author) => {
-        if (author?.username) {
-          console.log("renderAccountPage - authorClicked");
-          console.log(author);
-        }
-      },
+    subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes }) => {
+      appState.posts = appState.posts.map((post) =>
+        post.id === postId ? { ...post, likes } : post,
+      );
+      accountPostFeedHandle.update({
+        title: "",
+        layoutMode: "grid",
+        posts: appState.posts.filter((post) => post.authorId === currentUserId),
+        currentUserId,
+        onLike: handleLike,
+        onAuthorClick: handleAuthorClick,
+      });
     }),
   );
 }

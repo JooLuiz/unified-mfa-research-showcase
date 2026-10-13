@@ -4,11 +4,14 @@
  * Not in this file: HTTP routing, CSV attachment headers, or async job state (this branch
  *   downloads CSV synchronously; see MESH_IMPLEMENTATIONS/csv-exports.md on mesh branches
  *   for the async job/gateway variant of this flow).
- * Key dependencies: JSON store; src/csv/csvSerializer.js.
+ * Key dependencies: JSON store; src/csv/csvSerializer.js; src/domain/postLikes.js (the posts
+ *   export computes its `likes` column the same way every other post read does, rather than
+ *   trusting the stale seeded field on the stored post record).
  * See also: src/routes/exportRoutes.js.
  */
 
 const { serializeCsv } = require("../csv/csvSerializer");
+const { readPostLikesData, getLikeCountForPost } = require("./postLikes");
 
 const EXPORT_KINDS = Object.freeze({
   orders: "orders",
@@ -74,13 +77,13 @@ function buildOrderExportRows(orders) {
   });
 }
 
-function buildPostExportRows(posts) {
+function buildPostExportRows(posts, postLikesData) {
   return posts.map((post) => [
     post.id,
     post.createdAt,
     post.content,
     post.imageUrl,
-    post.likes,
+    getLikeCountForPost(postLikesData, post.id),
     post.comments,
   ]);
 }
@@ -102,7 +105,8 @@ async function buildExportCsv(jsonStore, kind, user) {
 
   const posts = await jsonStore.readJsonFile("posts.json");
   const userPosts = posts.filter((post) => post.authorId === user.id);
-  return serializeCsv(POST_EXPORT_HEADERS, buildPostExportRows(userPosts));
+  const postLikesData = await readPostLikesData(jsonStore);
+  return serializeCsv(POST_EXPORT_HEADERS, buildPostExportRows(userPosts, postLikesData));
 }
 
 module.exports = {

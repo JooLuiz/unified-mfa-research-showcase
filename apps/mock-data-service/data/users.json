@@ -49,5 +49,39 @@
       "country": "Canada"
     },
     "avatarUrl": "https://i.pravatar.cc/150?img=32"
+  },
+  {
+    "id": "u-04",
+    "username": "diego.fernandez",
+    "email": "diego@example.com",
+    "password": "password123",
+    "fullName": "Diego Fernandez",
+    "gender": "male",
+    "role": "customer",
+    "address": {
+      "street": "Calle Mayor 22",
+      "city": "Madrid",
+      "state": "MD",
+      "postalCode": "28013",
+      "country": "Spain"
+    },
+    "avatarUrl": "https://i.pravatar.cc/150?img=15"
+  },
+  {
+    "id": "u-05",
+    "username": "emma.johansson",
+    "email": "emma@example.com",
+    "password": "password123",
+    "fullName": "Emma Johansson",
+    "gender": "female",
+    "role": "customer",
+    "address": {
+      "street": "Vasagatan 10",
+      "city": "Stockholm",
+      "state": "AB",
+      "postalCode": "11120",
+      "country": "Sweden"
+    },
+    "avatarUrl": "https://i.pravatar.cc/150?img=28"
   }
 ]

@@ -16,6 +16,7 @@ const {
   issueConnectionTicket,
   consumeConnectionTicket,
 } = require("../domain/connectionTickets");
+const { readPostLikesData, attachLikeCountsToPosts } = require("../domain/postLikes");
 
 const ADMIN_SSE_HEARTBEAT_INTERVAL_MS = 20_000;
 
@@ -116,9 +117,12 @@ function createAdminRouter(jsonStore, adminEventStream) {
           new Date(secondPost.createdAt).getTime() - new Date(firstPost.createdAt).getTime(),
         );
 
+      const postLikesData = await readPostLikesData(jsonStore);
+      const postsWithLikes = attachLikeCountsToPosts(postsWithAuthor, postLikesData, null);
+
       response.json({
-        total: postsWithAuthor.length,
-        items: postsWithAuthor,
+        total: postsWithLikes.length,
+        items: postsWithLikes,
       });
     } catch (error) {
       response.status(500).json({

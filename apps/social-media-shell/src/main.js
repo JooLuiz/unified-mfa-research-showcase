@@ -27,6 +27,9 @@ import {
 import { navigate } from "./utils/navigate";
 import { createHeaderApp, createFooterApp } from "./utils/mountActions";
 import { mountNotificationCenter } from "./notifications/notificationCenter";
+import { publishNotification } from "./notifications/notificationAdapter";
+import { subscribeToPostLikesChanged } from "@shared/post-like-events";
+import { MOCK_API_BASE_URL } from "./utils/constants";
 import {
   feedPageApp,
   postsPageApp,
@@ -141,6 +144,23 @@ subscribeToAuthSessionChanges(() => {
 subscribeToLogoutRequests(() => {
   clearAuthSession(appState);
   navigate("/");
+});
+
+// Global for the life of the tab (signed-in or guest), independent of which page is mounted:
+// keeps appState.posts correct for the next render, and tells the post's owner — wherever
+// they are in the shell — that someone liked their post. The liker's own "Post Liked" toast is
+// fired separately, from the HTTP response in src/commands/postLikeCommands.js.
+subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes, ownerId, likerName, liked }) => {
+  appState.posts = appState.posts.map((post) =>
+    post.id === postId ? { ...post, likes } : post,
+  );
+  if (liked && appState.currentUser?.id === ownerId) {
+    publishNotification({
+      type: "success",
+      title: "New like",
+      message: `${likerName} liked your post`,
+    });
+  }
 });
 
 function applyInitialAuthGuard() {

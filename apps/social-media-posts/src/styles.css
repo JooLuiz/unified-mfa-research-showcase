@@ -113,6 +113,17 @@
   cursor: pointer;
 }
 
+.post-card-action-liked {
+  background: #ffe3e3;
+  border-color: #c0392b;
+  color: #c0392b;
+}
+
+.post-card-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .post-card-comments {
   font-size: 0.9rem;
   color: #444;

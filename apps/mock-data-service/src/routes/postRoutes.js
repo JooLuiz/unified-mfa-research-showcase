@@ -2,15 +2,17 @@
  * Serves post routes for the mock data service.
  * Role: Handles GET and POST /posts, mounted at /api.
  * Not in this file: Token helpers (src/domain/auth.js), id generation
- *   (src/domain/identifiers.js), or the admin broadcast implementation
- *   (src/infrastructure/adminEventStream.js).
- * Key dependencies: posts.json and users.json via the JSON store.
+ *   (src/domain/identifiers.js), the admin broadcast implementation
+ *   (src/infrastructure/adminEventStream.js), or the like toggle/stream
+ *   (src/routes/postLikeRoutes.js).
+ * Key dependencies: posts.json and users.json via the JSON store; src/domain/postLikes.js.
  * See also: src/server.js; src/routes/adminRoutes.js (admin live-notifications stream).
  */
 
 const express = require("express");
 const { buildPublicUser, extractUserIdFromToken } = require("../domain/auth");
 const { generateIdentifier } = require("../domain/identifiers");
+const { readPostLikesData, attachLikeCountsToPosts } = require("../domain/postLikes");
 
 /**
  * Creates the post router.
@@ -22,7 +24,7 @@ const { generateIdentifier } = require("../domain/identifiers");
 function createPostRouter(jsonStore, adminEventStream) {
   const router = express.Router();
 
-  router.get("/posts", async (_request, response) => {
+  router.get("/posts", async (request, response) => {
     try {
       const postsData = await jsonStore.readJsonFile("posts.json");
       const usersData = await jsonStore.readJsonFile("users.json");
@@ -40,9 +42,13 @@ function createPostRouter(jsonStore, adminEventStream) {
           new Date(secondPost.createdAt).getTime() - new Date(firstPost.createdAt).getTime(),
         );
 
+      const postLikesData = await readPostLikesData(jsonStore);
+      const viewerUserId = extractUserIdFromToken(request.headers.authorization);
+      const postsWithLikes = attachLikeCountsToPosts(postsWithAuthor, postLikesData, viewerUserId);
+
       response.json({
-        total: postsWithAuthor.length,
-        items: postsWithAuthor,
+        total: postsWithLikes.length,
+        items: postsWithLikes,
       });
     } catch (error) {
       response.status(500).json({
