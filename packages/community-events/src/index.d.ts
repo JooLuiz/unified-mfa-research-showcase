@@ -25,6 +25,7 @@ export type CommunityMeshClient = {
     event: string,
     callback: (message: { payload: unknown }) => void,
   ): () => void;
+  whenConnected(options?: { timeoutMs?: number }): Promise<void>;
 };
 
 export type CommunityIntentHandlers = {
@@ -36,6 +37,7 @@ export type CommunityIntentHandlers = {
 
 export type CommunityEvents = {
   publishPostLiked(postId: string): void;
+  publishPostLikesWatching(postId: string): void;
   publishAuthorSelected(author: object): void;
   publishPostSubmitted(post: PostSubmittedRequest): void;
   publishFaqSubmitted(faq: FaqSubmittedRequest): void;
@@ -48,6 +50,12 @@ export declare const COMMUNITY_POST_LIKED_EVENT: "post-liked";
 export declare const COMMUNITY_AUTHOR_SELECTED_EVENT: "author-selected";
 export declare const COMMUNITY_POST_SUBMITTED_EVENT: "post-submitted";
 export declare const COMMUNITY_FAQ_SUBMITTED_EVENT: "faq-submitted";
+export declare const COMMUNITY_LIKES_TOPIC: "community-likes";
+export declare const COMMUNITY_LIKES_WATCHING_EVENT: "watching";
+export declare const COMMUNITY_LIKES_TOGGLE_EVENT: "toggle";
+export declare const COMMUNITY_LIKES_ACCEPTED_EVENT: "accepted";
+export declare const COMMUNITY_LIKES_REJECTED_EVENT: "rejected";
+export declare const COMMUNITY_LIKES_CHANGED_EVENT: "changed";
 
 export function isValidPostLikedRequest(
   value: unknown,

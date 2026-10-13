@@ -55,7 +55,10 @@ import {
   stopAdminLiveEvents,
   subscribeToAdminLiveEvents,
 } from "./events/adminLiveEvents";
-import { ORDER_CREATED_EVENT_TYPE } from "./events/adminLiveEventsContracts";
+import {
+  ORDER_CREATED_EVENT_TYPE,
+  POST_CREATED_EVENT_TYPE,
+} from "./events/adminLiveEventsContracts";
 import {
   renderLoginPage,
   renderDashboardPage,
@@ -365,12 +368,24 @@ subscribeToAdminOrderStatusChanged(({ orderId, status }) => {
 });
 
 subscribeToAdminLiveEvents(({ type }) => {
-  const isOrderEvent = type === ORDER_CREATED_EVENT_TYPE;
-  publishNotification({
-    type: "success",
-    title: isOrderEvent ? "New order" : "New post",
-    message: isOrderEvent ? "A new order was placed" : "A new post was made",
-  });
+  // Only order_created and post_created pop a toast here. Other live event types (for
+  // example community.post-likes-changed) are handled by the page that cares about them
+  // (see postsPage.js's Likes column patch) and never show a toast of their own.
+  if (type === ORDER_CREATED_EVENT_TYPE) {
+    publishNotification({
+      type: "success",
+      title: "New order",
+      message: "A new order was placed",
+    });
+    return;
+  }
+  if (type === POST_CREATED_EVENT_TYPE) {
+    publishNotification({
+      type: "success",
+      title: "New post",
+      message: "A new post was made",
+    });
+  }
 });
 
 async function bootstrap() {

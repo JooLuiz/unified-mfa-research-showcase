@@ -1,10 +1,11 @@
 /**
  * Publishes live admin activity to connected admin Event Mesh clients.
  * Role: Tracks admin WebSocket client ids announced via admin/watching and publishes
- *   order_created and post_created only to those clients.
- * Not in this file: Order or post persistence, toast copy, or gateway authentication.
+ *   order_created, post_created, and post_likes_changed only to those clients.
+ * Not in this file: Order, post, or like persistence, toast copy, or gateway authentication.
  * Key dependencies: event-mesh/gateway.
- * See also: src/event-mesh/orderRequestHandler.js; src/routes/postRoutes.js; src/server.js.
+ * See also: src/event-mesh/orderRequestHandler.js; src/event-mesh/postLikeHandler.js;
+ *   src/routes/postRoutes.js; src/server.js.
  *   On main this module writes Server-Sent Events; this branch publishes through the gateway.
  */
 

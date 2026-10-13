@@ -1,8 +1,11 @@
 /**
  * Renders the account route with profile, address, and own-posts sections.
- * Role: Composes the account MFE mounts and the current user's post feed.
- * Not in this file: Account HTTP updates (src/commands/accountCommands.js) or post creation (src/pages/postsPage.js).
- * Key dependencies: account/AccountProfile and account/AccountAddress remotes.
+ * Role: Composes the account MFE mounts and the current user's post feed, kept live by
+ *   patching likes whenever someone else likes one of this user's posts.
+ * Not in this file: Account HTTP updates (src/commands/accountCommands.js), post creation
+ *   (src/pages/postsPage.js), or the toggle write itself (src/commands/postLikeCommands.js).
+ * Key dependencies: account/AccountProfile and account/AccountAddress remotes;
+ *   src/events/communityLikesLiveEvents.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
@@ -13,6 +16,10 @@ import {
 } from "../utils/authActions";
 import { requestCsvExport } from "../exports/requestCsvExport";
 import { publishNotification } from "../notifications/notificationAdapter";
+import {
+  subscribeToCommunityLikesChanged,
+  applyLikesChangeToPosts,
+} from "../events/communityLikesLiveEvents";
 
 /**
  * Renders the account page with profile, address, and "My Posts" sections.
@@ -140,11 +147,27 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
     "#accountPostsFeedMount",
   );
 
+  const accountPostFeedHandle = modules.mountPostFeed(accountPostsFeedMount, {
+    title: "",
+    layoutMode: "grid",
+    posts: currentUserPosts,
+    currentUserId,
+  });
+  activeCleanupFunctions.push(accountPostFeedHandle);
+
   activeCleanupFunctions.push(
-    modules.mountPostFeed(accountPostsFeedMount, {
-      title: "",
-      layoutMode: "grid",
-      posts: currentUserPosts,
+    subscribeToCommunityLikesChanged((likesChangedPayload) => {
+      appState.posts = applyLikesChangeToPosts(
+        appState.posts,
+        currentUserId,
+        likesChangedPayload,
+      );
+      accountPostFeedHandle.update({
+        title: "",
+        layoutMode: "grid",
+        posts: appState.posts.filter((post) => post.authorId === currentUserId),
+        currentUserId,
+      });
     }),
   );
 }

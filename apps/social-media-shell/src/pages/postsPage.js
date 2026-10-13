@@ -1,17 +1,23 @@
 /**
  * Renders the community posts route.
- * Role: Composes the new-post entry point, grouped post feeds, and interleaved promotional banners.
- * Not in this file: Post persistence (src/commands/postCommands.js) or trending selection (src/pages/feedPage.js).
- * Key dependencies: Banner remotes publish promotion intents; social main handles ecommerce redirect.
+ * Role: Composes the new-post entry point, grouped post feeds, and interleaved promotional
+ *   banners, kept live by patching each mounted group whenever a like is toggled anywhere.
+ * Not in this file: Post persistence (src/commands/postCommands.js), trending selection
+ *   (src/pages/feedPage.js), or the toggle write itself (src/commands/postLikeCommands.js).
+ * Key dependencies: Banner remotes publish promotion intents; social main handles ecommerce
+ *   redirect; src/events/communityLikesLiveEvents.js.
  * See also: src/utils/renderActions.js (public barrel); MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
-import { publishRenderRequested } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
+import {
+  subscribeToCommunityLikesChanged,
+  applyLikesChangeToPosts,
+} from "../events/communityLikesLiveEvents";
 
 const POSTS_PER_BANNER_GROUP = 4;
 
@@ -85,19 +91,26 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
   const allPosts = appState.posts || [];
   const banners = appState.banners || [];
 
+  // Tracked so the live-likes subscription below can re-render each group from the latest
+  // appState.posts without re-slicing the whole page.
+  const mountedPostGroups = [];
+
   for (let groupIndex = 0; groupIndex < allPosts.length; groupIndex += POSTS_PER_BANNER_GROUP) {
-    const postsGroup = allPosts.slice(groupIndex, groupIndex + POSTS_PER_BANNER_GROUP);
+    const groupStartIndex = groupIndex;
+    const groupEndIndex = groupIndex + POSTS_PER_BANNER_GROUP;
+    const groupTitle = groupIndex === 0 ? "Latest Posts" : "More Posts";
 
     const groupContainer = document.createElement("div");
     groupContainer.className = "posts-group";
     postsListMount.appendChild(groupContainer);
 
-    activeCleanupFunctions.push(
-      modules.mountPostFeed(groupContainer, {
-        title: groupIndex === 0 ? "Latest Posts" : "More Posts",
-        posts: postsGroup,
-      }),
-    );
+    const groupFeedHandle = modules.mountPostFeed(groupContainer, {
+      title: groupTitle,
+      posts: allPosts.slice(groupStartIndex, groupEndIndex),
+      currentUserId: appState.currentUser?.id,
+    });
+    activeCleanupFunctions.push(groupFeedHandle);
+    mountedPostGroups.push({ groupStartIndex, groupEndIndex, groupTitle, groupFeedHandle });
 
     const hasMorePostsAfterGroup =
       groupIndex + POSTS_PER_BANNER_GROUP < allPosts.length;
@@ -120,6 +133,23 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
       }),
     );
   }
+
+  activeCleanupFunctions.push(
+    subscribeToCommunityLikesChanged((likesChangedPayload) => {
+      appState.posts = applyLikesChangeToPosts(
+        appState.posts,
+        appState.currentUser?.id,
+        likesChangedPayload,
+      );
+      mountedPostGroups.forEach(({ groupStartIndex, groupEndIndex, groupTitle, groupFeedHandle }) => {
+        groupFeedHandle.update({
+          title: groupTitle,
+          posts: appState.posts.slice(groupStartIndex, groupEndIndex),
+          currentUserId: appState.currentUser?.id,
+        });
+      });
+    }),
+  );
 }
 
 export { renderPostsPage };

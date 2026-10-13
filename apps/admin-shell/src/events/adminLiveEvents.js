@@ -1,8 +1,8 @@
 /**
  * Manages the admin shell's live-notifications mesh subscription.
- * Role: Announces this admin connection to the gateway and fans admin/order_created and
- *   admin/post_created out to any number of local listeners, without exposing mesh timing
- *   constraints to callers.
+ * Role: Announces this admin connection to the gateway and fans admin/order_created,
+ *   admin/post_created, and admin/post_likes_changed out to any number of local listeners,
+ *   without exposing mesh timing constraints to callers.
  * Not in this file: Mesh session open/close (src/main.js) or toast/page rendering.
  * Key dependencies: event-mesh/mesh; src/utils/authActions.js; src/events/adminLiveEventsContracts.js.
  * See also: src/main.js (start from the authenticated mesh session, stop on downgrade);
@@ -16,6 +16,7 @@ import {
   ADMIN_WATCHING_EVENT,
   ORDER_CREATED_EVENT_TYPE,
   POST_CREATED_EVENT_TYPE,
+  POST_LIKES_CHANGED_EVENT_TYPE,
 } from "./adminLiveEventsContracts";
 
 const WATCHING_ANNOUNCE_INTERVAL_MS = 10_000;
@@ -90,9 +91,17 @@ async function startAdminLiveEvents(appState) {
         notifyListeners({ type: POST_CREATED_EVENT_TYPE, data: message.payload });
       },
     );
+    const unsubscribeFromPostLikes = mesh.subscribe(
+      ADMIN_TOPIC,
+      POST_LIKES_CHANGED_EVENT_TYPE,
+      (message) => {
+        notifyListeners({ type: POST_LIKES_CHANGED_EVENT_TYPE, data: message.payload });
+      },
+    );
     unsubscribeFromMeshActivity = function unsubscribeFromAdminActivity() {
       unsubscribeFromOrders();
       unsubscribeFromPosts();
+      unsubscribeFromPostLikes();
     };
 
     watchingIntervalId = window.setInterval(

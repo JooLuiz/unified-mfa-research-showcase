@@ -1,83 +1,30 @@
 /**
- * Post feed remote for community like and author intents.
- * Role: Renders posts and publishes community.post-liked / community.author-selected on the host mesh.
- * Not in this file: Mesh configuration or host-owned like/author side effects.
- * Key dependencies: event-mesh/mesh singleton; @shared/community-events.
- * See also: MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Renders a list of post cards and mounts it as a federated module.
+ * Role: Owns the feed layout, title, and empty state; delegates each card's markup, like
+ *   button, and watch announcement to src/post-card.js.
+ * Not in this file: Card markup/like state (src/post-card.js) or the host-owned community
+ *   intent handling (apps/social-media-shell/src/main.js).
+ * Key dependencies: react, react-dom; src/post-card.js.
+ * See also: apps/social-media-shell/src/pages/feedPage.js, postsPage.js, accountPage.js.
  */
 
 import React from "react";
 import { createRoot } from "react-dom/client";
-import mesh from "event-mesh/mesh";
-import { createCommunityEvents } from "@shared/community-events";
+import { PostCardView } from "./post-card";
 import "./styles.css";
 
-const { publishPostLiked, publishAuthorSelected } = createCommunityEvents({
-  mesh,
-});
+const DEFAULT_EMPTY_STATE_MESSAGE = "No posts available right now.";
 
-function formatPostDate(isoDateString) {
-  if (!isoDateString) {
-    return "";
-  }
-  const dateValue = new Date(isoDateString);
-  if (Number.isNaN(dateValue.getTime())) {
-    return isoDateString;
-  }
-  return dateValue.toLocaleString();
-}
-
-function PostCardView({ post, layoutMode }) {
-  const author = post.author || {};
-  const authorDisplayName = author.fullName || author.username || "Unknown user";
-  const cardClassName =
-    layoutMode === "grid" ? "post-card post-card-grid" : "post-card";
-
-  return (
-    <article className={cardClassName}>
-      <header className="post-card-header">
-        {author.avatarUrl && (
-          <img
-            className="post-card-avatar"
-            src={author.avatarUrl}
-            alt={`${authorDisplayName} avatar`}
-            onClick={() => publishAuthorSelected(author)}
-          />
-        )}
-        <div className="post-card-author">
-          <button
-            type="button"
-            className="post-card-author-button"
-            onClick={() => publishAuthorSelected(author)}
-          >
-            <strong>{authorDisplayName}</strong>
-          </button>
-          <span className="post-card-date">{formatPostDate(post.createdAt)}</span>
-        </div>
-      </header>
-      <p className="post-card-content">{post.content}</p>
-      {post.imageUrl && (
-        <img className="post-card-image" src={post.imageUrl} alt="Post visual" />
-      )}
-      <footer className="post-card-footer">
-        <button
-          type="button"
-          className="post-card-action"
-          onClick={() => publishPostLiked(post.id)}
-        >
-          Like ({post.likes || 0})
-        </button>
-        <span className="post-card-comments">Comments: {post.comments || 0}</span>
-      </footer>
-    </article>
-  );
-}
-
-function PostFeedView({ posts, title, layoutMode }) {
+/**
+ * Renders the feed list, or an empty-state message when there are no posts.
+ *
+ * @param {{ posts: object[], title?: string, layoutMode?: string, currentUserId?: string, emptyStateMessage?: string }} feedProps - Feed data and the viewer's id.
+ */
+function PostFeedView({ posts, title, layoutMode, currentUserId, emptyStateMessage }) {
   if (!Array.isArray(posts) || posts.length === 0) {
     return (
       <section className="post-feed-shell">
-        <p>No posts available right now.</p>
+        <p>{emptyStateMessage || DEFAULT_EMPTY_STATE_MESSAGE}</p>
       </section>
     );
   }
@@ -92,24 +39,48 @@ function PostFeedView({ posts, title, layoutMode }) {
       {shouldRenderTitle && <h2 className="post-feed-title">{feedTitle}</h2>}
       <div className={feedListClassName}>
         {posts.map((post) => (
-          <PostCardView key={post.id} post={post} layoutMode={layoutMode} />
+          <PostCardView
+            key={post.id}
+            post={post}
+            layoutMode={layoutMode}
+            currentUserId={currentUserId}
+          />
         ))}
       </div>
     </section>
   );
 }
 
+/**
+ * Mounts the post feed into a container element.
+ *
+ * @param {HTMLElement} containerElement - Element to render into.
+ * @param {object} props - See PostFeedView's props.
+ * @returns {(() => void) & { update: (nextProps: object) => void }} Unmount function. It also
+ *   carries an `update(nextProps)` method so a host can live-patch the feed (for example after
+ *   a like changes elsewhere) without unmounting and remounting the React root.
+ */
 export function mountPostFeed(containerElement, props) {
   const root = createRoot(containerElement);
-  root.render(
-    <PostFeedView
-      posts={props.posts}
-      title={props.title}
-      layoutMode={props.layoutMode}
-    />,
-  );
 
-  return () => {
+  function renderWithProps(nextProps) {
+    root.render(
+      <PostFeedView
+        posts={nextProps.posts}
+        title={nextProps.title}
+        layoutMode={nextProps.layoutMode}
+        currentUserId={nextProps.currentUserId}
+        emptyStateMessage={nextProps.emptyStateMessage}
+      />,
+    );
+  }
+
+  renderWithProps(props);
+
+  function unmount() {
     root.unmount();
-  };
+  }
+  unmount.update = renderWithProps;
+
+  return unmount;
 }

@@ -48,6 +48,12 @@ import {
   resetShellEventListeners,
 } from "./events/eventBus";
 import {
+  startCommunityLikesLiveEvents,
+  stopCommunityLikesLiveEvents,
+  subscribeToCommunityLikesChanged,
+} from "./events/communityLikesLiveEvents";
+import { toggleLikeForPost, resetPostLikeToggleListeners } from "./commands/postLikeCommands";
+import {
   feedPageApp,
   postsPageApp,
   loginPageApp,
@@ -121,6 +127,7 @@ function startLocalMeshSession() {
   ensureCatalogIntentListeners(catalogIntentHandlers);
   ensureAccountIntentListeners(accountIntentHandlers);
   ensureCommunityIntentListeners(communityIntentHandlers);
+  void startCommunityLikesLiveEvents();
 }
 
 function startAuthenticatedMeshSession() {
@@ -135,6 +142,7 @@ function startAuthenticatedMeshSession() {
     ensureCatalogIntentListeners(catalogIntentHandlers);
     ensureAccountIntentListeners(accountIntentHandlers);
     ensureCommunityIntentListeners(communityIntentHandlers);
+    void startCommunityLikesLiveEvents();
     return;
   }
 
@@ -144,6 +152,8 @@ function startAuthenticatedMeshSession() {
   resetCatalogIntentListeners();
   resetAccountIntentListeners();
   resetCommunityIntentListeners();
+  resetPostLikeToggleListeners();
+  stopCommunityLikesLiveEvents();
   mesh.close();
   clearMeshSessionFlags();
 
@@ -155,6 +165,7 @@ function startAuthenticatedMeshSession() {
   ensureCatalogIntentListeners(catalogIntentHandlers);
   ensureAccountIntentListeners(accountIntentHandlers);
   ensureCommunityIntentListeners(communityIntentHandlers);
+  void startCommunityLikesLiveEvents();
 }
 
 function downgradeToLocalMeshSession() {
@@ -164,6 +175,8 @@ function downgradeToLocalMeshSession() {
   resetCatalogIntentListeners();
   resetAccountIntentListeners();
   resetCommunityIntentListeners();
+  resetPostLikeToggleListeners();
+  stopCommunityLikesLiveEvents();
   mesh.close();
   clearMeshSessionFlags();
   startLocalMeshSession();
@@ -321,8 +334,7 @@ const accountIntentHandlers = {
 
 const communityIntentHandlers = {
   onPostLiked: ({ postId }) => {
-    console.log("communityIntentHandlers - postId");
-    console.log(postId);
+    void toggleLikeForPost(appState, postId);
   },
   onAuthorSelected: ({ author }) => {
     if (author?.username) {
@@ -381,6 +393,23 @@ const shellEventHandlers = {
     navigate("/");
   },
 };
+
+// Global for the life of the tab (signed-in or guest), independent of which page is mounted:
+// tells the post's owner — wherever they are in the shell — that someone liked their post.
+// Patching appState.posts/the visible feed is each page's own concern (see
+// src/pages/feedPage.js, postsPage.js, accountPage.js, which hold the mounted remote's
+// update() handle), the same split admin-shell's main.js uses for order_created/post_created
+// toasts versus postsPage.js's own Likes column patch. The liker's own "Post Liked" toast is
+// fired separately, from the accepted reply in src/commands/postLikeCommands.js.
+subscribeToCommunityLikesChanged(({ ownerId, likerName, liked }) => {
+  if (liked && appState.currentUser?.id === ownerId) {
+    publishNotification({
+      type: "success",
+      title: "New like",
+      message: `${likerName} liked your post`,
+    });
+  }
+});
 
 function applyInitialAuthGuard() {
   const currentPathName = window.location.pathname;

@@ -3,12 +3,13 @@
  * Role: Handles GET /admin/orders and GET /admin/posts, mounted at /api, returning all users' records.
  * Not in this file: Token helpers (src/domain/auth.js), user-scoped routes, data mutation, or
  *   admin live-event publishing (src/infrastructure/adminEventStream.js).
- * Key dependencies: orders.json, posts.json, and users.json via the JSON store.
+ * Key dependencies: orders.json, posts.json, and users.json via the JSON store; src/domain/postLikes.js.
  * See also: src/server.js.
  */
 
 const express = require("express");
 const { buildPublicUser, extractUserIdFromToken, isAdminUser } = require("../domain/auth");
+const { readPostLikesData, attachLikeCountsToPosts } = require("../domain/postLikes");
 
 /**
  * Creates the admin router.
@@ -106,9 +107,12 @@ function createAdminRouter(jsonStore) {
           new Date(secondPost.createdAt).getTime() - new Date(firstPost.createdAt).getTime(),
         );
 
+      const postLikesData = await readPostLikesData(jsonStore);
+      const postsWithLikes = attachLikeCountsToPosts(postsWithAuthor, postLikesData, null);
+
       response.json({
-        total: postsWithAuthor.length,
-        items: postsWithAuthor,
+        total: postsWithLikes.length,
+        items: postsWithLikes,
       });
     } catch (error) {
       response.status(500).json({

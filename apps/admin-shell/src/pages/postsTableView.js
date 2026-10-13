@@ -1,7 +1,8 @@
 /**
  * Builds the markup for the admin posts table.
- * Role: Pure HTML-building helpers shared by the initial posts fetch and the live
- *   post-row prepend triggered by live admin events.
+ * Role: Pure HTML-building helpers shared by the initial posts fetch, the live post-row
+ *   prepend triggered by live admin events, and the live Likes-cell patch triggered by
+ *   post_likes_changed.
  * Not in this file: Fetching, auth, or live-event subscription (src/pages/postsPage.js).
  * Key dependencies: None.
  * See also: src/pages/postsPage.js.
@@ -45,14 +46,34 @@ function buildPostRowMarkup(postRecord) {
     postRecord.author?.username ||
     "Unknown author";
   return `
-    <tr>
+    <tr data-post-id="${postRecord.id}">
       <td>${authorName}</td>
       <td>${formatDate(postRecord.createdAt)}</td>
       <td>${buildExcerpt(postRecord.content)}</td>
-      <td class="admin-cell-number">${postRecord.likes ?? 0}</td>
+      <td class="admin-cell-number admin-cell-likes">${postRecord.likes ?? 0}</td>
       <td class="admin-cell-number">${getCommentCount(postRecord)}</td>
     </tr>
   `;
+}
+
+/**
+ * Replaces one post row's Likes cell in place, leaving the rest of the row untouched.
+ *
+ * @param {HTMLElement} tableMount - Container element for the table.
+ * @param {{ postId: string, likes: number }} likesChangedInput - Post whose like count changed, and its new count.
+ * @returns {void}
+ * @sideEffects Mutates the table mount's DOM. A missing row (the post isn't in this table, or
+ *   the table hasn't rendered yet) is a no-op.
+ */
+function updatePostLikesRow(tableMount, { postId, likes }) {
+  const matchingRow = tableMount.querySelector(`tr[data-post-id="${postId}"]`);
+  if (!matchingRow) {
+    return;
+  }
+  const likesCell = matchingRow.querySelector(".admin-cell-likes");
+  if (likesCell) {
+    likesCell.textContent = String(likes);
+  }
 }
 
 /**
@@ -79,4 +100,4 @@ function buildPostsTableMarkup(postRecords) {
   `;
 }
 
-export { buildPostRowMarkup, buildPostsTableMarkup };
+export { buildPostRowMarkup, buildPostsTableMarkup, updatePostLikesRow };

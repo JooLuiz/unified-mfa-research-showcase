@@ -1,7 +1,12 @@
 /**
  * Publishes and subscribes to shared community Event Mesh messages.
- * Role: Hides mesh transport details behind post, author, and formulary operations for remotes and shells.
- * Not in this file: Mesh configuration, HTTP post/FAQ APIs, or UI rendering.
+ * Role: Hides mesh transport details behind post, author, and formulary operations for remotes
+ *   and shells, plus the one distributed publish a remote makes directly to the gateway
+ *   (publishPostLikesWatching) for a public, non-authorized announcement.
+ * Not in this file: Mesh configuration, HTTP post/FAQ APIs, UI rendering, the like-toggle
+ *   request/reply, or the community-likes/changed subscription (both host-shell-owned; see
+ *   apps/social-media-shell/src/commands/postLikeCommands.js and
+ *   apps/social-media-shell/src/events/communityLikesLiveEvents.js).
  * Key dependencies: An Event Mesh client supplied by the owning shell (remotes must not configureMesh).
  * See also: src/communityEventContracts.js; MESH_IMPLEMENTATIONS/remote-intents.md.
  */
@@ -9,6 +14,8 @@
 import {
   COMMUNITY_AUTHOR_SELECTED_EVENT,
   COMMUNITY_FAQ_SUBMITTED_EVENT,
+  COMMUNITY_LIKES_TOPIC,
+  COMMUNITY_LIKES_WATCHING_EVENT,
   COMMUNITY_POST_LIKED_EVENT,
   COMMUNITY_POST_SUBMITTED_EVENT,
   COMMUNITY_TOPIC,
@@ -19,6 +26,8 @@ import {
   isValidPostLikedRequest,
   isValidPostSubmittedRequest,
 } from "./communityEventContracts.js";
+
+const MESH_CONNECT_TIMEOUT_MS = 5000;
 
 /**
  * Creates a community-scoped local event adapter for social remotes and host shells.
@@ -46,6 +55,38 @@ function createCommunityEvents({ mesh }) {
     }
 
     publishLocalEvent(COMMUNITY_TOPIC, COMMUNITY_POST_LIKED_EVENT, { postId });
+  }
+
+  /**
+   * Announces to the gateway that this client's post card wants live like-count updates for
+   * one post. Unlike the local-only publishers above, this reaches the server directly (the
+   * same per-entity-watch shape as @shared/stock-events' createStockWatchClient) because a
+   * public like count is informational, not a mutation the host needs to authorize.
+   *
+   * @param {string} postId - Community post identifier being rendered.
+   * @returns {void}
+   * @sideEffects Publishes community-likes/watching with distributed scope once the mesh
+   *   client is connected; silently gives up on timeout since the server also tolerates a
+   *   missed announce (the card simply won't receive live updates for that post this time).
+   */
+  function publishPostLikesWatching(postId) {
+    if (typeof postId !== "string" || postId.trim() === "") {
+      return;
+    }
+
+    mesh
+      .whenConnected({ timeoutMs: MESH_CONNECT_TIMEOUT_MS })
+      .then(() => {
+        mesh.publish({
+          topic: COMMUNITY_LIKES_TOPIC,
+          event: COMMUNITY_LIKES_WATCHING_EVENT,
+          payload: { postId },
+          scope: "distributed",
+        });
+      })
+      .catch(() => {
+        // Not connected within the timeout; this card just won't get live like updates.
+      });
   }
 
   /**
@@ -180,6 +221,7 @@ function createCommunityEvents({ mesh }) {
 
   return {
     publishPostLiked,
+    publishPostLikesWatching,
     publishAuthorSelected,
     publishPostSubmitted,
     publishFaqSubmitted,

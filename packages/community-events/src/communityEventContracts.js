@@ -12,6 +12,19 @@ const COMMUNITY_AUTHOR_SELECTED_EVENT = "author-selected";
 const COMMUNITY_POST_SUBMITTED_EVENT = "post-submitted";
 const COMMUNITY_FAQ_SUBMITTED_EVENT = "faq-submitted";
 
+// Distributed gateway topic for live like counts, unlike COMMUNITY_TOPIC above which never
+// leaves the browser tab. A post card publishes COMMUNITY_LIKES_WATCHING_EVENT directly (the
+// same per-entity-watch shape as @shared/stock-events' createStockWatchClient); the toggle
+// request/reply and the changed-broadcast subscription are owned by the host shell (see
+// apps/social-media-shell/src/commands/postLikeCommands.js and
+// apps/social-media-shell/src/events/communityLikesLiveEvents.js).
+const COMMUNITY_LIKES_TOPIC = "community-likes";
+const COMMUNITY_LIKES_WATCHING_EVENT = "watching";
+const COMMUNITY_LIKES_TOGGLE_EVENT = "toggle";
+const COMMUNITY_LIKES_ACCEPTED_EVENT = "accepted";
+const COMMUNITY_LIKES_REJECTED_EVENT = "rejected";
+const COMMUNITY_LIKES_CHANGED_EVENT = "changed";
+
 /**
  * @typedef {{ postId: string }} PostLikedRequest
  * @typedef {{ author: object }} AuthorSelectedRequest
@@ -123,6 +136,12 @@ function createFaqSubmittedRequest(value) {
 export {
   COMMUNITY_AUTHOR_SELECTED_EVENT,
   COMMUNITY_FAQ_SUBMITTED_EVENT,
+  COMMUNITY_LIKES_ACCEPTED_EVENT,
+  COMMUNITY_LIKES_CHANGED_EVENT,
+  COMMUNITY_LIKES_REJECTED_EVENT,
+  COMMUNITY_LIKES_TOGGLE_EVENT,
+  COMMUNITY_LIKES_TOPIC,
+  COMMUNITY_LIKES_WATCHING_EVENT,
   COMMUNITY_POST_LIKED_EVENT,
   COMMUNITY_POST_SUBMITTED_EVENT,
   COMMUNITY_TOPIC,
