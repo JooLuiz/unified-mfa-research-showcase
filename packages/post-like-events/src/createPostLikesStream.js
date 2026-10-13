@@ -20,10 +20,10 @@ const MAX_RECONNECT_DELAY_MS = 30_000;
  * information, and guests must receive it the same way signed-in viewers do.
  *
  * @param {{ apiBaseUrl: string }} streamInput - Mock API base URL.
- * @returns {{ subscribe: (listener: (event: { postId: string, likes: number, ownerId: string, likerName: string, liked: boolean }) => void) => () => void }} Stream controls.
+ * @returns {{ subscribe: (listener: (event: { postId: string, likes: number, ownerId: string, likerId: string, likerName: string, liked: boolean }) => void) => () => void }} Stream controls.
  */
 function createPostLikesStream({ apiBaseUrl }) {
-  /** @type {Set<(event: { postId: string, likes: number, ownerId: string, likerName: string, liked: boolean }) => void>} */
+  /** @type {Set<(event: { postId: string, likes: number, ownerId: string, likerId: string, likerName: string, liked: boolean }) => void>} */
   const listeners = new Set();
   let activeEventSource = null;
   let reconnectTimeoutId = null;
@@ -69,7 +69,7 @@ function createPostLikesStream({ apiBaseUrl }) {
   /**
    * Subscribes to every community.post-likes-changed push, regardless of which post it names.
    *
-   * @param {(event: { postId: string, likes: number, ownerId: string, likerName: string, liked: boolean }) => void} listener - Called for every push.
+   * @param {(event: { postId: string, likes: number, ownerId: string, likerId: string, likerName: string, liked: boolean }) => void} listener - Called for every push.
    * @returns {() => void} Unsubscribe function.
    */
   function subscribe(listener) {

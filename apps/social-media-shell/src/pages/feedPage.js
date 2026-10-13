@@ -61,10 +61,15 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
   activeCleanupFunctions.push(trendingPostFeedHandle);
 
   activeCleanupFunctions.push(
-    subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes }) => {
-      appState.posts = appState.posts.map((post) =>
-        post.id === postId ? { ...post, likes } : post,
-      );
+    subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes, likerId, liked }) => {
+      appState.posts = appState.posts.map((post) => {
+        if (post.id !== postId) {
+          return post;
+        }
+        const likedByCurrentUser =
+          likerId === appState.currentUser?.id ? liked : post.likedByCurrentUser;
+        return { ...post, likes, likedByCurrentUser };
+      });
       trendingPostFeedHandle.update({
         title: "Trending Posts",
         layoutMode: "grid",

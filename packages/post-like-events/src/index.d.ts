@@ -6,6 +6,7 @@ export type PostLikesChangedEvent = {
   postId: string;
   likes: number;
   ownerId: string;
+  likerId: string;
   likerName: string;
   liked: boolean;
 };
