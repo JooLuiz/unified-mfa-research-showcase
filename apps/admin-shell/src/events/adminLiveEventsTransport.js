@@ -13,6 +13,7 @@ import {
   ADMIN_LIVE_EVENT_NAME,
   ORDER_CREATED_EVENT_TYPE,
   POST_CREATED_EVENT_TYPE,
+  POST_LIKES_CHANGED_EVENT_TYPE,
 } from "./adminLiveEventsContracts";
 
 /**
@@ -49,6 +50,9 @@ function connectAdminEventSource(ticket) {
   );
   eventSource.addEventListener(POST_CREATED_EVENT_TYPE, (messageEvent) =>
     dispatchAdminLiveEvent(POST_CREATED_EVENT_TYPE, messageEvent),
+  );
+  eventSource.addEventListener(POST_LIKES_CHANGED_EVENT_TYPE, (messageEvent) =>
+    dispatchAdminLiveEvent(POST_LIKES_CHANGED_EVENT_TYPE, messageEvent),
   );
 
   return eventSource;

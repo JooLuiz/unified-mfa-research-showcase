@@ -18,6 +18,7 @@
   "dependencies": {
     "single-spa": "^6.0.3",
     "@shared/notifications": "*",
-    "@shared/shell-events": "*"
+    "@shared/shell-events": "*",
+    "@shared/post-like-events": "*"
   }
 }

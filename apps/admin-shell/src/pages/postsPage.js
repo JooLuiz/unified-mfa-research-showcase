@@ -1,7 +1,8 @@
 /**
  * Renders the all-posts table route for the admin shell.
  * Role: Loads every post via the admin API and renders a read-only table, kept live by
- *   prepending new rows whenever a post is broadcast over SSE.
+ *   prepending new rows whenever a post is broadcast over SSE and by patching the Likes
+ *   column in place whenever a like is toggled. Never shows a toast for either live event.
  * Not in this file: Auth guard (main.js), post mutations, or table markup
  *   (src/pages/postsTableView.js).
  * Key dependencies: src/utils/fetchJson.js; src/notifications/notificationAdapter.js;
@@ -13,8 +14,11 @@ import fetchJson from "../utils/fetchJson";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import { publishNotification } from "../notifications/notificationAdapter";
 import { subscribeToAdminLiveEvents } from "../events/adminLiveEvents";
-import { POST_CREATED_EVENT_TYPE } from "../events/adminLiveEventsContracts";
-import { buildPostRowMarkup, buildPostsTableMarkup } from "./postsTableView";
+import {
+  POST_CREATED_EVENT_TYPE,
+  POST_LIKES_CHANGED_EVENT_TYPE,
+} from "../events/adminLiveEventsContracts";
+import { buildPostRowMarkup, buildPostsTableMarkup, updatePostLikesRow } from "./postsTableView";
 
 /**
  * Renders the posts table markup, or an empty-state message when there are no posts.
@@ -87,6 +91,10 @@ async function renderPostsPage(appState, pageMount, activeCleanupFunctions) {
   const unsubscribeFromLiveEvents = subscribeToAdminLiveEvents(({ type, data }) => {
     if (type === POST_CREATED_EVENT_TYPE) {
       prependPostRow(tableMount, data);
+      return;
+    }
+    if (type === POST_LIKES_CHANGED_EVENT_TYPE) {
+      updatePostLikesRow(tableMount, data);
     }
   });
   activeCleanupFunctions.push(unsubscribeFromLiveEvents);

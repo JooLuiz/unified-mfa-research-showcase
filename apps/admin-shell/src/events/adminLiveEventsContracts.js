@@ -12,5 +12,11 @@ const ADMIN_LIVE_EVENT_NAME = "admin-shell:live-data-event";
 
 const ORDER_CREATED_EVENT_TYPE = "order_created";
 const POST_CREATED_EVENT_TYPE = "post_created";
+const POST_LIKES_CHANGED_EVENT_TYPE = "community.post-likes-changed";
 
-export { ADMIN_LIVE_EVENT_NAME, ORDER_CREATED_EVENT_TYPE, POST_CREATED_EVENT_TYPE };
+export {
+  ADMIN_LIVE_EVENT_NAME,
+  ORDER_CREATED_EVENT_TYPE,
+  POST_CREATED_EVENT_TYPE,
+  POST_LIKES_CHANGED_EVENT_TYPE,
+};

@@ -1,20 +1,26 @@
 /**
  * Renders the community posts route.
- * Role: Composes the new-post entry point, grouped post feeds, and interleaved promotional banners.
- * Not in this file: Post persistence (src/commands/postCommands.js) or trending selection (src/pages/feedPage.js).
- * Key dependencies: Ecommerce shell base URL for banner redirects; src/notifications/notificationAdapter.js.
+ * Role: Composes the new-post entry point, grouped post feeds, and interleaved promotional
+ *   banners, kept live by patching each mounted group whenever a like is toggled anywhere.
+ * Not in this file: Post persistence (src/commands/postCommands.js), trending selection
+ *   (src/pages/feedPage.js), or the toggle write itself (src/commands/postLikeCommands.js).
+ * Key dependencies: Ecommerce shell base URL for banner redirects;
+ *   src/notifications/notificationAdapter.js; @shared/post-like-events;
+ *   src/commands/postLikeCommands.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
+import { subscribeToPostLikesChanged } from "@shared/post-like-events";
 import { publishRenderRequested } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
-import { ECOMMERCE_SHELL_BASE_URL } from "../utils/constants";
+import { ECOMMERCE_SHELL_BASE_URL, MOCK_API_BASE_URL } from "../utils/constants";
 import { publishNotification } from "../notifications/notificationAdapter";
 import { persistNewPost } from "../commands/postCommands";
+import { toggleLikeForPost } from "../commands/postLikeCommands";
 
 const POSTS_PER_BANNER_GROUP = 4;
 
@@ -132,29 +138,37 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
   const allPosts = appState.posts || [];
   const banners = appState.banners || [];
 
+  const handleLike = (postId) =>
+    toggleLikeForPost(appState, appState.posts.find((post) => post.id === postId));
+  const handleAuthorClick = (author) => {
+    if (author?.username) {
+      console.log("renderPostsPage - authorClicked");
+      console.log(author);
+    }
+  };
+
+  // Tracked so the live-likes subscription below can re-render each group from the latest
+  // appState.posts without re-slicing the whole page.
+  const mountedPostGroups = [];
+
   for (let groupIndex = 0; groupIndex < allPosts.length; groupIndex += POSTS_PER_BANNER_GROUP) {
-    const postsGroup = allPosts.slice(groupIndex, groupIndex + POSTS_PER_BANNER_GROUP);
+    const groupStartIndex = groupIndex;
+    const groupEndIndex = groupIndex + POSTS_PER_BANNER_GROUP;
+    const groupTitle = groupIndex === 0 ? "Latest Posts" : "More Posts";
 
     const groupContainer = document.createElement("div");
     groupContainer.className = "posts-group";
     postsListMount.appendChild(groupContainer);
 
-    activeCleanupFunctions.push(
-      modules.mountPostFeed(groupContainer, {
-        title: groupIndex === 0 ? "Latest Posts" : "More Posts",
-        posts: postsGroup,
-        onLike: (postId) => {
-          console.log("renderPostsPage - postId");
-          console.log(postId);
-        },
-        onAuthorClick: (author) => {
-          if (author?.username) {
-            console.log("renderPostsPage - authorClicked");
-            console.log(author);
-          }
-        },
-      }),
-    );
+    const groupFeedHandle = modules.mountPostFeed(groupContainer, {
+      title: groupTitle,
+      posts: allPosts.slice(groupStartIndex, groupEndIndex),
+      currentUserId: appState.currentUser?.id,
+      onLike: handleLike,
+      onAuthorClick: handleAuthorClick,
+    });
+    activeCleanupFunctions.push(groupFeedHandle);
+    mountedPostGroups.push({ groupStartIndex, groupEndIndex, groupTitle, groupFeedHandle });
 
     const hasMorePostsAfterGroup =
       groupIndex + POSTS_PER_BANNER_GROUP < allPosts.length;
@@ -178,6 +192,23 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
       }),
     );
   }
+
+  activeCleanupFunctions.push(
+    subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes }) => {
+      appState.posts = appState.posts.map((post) =>
+        post.id === postId ? { ...post, likes } : post,
+      );
+      mountedPostGroups.forEach(({ groupStartIndex, groupEndIndex, groupTitle, groupFeedHandle }) => {
+        groupFeedHandle.update({
+          title: groupTitle,
+          posts: appState.posts.slice(groupStartIndex, groupEndIndex),
+          currentUserId: appState.currentUser?.id,
+          onLike: handleLike,
+          onAuthorClick: handleAuthorClick,
+        });
+      });
+    }),
+  );
 }
 
 export { renderPostsPage };
