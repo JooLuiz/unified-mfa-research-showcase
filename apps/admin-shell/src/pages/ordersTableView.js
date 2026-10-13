@@ -1,11 +1,13 @@
 /**
  * Builds the markup for the admin orders table.
- * Role: Pure HTML-building helpers shared by the initial orders fetch and the live
- *   order-row prepend triggered by live admin events.
+ * Role: Pure HTML-building helpers shared by the initial orders fetch, the live
+ *   order-row prepend, and the in-place status update.
  * Not in this file: Fetching, auth, or live-event subscription (src/pages/ordersPage.js).
- * Key dependencies: None.
+ * Key dependencies: @shared/order-status-events for the status label.
  * See also: src/pages/ordersPage.js.
  */
+
+import { formatOrderStatus } from "@shared/order-status-events";
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("en-US", {
@@ -46,7 +48,7 @@ function buildOrderRowMarkup(orderRecord) {
     0,
   );
   return `
-    <tr>
+    <tr class="admin-order-row" data-order-id="${orderRecord.id}">
       <td>${orderRecord.id}</td>
       <td>${customerName}</td>
       <td>${formatDate(orderRecord.placedAt)}</td>
@@ -54,6 +56,7 @@ function buildOrderRowMarkup(orderRecord) {
       <td class="admin-cell-number">${formatCurrency(
         getOrderTotalAmount(orderRecord),
       )}</td>
+      <td>${formatOrderStatus(orderRecord.status)}</td>
     </tr>
   `;
 }
@@ -75,6 +78,7 @@ function buildOrdersTableMarkup(orderRecords) {
           <th>Placed At</th>
           <th>Items</th>
           <th>Total</th>
+          <th>Status</th>
         </tr>
       </thead>
       <tbody>${tableRows}</tbody>

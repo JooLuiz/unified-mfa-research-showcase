@@ -44,6 +44,7 @@ module.exports = {
           singleton: true,
           requiredVersion: false,
         },
+        "@shared/order-status-events": { singleton: true },
       },
     }),
     new HtmlWebpackPlugin({

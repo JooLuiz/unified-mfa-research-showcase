@@ -14,6 +14,7 @@ const { createJsonStore } = require("./infrastructure/jsonStore");
 const { createAdminEventStream } = require("./infrastructure/adminEventStream");
 const { createCartEventStream } = require("./infrastructure/cartEventStream");
 const { createStockEventStream } = require("./infrastructure/stockEventStream");
+const { createOrderEventStream } = require("./infrastructure/orderEventStream");
 const { createCatalogRouter } = require("./routes/catalogRoutes");
 const { createAuthRouter } = require("./routes/authRoutes");
 const { createUserRouter } = require("./routes/userRoutes");
@@ -31,6 +32,7 @@ const {
 } = require("./event-mesh/gatewayAuth");
 const { registerExportRequestHandler } = require("./event-mesh/exportRequestHandler");
 const { registerOrderRequestHandler } = require("./event-mesh/orderRequestHandler");
+const { registerOrderStatusHandler } = require("./event-mesh/orderStatusHandler");
 const { registerCartUpsertHandler } = require("./event-mesh/cartUpsertHandler");
 const { registerStockHandler } = require("./event-mesh/stockHandler");
 const { registerIframeBridgeHandler } = require("./event-mesh/iframeBridgeHandler");
@@ -42,6 +44,7 @@ const jsonStore = createJsonStore(dataDirectory);
 const adminEventStream = createAdminEventStream();
 const cartEventStream = createCartEventStream();
 const stockEventStream = createStockEventStream();
+const orderEventStream = createOrderEventStream();
 
 app.use(cors());
 app.use(express.json());
@@ -64,6 +67,7 @@ async function configureAndStartEventGateway() {
     onClientDisconnect: (clientId) => {
       adminEventStream.forgetClient(clientId);
       cartEventStream.forgetClient(clientId);
+      orderEventStream.forgetClient(clientId);
       const guestSessionId = stockEventStream.takeGuestSessionForClient(clientId);
       stockEventStream.forgetClient(clientId);
       if (guestSessionId) {
@@ -82,8 +86,10 @@ async function configureAndStartEventGateway() {
   await adminEventStream.registerWithGateway();
   await cartEventStream.registerWithGateway();
   await stockEventStream.registerWithGateway();
+  await orderEventStream.registerWithGateway();
   await registerExportRequestHandler(jsonStore);
   await registerOrderRequestHandler(jsonStore, adminEventStream, cartEventStream, stockEventStream);
+  await registerOrderStatusHandler(jsonStore, orderEventStream, adminEventStream, stockEventStream);
   await registerCartUpsertHandler(jsonStore, cartEventStream, stockEventStream);
   await registerStockHandler(jsonStore, stockEventStream);
   await registerIframeBridgeHandler();

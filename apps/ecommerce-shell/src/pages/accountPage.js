@@ -2,7 +2,8 @@
  * Renders the account route with profile, address, and order history sections.
  * Role: Composes the account MFE mounts and the shell-owned "My Orders" list.
  * Not in this file: Account HTTP updates (src/commands/accountCommands.js) or order details (src/pages/orderPages.js).
- * Key dependencies: account/AccountProfile and account/AccountAddress remotes; mock data service GET /api/orders.
+ * Key dependencies: account/AccountProfile and account/AccountAddress remotes; mock data service GET /api/orders;
+ *   @shared/order-status-events for the live status column.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
@@ -15,6 +16,10 @@ import { MOCK_API_BASE_URL } from "../utils/constants";
 import fetchJson from "../utils/fetchJson";
 import { requestCsvExport } from "../exports/requestCsvExport";
 import { publishNotification } from "../notifications/notificationAdapter";
+import {
+  formatOrderStatus,
+  subscribeToOrderStatusChanged,
+} from "@shared/order-status-events";
 
 /**
  * Renders the account page with profile, address, and order list sections.
@@ -91,9 +96,6 @@ async function renderMyOrdersList(appState, ordersContainer, activeCleanupFuncti
           <h2 class="account-card-title">My Orders</h2>
           <p class="account-card-subtitle">Loading your orders...</p>
         </div>
-        <button id="exportOrdersButton" class="account-action-button" type="button">
-          Export CSV
-        </button>
       </header>
       <div id="myOrdersListMount"></div>
     </section>
@@ -101,42 +103,6 @@ async function renderMyOrdersList(appState, ordersContainer, activeCleanupFuncti
 
   const myOrdersListMount = ordersContainer.querySelector("#myOrdersListMount");
   const subtitleElement = ordersContainer.querySelector(".account-card-subtitle");
-  const exportOrdersButton = ordersContainer.querySelector("#exportOrdersButton");
-  const handleOrdersExport = async () => {
-    exportOrdersButton.disabled = true;
-    exportOrdersButton.textContent = "Preparing export...";
-
-    const exportResult = await requestCsvExport({
-      kind: "orders",
-      fileName: "my-orders.csv",
-      authToken: appState.authToken,
-    });
-
-    if (exportOrdersButton.isConnected) {
-      exportOrdersButton.disabled = false;
-      exportOrdersButton.textContent = "Export CSV";
-    }
-
-    publishNotification(
-      exportResult.ok
-        ? {
-            type: "success",
-            title: "Orders exported",
-            message: "Your order history has been downloaded as a CSV file.",
-          }
-        : {
-            type: "error",
-            title: "Order export failed",
-            message: "Your order history could not be exported. Please try again.",
-          },
-    );
-  };
-  if (exportOrdersButton) {
-    exportOrdersButton.addEventListener("click", handleOrdersExport);
-    activeCleanupFunctions.push(() => {
-      exportOrdersButton.removeEventListener("click", handleOrdersExport);
-    });
-  }
 
   let userOrders = [];
   try {
@@ -166,6 +132,38 @@ async function renderMyOrdersList(appState, ordersContainer, activeCleanupFuncti
     subtitleElement.textContent = `${userOrders.length} order${userOrders.length === 1 ? "" : "s"} placed.`;
   }
 
+  const ordersCardHeader = ordersContainer.querySelector(".account-card-header");
+  const exportOrdersButton = document.createElement("button");
+  exportOrdersButton.id = "exportOrdersButton";
+  exportOrdersButton.className = "account-action-button";
+  exportOrdersButton.type = "button";
+  exportOrdersButton.textContent = "Export CSV";
+  ordersCardHeader.appendChild(exportOrdersButton);
+  const handleOrdersExport = async () => {
+    const exportResult = await requestCsvExport({
+      kind: "orders",
+      fileName: "my-orders.csv",
+      authToken: appState.authToken,
+    });
+    publishNotification(
+      exportResult.ok
+        ? {
+            type: "success",
+            title: "Orders exported",
+            message: "Your order history has been downloaded as a CSV file.",
+          }
+        : {
+            type: "error",
+            title: "Order export failed",
+            message: "Your order history could not be exported. Please try again.",
+          },
+    );
+  };
+  exportOrdersButton.addEventListener("click", handleOrdersExport);
+  activeCleanupFunctions.push(() => {
+    exportOrdersButton.removeEventListener("click", handleOrdersExport);
+  });
+
   const sortedOrders = [...userOrders].sort(
     (firstOrder, secondOrder) =>
       new Date(secondOrder.placedAt).getTime() -
@@ -178,6 +176,7 @@ async function renderMyOrdersList(appState, ordersContainer, activeCleanupFuncti
     const orderRow = document.createElement("button");
     orderRow.type = "button";
     orderRow.className = "my-orders-row";
+    orderRow.dataset.orderId = order.id;
     const itemCount = Array.isArray(order.items) ? order.items.length : 0;
     const placedAtLabel = order.placedAt
       ? new Date(order.placedAt).toLocaleString()
@@ -187,6 +186,7 @@ async function renderMyOrdersList(appState, ordersContainer, activeCleanupFuncti
       <span class="my-orders-row-id">${order.id}</span>
       <span class="my-orders-row-date">${placedAtLabel}</span>
       <span class="my-orders-row-items">${itemCount} item${itemCount === 1 ? "" : "s"}</span>
+      <span class="my-orders-row-status">${formatOrderStatus(order.status)}</span>
       <span class="my-orders-row-total">${totalAmountLabel}</span>
     `;
     const handleOrderClick = () => {
@@ -202,7 +202,18 @@ async function renderMyOrdersList(appState, ordersContainer, activeCleanupFuncti
     myOrdersListMount.appendChild(orderRow);
   });
 
+  const unsubscribeFromOrderStatus = subscribeToOrderStatusChanged(({ orderId, status }) => {
+    const statusElement = myOrdersListMount.querySelector(
+      `[data-order-id="${CSS.escape(orderId)}"] .my-orders-row-status`,
+    );
+    if (!statusElement) {
+      return;
+    }
+    statusElement.textContent = formatOrderStatus(status);
+  });
+
   activeCleanupFunctions.push(() => {
+    unsubscribeFromOrderStatus();
     orderRowClickHandlers.forEach(({ orderRow, handleOrderClick }) => {
       orderRow.removeEventListener("click", handleOrderClick);
     });

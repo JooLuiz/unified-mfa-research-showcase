@@ -101,7 +101,7 @@ react-header-mfe {
 
 .my-orders-row {
   display: grid;
-  grid-template-columns: 2fr 2fr 1fr 1fr;
+  grid-template-columns: 2fr 2fr 1fr 1.4fr 1fr;
   align-items: center;
   gap: 0.5rem;
   width: 100%;

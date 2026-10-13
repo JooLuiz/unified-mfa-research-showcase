@@ -7,7 +7,7 @@
  */
 
 const express = require("express");
-const { extractUserIdFromToken } = require("../domain/auth");
+const { extractUserIdFromToken, isAdminUser } = require("../domain/auth");
 
 /**
  * Creates the order router.
@@ -58,7 +58,13 @@ function createOrderRouter(jsonStore) {
         return;
       }
 
-      if (matchingOrder.userId !== userIdFromToken) {
+      const usersData = await jsonStore.readJsonFile("users.json");
+      const requestingUser = usersData.find((userRecord) => userRecord.id === userIdFromToken);
+      if (!requestingUser) {
+        response.status(404).json({ message: "User not found" });
+        return;
+      }
+      if (!isAdminUser(requestingUser) && matchingOrder.userId !== userIdFromToken) {
         response.status(403).json({ message: "Not allowed to access this order" });
         return;
       }

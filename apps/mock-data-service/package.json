@@ -6,10 +6,11 @@
     "dev": "node src/server.js",
     "build": "node -e \"process.stdout.write('mock-data-service build not required\\\\n')\"",
     "lint": "node -e \"process.stdout.write('mock-data-service lint not configured\\\\n')\"",
-    "test": "node --test src/domain/cartProcessing.test.js src/domain/stock.test.js"
+    "test": "node --test src/domain/cartProcessing.test.js src/domain/stock.test.js src/domain/orderStatus.test.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "event-mesh": "*",
     "express": "^4.21.2",
     "ws": "^8.21.3"
   }

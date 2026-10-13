@@ -23,6 +23,7 @@
     "@shared/checkout-events": "*",
     "@shared/account-events": "*",
     "@shared/stock-events": "*",
+    "@shared/order-status-events": "*",
     "event-mesh": "*"
   }
 }

@@ -1,29 +1,27 @@
 /**
  * Order loading composable for the order details MFE.
- * Role: Owns order-id parsing from the URL, host-injected auth token lookup, and the abort-aware order request lifecycle.
+ * Role: Owns order-id parsing from the URL, auth token lookup, and the abort-aware order request lifecycle.
  * Not in this file: Rendering (src/OrderDetailsView.js) or formatting (src/order-details-utils.js).
- * Key dependencies: Mock data service GET /orders/:orderId; host-injected getAuthToken from the ecommerce shell.
- * See also: src/OrderDetailsView.js; apps/ecommerce-shell/src/pages/orderPages.js.
+ * Key dependencies: Mock data service GET /orders/:orderId; the host authToken prop or the
+ *   ecommerce-shell localStorage token; @shared/order-status-events for status writes and the live stream.
+ * See also: src/OrderDetailsView.js.
  */
 
 import { onMounted, onUnmounted, ref, watch } from "vue";
+import {
+  requestAdminOrderStatusChange,
+  requestOrderCancellation,
+  subscribeToAdminOrderStatusChanged,
+  subscribeToOrderStatusChanged,
+} from "@shared/order-status-events";
 
+const AUTH_TOKEN_STORAGE_KEY = "ecommerce-shell:auth-token";
 const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
 
-/**
- * Reads the Bearer token from the host-injected accessor when present.
- *
- * @param {{ getAuthToken?: () => string }} props - Mount props from the owning shell.
- * @returns {string} Auth token string, or empty string when unavailable.
- */
-function readAuthTokenFromHost(props) {
-  if (typeof props.getAuthToken !== "function") {
-    return "";
-  }
-
+function readAuthTokenFromLocalStorage() {
   try {
-    const authToken = props.getAuthToken();
-    return typeof authToken === "string" ? authToken : "";
+    const storedToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+    return typeof storedToken === "string" ? storedToken : "";
   } catch {
     return "";
   }
@@ -67,9 +65,9 @@ async function fetchOrderById(apiBaseUrl, orderId, authToken, signal) {
 /**
  * Loads the order from props or the mock API and exposes the request state.
  *
- * @param {{ order: object | null, apiBaseUrl: string, getAuthToken?: () => string }} props - Component props; getAuthToken is injected by the host shell.
- * @returns {{ orderData: import("vue").Ref<object | null>, isLoading: import("vue").Ref<boolean>, loadError: import("vue").Ref<Error | null>, isMissingOrderId: import("vue").Ref<boolean> }} Reactive order state.
- * @sideEffects Performs an HTTP request on mount and prop changes, aborted on unmount or reload.
+ * @param {{ order: object | null, apiBaseUrl: string, actor?: string, authToken?: string, onStatusRejected?: () => void }} props - Component props. A non-empty authToken overrides the ecommerce localStorage token.
+ * @returns {{ orderData: import("vue").Ref<object | null>, isLoading: import("vue").Ref<boolean>, loadError: import("vue").Ref<Error | null>, isMissingOrderId: import("vue").Ref<boolean>, actor: string, applyStatusAction: (nextStatus: string) => Promise<void> }} Reactive order state and the status action.
+ * @sideEffects Performs an HTTP request on mount and prop changes, aborted on unmount or reload. Subscribes to the shared order-status stream for this actor.
  */
 function useOrderDetails(props) {
   const orderData = ref(props.order || null);
@@ -77,6 +75,42 @@ function useOrderDetails(props) {
   const loadError = ref(null);
   const isMissingOrderId = ref(false);
   let activeAbortController = null;
+  let unsubscribeFromStatus = null;
+
+  const readAuthToken = () => {
+    if (typeof props.authToken === "string" && props.authToken.trim() !== "") {
+      return props.authToken;
+    }
+    return readAuthTokenFromLocalStorage();
+  };
+
+  const applyStatusAction = async (nextStatus) => {
+    const currentOrder = orderData.value;
+    const authToken = readAuthToken();
+    if (!currentOrder?.id || !authToken || !props.apiBaseUrl) {
+      return;
+    }
+    const statusResult =
+      props.actor === "admin"
+        ? await requestAdminOrderStatusChange({
+            apiBaseUrl: props.apiBaseUrl,
+            authToken,
+            orderId: currentOrder.id,
+            status: nextStatus,
+          })
+        : await requestOrderCancellation({
+            apiBaseUrl: props.apiBaseUrl,
+            authToken,
+            orderId: currentOrder.id,
+          });
+    if (statusResult.ok) {
+      orderData.value = statusResult.order;
+      return;
+    }
+    if (props.actor === "admin" && typeof props.onStatusRejected === "function") {
+      props.onStatusRejected();
+    }
+  };
 
   const loadOrder = async () => {
     if (props.order) {
@@ -112,7 +146,7 @@ function useOrderDetails(props) {
     isMissingOrderId.value = false;
 
     try {
-      const authToken = readAuthTokenFromHost(props);
+      const authToken = readAuthToken();
       const fetchedOrder = await fetchOrderById(
         props.apiBaseUrl,
         orderId,
@@ -140,8 +174,24 @@ function useOrderDetails(props) {
     }
   };
 
-  onMounted(loadOrder);
+  onMounted(() => {
+    loadOrder();
+    const subscribeToStatus =
+      props.actor === "admin"
+        ? subscribeToAdminOrderStatusChanged
+        : subscribeToOrderStatusChanged;
+    unsubscribeFromStatus = subscribeToStatus(({ orderId, status }) => {
+      if (!orderData.value || orderData.value.id !== orderId) {
+        return;
+      }
+      orderData.value = { ...orderData.value, status };
+    });
+  });
   onUnmounted(() => {
+    if (unsubscribeFromStatus) {
+      unsubscribeFromStatus();
+      unsubscribeFromStatus = null;
+    }
     if (activeAbortController) {
       activeAbortController.abort();
       activeAbortController = null;
@@ -149,13 +199,20 @@ function useOrderDetails(props) {
   });
 
   watch(
-    () => [props.order, props.apiBaseUrl, props.getAuthToken],
+    () => [props.order, props.apiBaseUrl],
     () => {
       loadOrder();
     },
   );
 
-  return { orderData, isLoading, loadError, isMissingOrderId };
+  return {
+    orderData,
+    isLoading,
+    loadError,
+    isMissingOrderId,
+    actor: props.actor === "admin" ? "admin" : "customer",
+    applyStatusAction,
+  };
 }
 
 export { useOrderDetails };

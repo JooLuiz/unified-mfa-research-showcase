@@ -19,6 +19,8 @@ const IFRAME_MESSAGE_EVENT = "message";
 const CART_SYNC_TOPIC = "cart-sync";
 const CART_WATCHING_EVENT = "watching";
 const CART_UPSERT_EVENT = "upsert";
+const ORDERS_WATCHING_EVENT = "watching";
+const ORDERS_STATUS_CHANGE_REQUESTED_EVENT = "status-change-requested";
 const STOCK_TOPIC = "stock";
 const STOCK_WATCHING_EVENT = "watching";
 const STOCK_RESERVE_EVENT = "reserve";
@@ -84,10 +86,16 @@ function createAuthorizeMessage() {
       message.topic === CART_SYNC_TOPIC &&
       (message.event === CART_WATCHING_EVENT || message.event === CART_UPSERT_EVENT);
 
+    const isOrderStatusMessage =
+      message.topic === ORDERS_TOPIC &&
+      (message.event === ORDERS_WATCHING_EVENT ||
+        message.event === ORDERS_STATUS_CHANGE_REQUESTED_EVENT);
+
     return (
       isAdminWatchingMessage ||
       isCartSyncMessage ||
       isStockMessage ||
+      isOrderStatusMessage ||
       (message.topic === EXPORT_TOPIC &&
         message.event === EXPORT_REQUESTED_EVENT) ||
       (message.topic === ORDERS_TOPIC &&

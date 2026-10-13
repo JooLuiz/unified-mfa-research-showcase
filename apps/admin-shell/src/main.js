@@ -30,6 +30,12 @@ import {
 import { mountHeaderAndFooter } from "./utils/mountActions";
 import { navigate } from "./utils/navigate";
 import { publishNotification } from "./notifications/notificationAdapter";
+import { MOCK_API_BASE_URL } from "./utils/constants";
+import {
+  startAdminOrderStatusStream,
+  stopAdminOrderStatusStream,
+  subscribeToAdminOrderStatusChanged,
+} from "@shared/order-status-events";
 import {
   isLocalMeshStarted,
   isAuthenticatedMeshActive,
@@ -54,10 +60,12 @@ import {
   renderLoginPage,
   renderDashboardPage,
   renderOrdersPage,
+  renderOrderDetailsPage,
   renderPostsPage,
   renderAccountPage,
 } from "./utils/renderActions";
 import { persistAccountUpdate } from "./commands/accountCommands";
+import { readOrderIdFromPath } from "./pages/orderDetailsPage";
 
 const appState = {
   authToken: null,
@@ -76,8 +84,13 @@ let activeCleanupFunctions = [];
 function syncAdminLiveEventsWithSession() {
   if (isAdminAuthenticated(appState)) {
     void startAdminLiveEvents(appState);
+    void startAdminOrderStatusStream({
+      apiBaseUrl: MOCK_API_BASE_URL,
+      authToken: appState.authToken,
+    });
   } else {
     stopAdminLiveEvents();
+    stopAdminOrderStatusStream();
   }
 }
 
@@ -261,6 +274,11 @@ async function renderApp() {
     return;
   }
 
+  if (pathName.startsWith("/order-details/")) {
+    await renderOrderDetailsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
+    return;
+  }
+
   if (pathName === "/posts") {
     await renderPostsPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
     return;
@@ -328,6 +346,22 @@ const shellEventHandlers = {
 
 window.addEventListener("popstate", () => {
   void renderApp();
+});
+
+subscribeToAdminOrderStatusChanged(({ orderId, status }) => {
+  const openOrderId = readOrderIdFromPath(window.location.pathname);
+  if (
+    status !== "cancellation-requested" ||
+    window.location.pathname === "/orders" ||
+    openOrderId === orderId
+  ) {
+    return;
+  }
+  publishNotification({
+    type: "success",
+    title: "Cancellation requested",
+    message: `A customer requested cancellation for order ${orderId}.`,
+  });
 });
 
 subscribeToAdminLiveEvents(({ type }) => {

@@ -49,6 +49,12 @@ import {
 import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
 
 import { startCartLiveEvents, stopCartLiveEvents } from "./events/cartLiveEvents";
+import {
+  startCustomerOrderStatusStream,
+  stopCustomerOrderStatusStream,
+} from "@shared/order-status-events";
+import { registerCustomerOrderStatusToasts } from "./events/customerOrderStatusToasts";
+import { MOCK_API_BASE_URL } from "./utils/constants";
 import { startStockGating } from "./events/stockGating";
 import { endCartSession, hydrateSavedCart, mergeGuestCartOnLogin, scheduleCartPersist, startCartTabSync } from "./utils/cartSync";
 import { navigate } from "./utils/navigate";
@@ -123,8 +129,13 @@ function configureAuthenticatedApplicationMesh() {
 function syncCartLiveEventsWithSession() {
   if (appState.authToken) {
     void startCartLiveEvents(appState);
+    void startCustomerOrderStatusStream({
+      apiBaseUrl: MOCK_API_BASE_URL,
+      authToken: appState.authToken,
+    });
   } else {
     stopCartLiveEvents();
+    stopCustomerOrderStatusStream();
   }
 }
 
@@ -568,6 +579,8 @@ async function mergeGuestCartAfterLogin() {
 window.addEventListener("popstate", () => {
   void renderApp();
 });
+
+registerCustomerOrderStatusToasts(appState);
 
 async function bootstrap() {
   const notificationMount = document.getElementById("notificationMount");

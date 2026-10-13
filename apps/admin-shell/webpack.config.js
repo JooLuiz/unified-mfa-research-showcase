@@ -36,6 +36,10 @@ module.exports = {
         global_layout_footer: "global_layout_footer@http://localhost:4302/remoteEntry.js",
         login: "login@http://localhost:4311/remoteEntry.js",
         account: "account@http://localhost:4310/remoteEntry.js",
+        order_details: "order_details@http://localhost:4313/remoteEntry.js",
+      },
+      shared: {
+        "@shared/order-status-events": { singleton: true },
       },
       shared: {
         "event-mesh/mesh": {
