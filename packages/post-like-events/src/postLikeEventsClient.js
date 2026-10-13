@@ -29,7 +29,7 @@ function getOrCreateStream(apiBaseUrl) {
  * tab, independent of any one subscriber's lifetime.
  *
  * @param {string} apiBaseUrl - Mock API base URL.
- * @param {(event: { postId: string, likes: number, ownerId: string, likerName: string, liked: boolean }) => void} listener - Called for every push.
+ * @param {(event: { postId: string, likes: number, ownerId: string, likerId: string, likerName: string, liked: boolean }) => void} listener - Called for every push.
  * @returns {() => void} Unsubscribe function; call it on page unmount.
  */
 function subscribeToPostLikesChanged(apiBaseUrl, listener) {
