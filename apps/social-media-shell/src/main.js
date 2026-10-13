@@ -386,7 +386,16 @@ const shellEventHandlers = {
         message: `Welcome back, ${welcomeName}.`,
       });
     }
-    reloadActivePageApp();
+    // Re-fetches posts so `likedByCurrentUser` reflects the session that is active now (a tab
+    // that first loaded as a guest, or as a different user, must not keep a stale like flag).
+    loadMockData(appState)
+      .catch((loadError) => {
+        console.warn("onAuthSessionChanged - loadError");
+        console.warn(loadError);
+      })
+      .finally(() => {
+        reloadActivePageApp();
+      });
   },
   onLogoutRequested: () => {
     clearAuthSession(appState);
