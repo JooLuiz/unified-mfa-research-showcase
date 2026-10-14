@@ -21,6 +21,7 @@ const MAX_RECONNECT_DELAY_MS = 30_000;
  * @returns {{
  *   start: (input: { apiBaseUrl: string, authToken: string }) => void,
  *   stop: () => void,
+ *   markLocalSignOut: () => void,
  *   subscribe: (listener: () => void) => () => void
  * }} Stream controls.
  */
@@ -32,6 +33,7 @@ function createSessionStreamSession() {
   let reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
   let activeApiBaseUrl = "";
   let activeAuthToken = "";
+  let ignoreIncomingRevocation = false;
 
   function clearReconnectTimer() {
     if (reconnectTimeoutId) {
@@ -48,6 +50,9 @@ function createSessionStreamSession() {
   }
 
   function dispatchSessionRevoked() {
+    if (ignoreIncomingRevocation) {
+      return;
+    }
     listeners.forEach((listener) => {
       try {
         listener();
@@ -74,6 +79,7 @@ function createSessionStreamSession() {
    *
    * @param {{ apiBaseUrl: string, authToken: string }} startInput - API base URL and bearer token.
    * @returns {void}
+   * @sideEffects Opens one EventSource. Clears a previous local sign-out suppression so this session can be revoked remotely.
    */
   function start({ apiBaseUrl, authToken }) {
     activeApiBaseUrl = apiBaseUrl;
@@ -82,6 +88,8 @@ function createSessionStreamSession() {
     if (!authToken || activeEventSource) {
       return;
     }
+
+    ignoreIncomingRevocation = false;
 
     try {
       const streamUrl = `${apiBaseUrl}${SESSION_STREAM_PATH}?token=${encodeURIComponent(authToken)}`;
@@ -94,6 +102,9 @@ function createSessionStreamSession() {
 
       eventSource.onerror = () => {
         closeActiveEventSource();
+        if (ignoreIncomingRevocation) {
+          return;
+        }
         scheduleReconnect();
       };
 
@@ -108,14 +119,29 @@ function createSessionStreamSession() {
 
   /**
    * Closes the open session stream and clears pending reconnect timers.
+   * Does not clear a local sign-out suppression. A session.revoked frame can still arrive after close.
    *
    * @returns {void}
+   * @sideEffects Closes the EventSource.
    */
   function stop() {
     activeAuthToken = "";
     clearReconnectTimer();
     reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
     closeActiveEventSource();
+  }
+
+  /**
+   * Ignores the next session.revoked delivery on this tab.
+   * The tab that calls sign-out-everywhere still receives the broadcast on its own stream.
+   * stop() leaves this flag set so a frame that arrives after the stream closes is still ignored.
+   * The next start() clears it.
+   *
+   * @returns {void}
+   * @sideEffects Suppresses listener delivery and reconnect until the next stream start.
+   */
+  function markLocalSignOut() {
+    ignoreIncomingRevocation = true;
   }
 
   /**
@@ -131,7 +157,7 @@ function createSessionStreamSession() {
     };
   }
 
-  return { start, stop, subscribe };
+  return { start, stop, markLocalSignOut, subscribe };
 }
 
 export { createSessionStreamSession };
