@@ -7,12 +7,12 @@
  */
 
 const express = require("express");
-const { buildPublicUser, extractUserIdFromToken } = require("../domain/auth");
+const { buildPublicUser, resolveAuthenticatedUserId } = require("../domain/auth");
 
 /**
  * Creates the current-user router.
  *
- * @param {{ readJsonFile: (fileName: string) => Promise<any>, writeJsonFile: (fileName: string, data: any) => Promise<void> }} jsonStore - JSON file store bound to the data directory.
+ * @param {{ readJsonFile: (fileName: string) => Promise<any>, readJsonFileWithDefault: (fileName: string, defaultValue: any) => Promise<any>, writeJsonFile: (fileName: string, data: any) => Promise<void> }} jsonStore - JSON file store bound to the data directory.
  * @returns {import("express").Router} Router with the /users/me routes.
  */
 function createUserRouter(jsonStore) {
@@ -20,7 +20,8 @@ function createUserRouter(jsonStore) {
 
   router.get("/users/me", async (request, response) => {
     try {
-      const userIdFromToken = extractUserIdFromToken(request.headers.authorization);
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const userIdFromToken = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
       if (!userIdFromToken) {
         response.status(401).json({ message: "Missing or invalid token" });
         return;
@@ -42,7 +43,8 @@ function createUserRouter(jsonStore) {
 
   router.put("/users/me", async (request, response) => {
     try {
-      const userIdFromToken = extractUserIdFromToken(request.headers.authorization);
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const userIdFromToken = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
       if (!userIdFromToken) {
         response.status(401).json({ message: "Missing or invalid token" });
         return;

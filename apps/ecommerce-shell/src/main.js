@@ -37,6 +37,7 @@ import {
   ensureCatalogIntentListeners,
   ensureCheckoutIntentListeners,
   ensureShellEventListeners,
+  publishLogoutRequested,
   publishPlpFiltersChanged,
   publishRenderRequested,
   resetAccountIntentListeners,
@@ -53,6 +54,11 @@ import {
   startCustomerOrderStatusStream,
   stopCustomerOrderStatusStream,
 } from "@shared/order-status-events";
+import {
+  startSessionLiveEvents,
+  stopSessionLiveEvents,
+  subscribeToSessionRevoked,
+} from "@shared/session-events";
 import { registerCustomerOrderStatusToasts } from "./events/customerOrderStatusToasts";
 import { MOCK_API_BASE_URL } from "./utils/constants";
 import { startStockGating } from "./events/stockGating";
@@ -133,9 +139,14 @@ function syncCartLiveEventsWithSession() {
       apiBaseUrl: MOCK_API_BASE_URL,
       authToken: appState.authToken,
     });
+    void startSessionLiveEvents({
+      authToken: appState.authToken,
+      userId: appState.currentUser?.id,
+    });
   } else {
     stopCartLiveEvents();
     stopCustomerOrderStatusStream();
+    stopSessionLiveEvents();
   }
 }
 
@@ -213,6 +224,7 @@ function downgradeToLocalMeshSession() {
   resetCartEventListeners();
   resetCartSaveListeners();
   stopCartLiveEvents();
+  stopSessionLiveEvents();
   mesh.close();
   clearMeshSessionFlags();
   startLocalMeshSession();
@@ -581,6 +593,21 @@ window.addEventListener("popstate", () => {
 });
 
 registerCustomerOrderStatusToasts(appState);
+
+subscribeToSessionRevoked(() => {
+  if (!appState.authToken) {
+    return;
+  }
+  publishNotification({
+    type: "error",
+    title: "Session ended",
+    message: "Your session ended on another device.",
+  });
+  // Logout is a local mesh message. Closing here drops it, so the tab stays
+  // signed in until refresh. onLogoutRequested clears credentials, then
+  // downgradeToLocalMeshSession closes the authenticated socket.
+  publishLogoutRequested();
+});
 
 async function bootstrap() {
   const notificationMount = document.getElementById("notificationMount");

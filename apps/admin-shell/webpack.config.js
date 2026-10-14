@@ -40,8 +40,7 @@ module.exports = {
       },
       shared: {
         "@shared/order-status-events": { singleton: true },
-      },
-      shared: {
+        "@shared/session-events": { singleton: true },
         "event-mesh/mesh": {
           singleton: true,
           requiredVersion: false,

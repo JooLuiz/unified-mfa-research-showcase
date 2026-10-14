@@ -16,6 +16,7 @@ const { createCartEventStream } = require("./infrastructure/cartEventStream");
 const { createStockEventStream } = require("./infrastructure/stockEventStream");
 const { createOrderEventStream } = require("./infrastructure/orderEventStream");
 const { createPostLikeEventStream } = require("./infrastructure/postLikeEventStream");
+const { createSessionEventStream } = require("./event-mesh/sessionEventStream");
 const { createCatalogRouter } = require("./routes/catalogRoutes");
 const { createAuthRouter } = require("./routes/authRoutes");
 const { createUserRouter } = require("./routes/userRoutes");
@@ -25,6 +26,7 @@ const { createOrderRouter } = require("./routes/orderRoutes");
 const { createCartRouter } = require("./routes/cartRoutes");
 const { createExportRouter } = require("./routes/exportRoutes");
 const { createAdminRouter } = require("./routes/adminRoutes");
+const { createSessionRouter } = require("./routes/sessionRoutes");
 const { consumeConnectionTicket } = require("./domain/connectionTickets");
 const { releaseGuestSession } = require("./domain/stock");
 const {
@@ -48,6 +50,7 @@ const cartEventStream = createCartEventStream();
 const stockEventStream = createStockEventStream();
 const orderEventStream = createOrderEventStream();
 const postLikeEventStream = createPostLikeEventStream();
+const sessionEventStream = createSessionEventStream();
 
 app.use(cors());
 app.use(express.json());
@@ -92,6 +95,7 @@ async function configureAndStartEventGateway() {
   await stockEventStream.registerWithGateway();
   await orderEventStream.registerWithGateway();
   await postLikeEventStream.registerWithGateway();
+  await sessionEventStream.registerWithGateway();
   await registerExportRequestHandler(jsonStore);
   await registerOrderRequestHandler(jsonStore, adminEventStream, cartEventStream, stockEventStream);
   await registerOrderStatusHandler(jsonStore, orderEventStream, adminEventStream, stockEventStream);
@@ -115,6 +119,7 @@ app.use("/api", createOrderRouter(jsonStore));
 app.use("/api", createCartRouter(jsonStore));
 app.use("/api", createExportRouter(jsonStore));
 app.use("/api", createAdminRouter(jsonStore));
+app.use("/api", createSessionRouter(jsonStore, sessionEventStream));
 
 async function startServer() {
   await configureAndStartEventGateway();

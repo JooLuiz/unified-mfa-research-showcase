@@ -22,6 +22,7 @@
     "@shared/shell-events": "*",
     "@shared/catalog-events": "*",
     "@shared/account-events": "*",
-    "@shared/community-events": "*"
+    "@shared/community-events": "*",
+    "@shared/session-events": "*"
   }
 }

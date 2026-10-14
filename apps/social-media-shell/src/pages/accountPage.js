@@ -9,11 +9,14 @@
  * See also: src/utils/renderActions.js (public barrel).
  */
 
+import { requestSignOutEverywhere } from "@shared/session-events";
 import { navigate } from "../utils/navigate";
 import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
+import { publishLogoutRequested } from "../events/eventBus";
+import { MOCK_API_BASE_URL } from "../utils/constants";
 import { requestCsvExport } from "../exports/requestCsvExport";
 import { publishNotification } from "../notifications/notificationAdapter";
 import {
@@ -41,7 +44,10 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
     <section class="account-page">
       <div class="account-page-header">
         <h2>My Account</h2>
-        <button id="backToFeedButton" class="account-action-button" type="button">Back to feed</button>
+        <div class="account-page-actions">
+          <button id="backToFeedButton" class="account-action-button" type="button">Back to feed</button>
+          <button id="signOutEverywhereButton" class="account-action-button account-action-button-danger" type="button">Sign out everywhere</button>
+        </div>
       </div>
       <div id="accountProfileMount"></div>
       <div id="accountAddressMount"></div>
@@ -52,6 +58,23 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
   const backToFeedButton = pageMount.querySelector("#backToFeedButton");
   if (backToFeedButton) {
     backToFeedButton.addEventListener("click", () => navigate("/"));
+  }
+
+  const signOutEverywhereButton = pageMount.querySelector("#signOutEverywhereButton");
+  if (signOutEverywhereButton) {
+    signOutEverywhereButton.addEventListener("click", async () => {
+      signOutEverywhereButton.disabled = true;
+      try {
+        await requestSignOutEverywhere({
+          apiBaseUrl: MOCK_API_BASE_URL,
+          authToken: appState.authToken,
+        });
+      } catch (error) {
+        console.warn("signOutEverywhereButton - error");
+        console.warn(error);
+      }
+      publishLogoutRequested();
+    });
   }
 
   const accountProfileMount = pageMount.querySelector("#accountProfileMount");

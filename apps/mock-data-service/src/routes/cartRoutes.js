@@ -8,7 +8,7 @@
  */
 
 const express = require("express");
-const { extractUserIdFromToken } = require("../domain/auth");
+const { resolveAuthenticatedUserId } = require("../domain/auth");
 const { getCartForUser } = require("../domain/cartProcessing");
 
 /**
@@ -19,7 +19,8 @@ const { getCartForUser } = require("../domain/cartProcessing");
  * @returns {Promise<{ userId: string } | { status: number, message: string }>} Authenticated user, or an HTTP error body.
  */
 async function resolveAuthenticatedUser(request, jsonStore) {
-  const userIdFromToken = extractUserIdFromToken(request.headers.authorization);
+  const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+  const userIdFromToken = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
   if (!userIdFromToken) {
     return { status: 401, message: "Missing or invalid token" };
   }

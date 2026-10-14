@@ -7,7 +7,7 @@
  */
 
 const express = require("express");
-const { buildPublicUser, buildAuthToken, extractUserIdFromToken } = require("../domain/auth");
+const { buildPublicUser, buildAuthToken, resolveAuthenticatedUserId } = require("../domain/auth");
 const {
   buildConnectionRolesFromUserRole,
   issueConnectionTicket,
@@ -16,7 +16,7 @@ const {
 /**
  * Creates the authentication router.
  *
- * @param {{ readJsonFile: (fileName: string) => Promise<any> }} jsonStore - JSON file store bound to the data directory.
+ * @param {{ readJsonFile: (fileName: string) => Promise<any>, readJsonFileWithDefault: (fileName: string, defaultValue: any) => Promise<any> }} jsonStore - JSON file store bound to the data directory.
  * @returns {import("express").Router} Router with the login route.
  */
 function createAuthRouter(jsonStore) {
@@ -24,7 +24,8 @@ function createAuthRouter(jsonStore) {
 
   router.post("/auth/connection-ticket", async (request, response) => {
     try {
-      const userId = extractUserIdFromToken(request.headers.authorization);
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const userId = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
       if (!userId) {
         response.status(401).json({ message: "Missing or invalid token" });
         return;

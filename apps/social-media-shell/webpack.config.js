@@ -46,6 +46,7 @@ module.exports = {
           singleton: true,
           requiredVersion: false,
         },
+        "@shared/session-events": { singleton: true },
       },
     }),
     new HtmlWebpackPlugin({

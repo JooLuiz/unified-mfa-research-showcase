@@ -27,6 +27,7 @@ import {
   ensureNotificationDisplayListeners,
   resetNotificationDisplayListeners,
 } from "./notifications/notificationCenter";
+import { publishLogoutRequested } from "./events/eventBus";
 import { mountHeaderAndFooter } from "./utils/mountActions";
 import { navigate } from "./utils/navigate";
 import { publishNotification } from "./notifications/notificationAdapter";
@@ -36,6 +37,11 @@ import {
   stopAdminOrderStatusStream,
   subscribeToAdminOrderStatusChanged,
 } from "@shared/order-status-events";
+import {
+  startSessionLiveEvents,
+  stopSessionLiveEvents,
+  subscribeToSessionRevoked,
+} from "@shared/session-events";
 import {
   isLocalMeshStarted,
   isAuthenticatedMeshActive,
@@ -91,9 +97,14 @@ function syncAdminLiveEventsWithSession() {
       apiBaseUrl: MOCK_API_BASE_URL,
       authToken: appState.authToken,
     });
+    void startSessionLiveEvents({
+      authToken: appState.authToken,
+      userId: appState.currentUser?.id,
+    });
   } else {
     stopAdminLiveEvents();
     stopAdminOrderStatusStream();
+    stopSessionLiveEvents();
   }
 }
 
@@ -176,6 +187,7 @@ function startAuthenticatedMeshSession() {
 
 function downgradeToLocalMeshSession() {
   stopAdminLiveEvents();
+  stopSessionLiveEvents();
   resetNotificationDisplayListeners();
   resetShellEventListeners();
   resetAccountIntentListeners();
@@ -349,6 +361,21 @@ const shellEventHandlers = {
 
 window.addEventListener("popstate", () => {
   void renderApp();
+});
+
+subscribeToSessionRevoked(() => {
+  if (!appState.authToken) {
+    return;
+  }
+  publishNotification({
+    type: "error",
+    title: "Session ended",
+    message: "Your session ended on another device.",
+  });
+  // Logout is a local mesh message. Closing here drops it, so the tab stays
+  // signed in until refresh. onLogoutRequested clears credentials, then
+  // downgradeToLocalMeshSession closes the authenticated socket.
+  publishLogoutRequested();
 });
 
 subscribeToAdminOrderStatusChanged(({ orderId, status }) => {

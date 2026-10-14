@@ -7,7 +7,7 @@
  */
 
 const express = require("express");
-const { extractUserIdFromToken } = require("../domain/auth");
+const { resolveAuthenticatedUserId } = require("../domain/auth");
 const {
   EXPORT_JOB_STATUSES,
   findExportJobForUser,
@@ -31,7 +31,8 @@ function createExportRouter(jsonStore) {
   const router = express.Router();
 
   async function getAuthenticatedUser(request, response) {
-    const userId = extractUserIdFromToken(request.headers.authorization);
+    const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+    const userId = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
     if (!userId) {
       response.status(401).json({ message: "Missing or invalid token" });
       return null;

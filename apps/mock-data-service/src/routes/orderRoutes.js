@@ -7,7 +7,7 @@
  */
 
 const express = require("express");
-const { extractUserIdFromToken, isAdminUser } = require("../domain/auth");
+const { resolveAuthenticatedUserId, isAdminUser } = require("../domain/auth");
 
 /**
  * Creates the order router.
@@ -20,7 +20,8 @@ function createOrderRouter(jsonStore) {
 
   router.get("/orders", async (request, response) => {
     try {
-      const userIdFromToken = extractUserIdFromToken(request.headers.authorization);
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const userIdFromToken = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
       if (!userIdFromToken) {
         response.status(401).json({ message: "Missing or invalid token" });
         return;
@@ -42,7 +43,8 @@ function createOrderRouter(jsonStore) {
 
   router.get("/orders/:orderId", async (request, response) => {
     try {
-      const userIdFromToken = extractUserIdFromToken(request.headers.authorization);
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const userIdFromToken = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
       if (!userIdFromToken) {
         response.status(401).json({ message: "Missing or invalid token" });
         return;

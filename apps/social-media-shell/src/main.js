@@ -41,6 +41,7 @@ import {
   ensureCatalogIntentListeners,
   ensureCommunityIntentListeners,
   ensureShellEventListeners,
+  publishLogoutRequested,
   publishRenderRequested,
   resetAccountIntentListeners,
   resetCatalogIntentListeners,
@@ -53,6 +54,11 @@ import {
   subscribeToCommunityLikesChanged,
 } from "./events/communityLikesLiveEvents";
 import { toggleLikeForPost, resetPostLikeToggleListeners } from "./commands/postLikeCommands";
+import {
+  startSessionLiveEvents,
+  stopSessionLiveEvents,
+  subscribeToSessionRevoked,
+} from "@shared/session-events";
 import {
   feedPageApp,
   postsPageApp,
@@ -143,6 +149,10 @@ function startAuthenticatedMeshSession() {
     ensureAccountIntentListeners(accountIntentHandlers);
     ensureCommunityIntentListeners(communityIntentHandlers);
     void startCommunityLikesLiveEvents();
+    void startSessionLiveEvents({
+      authToken: appState.authToken,
+      userId: appState.currentUser?.id,
+    });
     return;
   }
 
@@ -166,6 +176,10 @@ function startAuthenticatedMeshSession() {
   ensureAccountIntentListeners(accountIntentHandlers);
   ensureCommunityIntentListeners(communityIntentHandlers);
   void startCommunityLikesLiveEvents();
+  void startSessionLiveEvents({
+    authToken: appState.authToken,
+    userId: appState.currentUser?.id,
+  });
 }
 
 function downgradeToLocalMeshSession() {
@@ -177,6 +191,7 @@ function downgradeToLocalMeshSession() {
   resetCommunityIntentListeners();
   resetPostLikeToggleListeners();
   stopCommunityLikesLiveEvents();
+  stopSessionLiveEvents();
   mesh.close();
   clearMeshSessionFlags();
   startLocalMeshSession();
@@ -402,6 +417,21 @@ const shellEventHandlers = {
     navigate("/");
   },
 };
+
+subscribeToSessionRevoked(() => {
+  if (!appState.authToken) {
+    return;
+  }
+  publishNotification({
+    type: "error",
+    title: "Session ended",
+    message: "Your session ended on another device.",
+  });
+  // Logout is a local mesh message. Closing here drops it, so the tab stays
+  // signed in until refresh. onLogoutRequested clears credentials, then
+  // downgradeToLocalMeshSession closes the authenticated socket.
+  publishLogoutRequested();
+});
 
 // Global for the life of the tab (signed-in or guest), independent of which page is mounted:
 // tells the post's owner — wherever they are in the shell — that someone liked their post.

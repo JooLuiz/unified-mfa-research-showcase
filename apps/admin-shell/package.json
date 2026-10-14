@@ -19,6 +19,7 @@
     "@shared/notifications": "*",
     "@shared/shell-events": "*",
     "@shared/account-events": "*",
-    "@shared/order-status-events": "*"
+    "@shared/order-status-events": "*",
+    "@shared/session-events": "*"
   }
 }

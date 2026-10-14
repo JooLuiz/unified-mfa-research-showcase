@@ -24,6 +24,7 @@
     "@shared/account-events": "*",
     "@shared/stock-events": "*",
     "@shared/order-status-events": "*",
+    "@shared/session-events": "*",
     "event-mesh": "*"
   }
 }
