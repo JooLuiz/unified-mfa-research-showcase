@@ -7,7 +7,7 @@
  */
 
 const express = require("express");
-const { extractUserIdFromToken } = require("../domain/auth");
+const { resolveAuthenticatedUserId } = require("../domain/auth");
 const { generateIdentifier } = require("../domain/identifiers");
 
 /**
@@ -38,7 +38,8 @@ function createFaqRouter(jsonStore) {
         return;
       }
 
-      const userIdFromToken = extractUserIdFromToken(request.headers.authorization);
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const userIdFromToken = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
       const newFaqAnswer = {
         id: generateIdentifier("faq"),
         name: trimmedName,

@@ -7,6 +7,9 @@
  */
 
 import { persistAccountUpdate } from "../commands/accountCommands";
+import { requestSignOutEverywhere } from "@shared/session-events";
+import { publishLogoutRequested } from "../events/eventBus";
+import { MOCK_API_BASE_URL } from "../utils/constants";
 import { navigate } from "../utils/navigate";
 
 /**
@@ -23,9 +26,14 @@ async function renderAccountPage(appState, pageMount, activeCleanupFunctions) {
     <section class="account-page">
       <div class="account-page-header">
         <h2>My Account</h2>
-        <button id="backToDashboardButton" class="account-action-button" type="button">
-          Back to dashboard
-        </button>
+        <div class="account-page-actions">
+          <button id="backToDashboardButton" class="account-action-button" type="button">
+            Back to dashboard
+          </button>
+          <button id="signOutEverywhereButton" class="account-action-button account-action-button-danger" type="button">
+            Sign out everywhere
+          </button>
+        </div>
       </div>
       <div id="accountProfileMount"></div>
       <div id="accountAddressMount"></div>
@@ -34,6 +42,23 @@ async function renderAccountPage(appState, pageMount, activeCleanupFunctions) {
 
   const backToDashboardButton = pageMount.querySelector("#backToDashboardButton");
   backToDashboardButton.addEventListener("click", () => navigate("/"));
+
+  const signOutEverywhereButton = pageMount.querySelector("#signOutEverywhereButton");
+  if (signOutEverywhereButton) {
+    signOutEverywhereButton.addEventListener("click", async () => {
+      signOutEverywhereButton.disabled = true;
+      try {
+        await requestSignOutEverywhere({
+          apiBaseUrl: MOCK_API_BASE_URL,
+          authToken: appState.authToken,
+        });
+      } catch (error) {
+        console.warn("signOutEverywhereButton - error");
+        console.warn(error);
+      }
+      publishLogoutRequested();
+    });
+  }
 
   const accountProfileMount = pageMount.querySelector("#accountProfileMount");
   const accountAddressMount = pageMount.querySelector("#accountAddressMount");

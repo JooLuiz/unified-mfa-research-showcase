@@ -11,6 +11,7 @@ import {
 
 import loadRemoteModules from "./utils/loadRemoteModules";
 import {
+  publishLogoutRequested,
   publishRenderRequested,
   subscribeToAuthSessionChanges,
   subscribeToLogoutRequests,
@@ -26,6 +27,7 @@ import {
   stopAdminOrderStatusStream,
   subscribeToAdminOrderStatusChanged,
 } from "@shared/order-status-events";
+import { subscribeToSessionRevoked } from "@shared/session-events";
 import {
   startAdminLiveEvents,
   stopAdminLiveEvents,
@@ -201,6 +203,18 @@ subscribeToAuthSessionChanges(() => {
 subscribeToLogoutRequests(() => {
   clearAuthSession(appState);
   navigate("/login");
+});
+
+subscribeToSessionRevoked(() => {
+  if (!appState.authToken) {
+    return;
+  }
+  publishNotification({
+    type: "error",
+    title: "Session ended",
+    message: "Your session ended on another device.",
+  });
+  publishLogoutRequested();
 });
 
 subscribeToAdminOrderStatusChanged(({ orderId, status }) => {

@@ -40,6 +40,7 @@ module.exports = {
       },
       shared: {
         "@shared/order-status-events": { singleton: true },
+        "@shared/session-events": { singleton: true },
       },
     }),
     new HtmlWebpackPlugin({

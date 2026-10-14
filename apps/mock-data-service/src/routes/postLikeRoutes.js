@@ -11,7 +11,7 @@
  */
 
 const express = require("express");
-const { extractUserIdFromToken } = require("../domain/auth");
+const { resolveAuthenticatedUserId } = require("../domain/auth");
 const { LIKE_NOT_ALLOWED_CODE, toggleLike } = require("../domain/postLikes");
 const { POST_LIKES_CHANGED_EVENT_NAME } = require("../infrastructure/postLikeEventStream");
 
@@ -35,7 +35,8 @@ function createPostLikeRouter(jsonStore, postLikeEventStream, adminEventStream) 
    */
   router.post("/posts/:postId/like", async (request, response) => {
     try {
-      const userIdFromToken = extractUserIdFromToken(request.headers.authorization);
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const userIdFromToken = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
       if (!userIdFromToken) {
         response.status(401).json({ message: "Missing or invalid token" });
         return;

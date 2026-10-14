@@ -11,7 +11,7 @@
  */
 
 const express = require("express");
-const { extractUserIdFromToken } = require("../domain/auth");
+const { resolveAuthenticatedUserId } = require("../domain/auth");
 const { generateIdentifier } = require("../domain/identifiers");
 const {
   STOCK_INSUFFICIENT_CODE,
@@ -27,10 +27,11 @@ const STOCK_STREAM_HEARTBEAT_INTERVAL_MS = 20_000;
  * Resolves the caller's stock holder identity for a reservation request.
  *
  * @param {import("express").Request} request - Incoming request.
+ * @param {Array<{ userId: string, revokedAt: number | string }>} sessionRevocations - Session revocations array.
  * @returns {{ type: "user", userId: string } | { type: "guest", sessionId: string } | null} Holder identity, or null when neither an Authorization bearer nor an X-Stock-Session header is present.
  */
-function resolveStockHolder(request) {
-  const userId = extractUserIdFromToken(request.headers.authorization);
+function resolveStockHolder(request, sessionRevocations) {
+  const userId = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
   if (userId) {
     return { type: "user", userId };
   }
@@ -76,7 +77,8 @@ function createStockRouter(jsonStore, stockEventStream) {
 
   router.post("/stock/reservations", async (request, response) => {
     try {
-      const holder = resolveStockHolder(request);
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const holder = resolveStockHolder(request, sessionRevocations);
       if (!holder) {
         response.status(401).json({ message: "Missing stock credential" });
         return;
@@ -96,7 +98,8 @@ function createStockRouter(jsonStore, stockEventStream) {
 
   router.put("/stock/reservations", async (request, response) => {
     try {
-      const holder = resolveStockHolder(request);
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const holder = resolveStockHolder(request, sessionRevocations);
       if (!holder) {
         response.status(401).json({ message: "Missing stock credential" });
         return;
