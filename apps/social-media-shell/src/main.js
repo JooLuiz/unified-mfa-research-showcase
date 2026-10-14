@@ -140,7 +140,16 @@ subscribeToRenderRequests(() => {
 });
 
 subscribeToAuthSessionChanges(() => {
-  reloadActivePageApp();
+  // Re-fetches posts so `likedByCurrentUser` reflects the session that is active now (a tab
+  // that first loaded as a guest, or as a different user, must not keep a stale like flag).
+  loadMockData(appState)
+    .catch((loadError) => {
+      console.warn("subscribeToAuthSessionChanges - loadError");
+      console.warn(loadError);
+    })
+    .finally(() => {
+      reloadActivePageApp();
+    });
 });
 
 subscribeToLogoutRequests(() => {
@@ -164,10 +173,15 @@ subscribeToSessionRevoked(() => {
 // keeps appState.posts correct for the next render, and tells the post's owner — wherever
 // they are in the shell — that someone liked their post. The liker's own "Post Liked" toast is
 // fired separately, from the HTTP response in src/commands/postLikeCommands.js.
-subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes, ownerId, likerName, liked }) => {
-  appState.posts = appState.posts.map((post) =>
-    post.id === postId ? { ...post, likes } : post,
-  );
+subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes, ownerId, likerId, likerName, liked }) => {
+  appState.posts = appState.posts.map((post) => {
+    if (post.id !== postId) {
+      return post;
+    }
+    const likedByCurrentUser =
+      likerId === appState.currentUser?.id ? liked : post.likedByCurrentUser;
+    return { ...post, likes, likedByCurrentUser };
+  });
   if (liked && appState.currentUser?.id === ownerId) {
     publishNotification({
       type: "success",

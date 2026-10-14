@@ -2,13 +2,17 @@ import fetchJson from "./fetchJson";
 import { MOCK_API_BASE_URL } from "./constants";
 
 async function loadMockData(appState) {
+  const postsRequestOptions = appState.authToken
+    ? { headers: { Authorization: `Bearer ${appState.authToken}` } }
+    : {};
+
   const [
     postsResponse,
     bannersResponse,
     productsResponse,
     showcasesResponse,
   ] = await Promise.all([
-    fetchJson(`${MOCK_API_BASE_URL}/posts`),
+    fetchJson(`${MOCK_API_BASE_URL}/posts`, postsRequestOptions),
     fetchJson(`${MOCK_API_BASE_URL}/banners`),
     fetchJson(`${MOCK_API_BASE_URL}/products`),
     fetchJson(`${MOCK_API_BASE_URL}/showcases`),

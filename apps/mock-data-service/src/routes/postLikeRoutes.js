@@ -80,6 +80,7 @@ function createPostLikeRouter(jsonStore, postLikeEventStream, adminEventStream) 
         postId: matchingPost.id,
         likes: toggleResult.likes,
         ownerId: matchingPost.authorId,
+        likerId: likerUser.id,
         likerName: likerUser.fullName || likerUser.username,
         liked: toggleResult.liked,
       };
