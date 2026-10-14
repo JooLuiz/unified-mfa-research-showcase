@@ -9,7 +9,7 @@
  */
 
 const express = require("express");
-const { extractUserIdFromToken } = require("../domain/auth");
+const { resolveAuthenticatedUserId } = require("../domain/auth");
 const {
   buildConnectionRolesFromUserRole,
   consumeConnectionTicket,
@@ -34,7 +34,8 @@ const CART_SSE_HEARTBEAT_INTERVAL_MS = 20_000;
  * @returns {Promise<{ userId: string, role?: string } | { status: number, message: string }>} Authenticated user, or an HTTP error body.
  */
 async function resolveAuthenticatedUser(request, jsonStore) {
-  const userIdFromToken = extractUserIdFromToken(request.headers.authorization);
+  const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+  const userIdFromToken = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
   if (!userIdFromToken) {
     return { status: 401, message: "Missing or invalid token" };
   }

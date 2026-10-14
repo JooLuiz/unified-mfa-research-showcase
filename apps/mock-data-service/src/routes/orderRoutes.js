@@ -10,7 +10,7 @@
  */
 
 const express = require("express");
-const { buildPublicUser, extractUserIdFromToken, isAdminUser } = require("../domain/auth");
+const { buildPublicUser, resolveAuthenticatedUserId, isAdminUser } = require("../domain/auth");
 const {
   ORDER_REQUEST_INVALID_CODE,
   createOrderForUser,
@@ -30,7 +30,8 @@ function createOrderRouter(jsonStore, adminEventStream, cartEventStream, stockEv
 
   router.post("/orders", async (request, response) => {
     try {
-      const userIdFromToken = extractUserIdFromToken(request.headers.authorization);
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const userIdFromToken = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
       if (!userIdFromToken) {
         response.status(401).json({ message: "Missing or invalid token" });
         return;
@@ -87,7 +88,8 @@ function createOrderRouter(jsonStore, adminEventStream, cartEventStream, stockEv
 
   router.get("/orders", async (request, response) => {
     try {
-      const userIdFromToken = extractUserIdFromToken(request.headers.authorization);
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const userIdFromToken = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
       if (!userIdFromToken) {
         response.status(401).json({ message: "Missing or invalid token" });
         return;
@@ -109,7 +111,8 @@ function createOrderRouter(jsonStore, adminEventStream, cartEventStream, stockEv
 
   router.get("/orders/:orderId", async (request, response) => {
     try {
-      const userIdFromToken = extractUserIdFromToken(request.headers.authorization);
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const userIdFromToken = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
       if (!userIdFromToken) {
         response.status(401).json({ message: "Missing or invalid token" });
         return;

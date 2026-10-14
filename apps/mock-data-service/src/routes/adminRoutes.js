@@ -10,7 +10,7 @@
  */
 
 const express = require("express");
-const { buildPublicUser, extractUserIdFromToken, isAdminUser } = require("../domain/auth");
+const { buildPublicUser, resolveAuthenticatedUserId, isAdminUser } = require("../domain/auth");
 const {
   buildConnectionRolesFromUserRole,
   issueConnectionTicket,
@@ -31,7 +31,8 @@ function createAdminRouter(jsonStore, adminEventStream) {
   const router = express.Router();
 
   async function requireAdminUser(request, response) {
-    const userIdFromToken = extractUserIdFromToken(request.headers.authorization);
+    const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+    const userIdFromToken = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
     if (!userIdFromToken) {
       response.status(401).json({ message: "Missing or invalid token" });
       return null;

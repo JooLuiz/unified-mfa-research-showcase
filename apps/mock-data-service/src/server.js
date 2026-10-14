@@ -16,6 +16,7 @@ const { createCartEventStream } = require("./infrastructure/cartEventStream");
 const { createStockEventStream } = require("./infrastructure/stockEventStream");
 const { createOrderEventStream } = require("./infrastructure/orderEventStream");
 const { createPostLikeEventStream } = require("./infrastructure/postLikeEventStream");
+const { createSessionEventStream } = require("./infrastructure/sessionEventStream");
 const { createCatalogRouter } = require("./routes/catalogRoutes");
 const { createAuthRouter } = require("./routes/authRoutes");
 const { createUserRouter } = require("./routes/userRoutes");
@@ -28,6 +29,7 @@ const { createCartRouter } = require("./routes/cartRoutes");
 const { createStockRouter } = require("./routes/stockRoutes");
 const { createExportRouter } = require("./routes/exportRoutes");
 const { createAdminRouter } = require("./routes/adminRoutes");
+const { createSessionRouter } = require("./routes/sessionRoutes");
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -38,6 +40,7 @@ const cartEventStream = createCartEventStream();
 const stockEventStream = createStockEventStream();
 const orderEventStream = createOrderEventStream();
 const postLikeEventStream = createPostLikeEventStream();
+const sessionEventStream = createSessionEventStream();
 
 app.use(cors());
 app.use(express.json());
@@ -58,6 +61,7 @@ app.use("/api", createCartRouter(jsonStore, cartEventStream));
 app.use("/api", createStockRouter(jsonStore, stockEventStream));
 app.use("/api", createExportRouter(jsonStore));
 app.use("/api", createAdminRouter(jsonStore, adminEventStream));
+app.use("/api", createSessionRouter(jsonStore, sessionEventStream));
 
 app.listen(port, () => {
   const startupMessage = `mock-data-service running on http://localhost:${port}`;

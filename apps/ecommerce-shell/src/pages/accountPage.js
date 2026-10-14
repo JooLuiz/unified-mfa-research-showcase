@@ -12,6 +12,8 @@ import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
+import { publishLogoutRequested } from "../events/eventBus";
+import { requestSignOutEverywhere } from "@shared/session-events";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import fetchJson from "../utils/fetchJson";
 import { persistAccountUpdate } from "../commands/accountCommands";
@@ -43,6 +45,7 @@ async function renderAccountPage(appState, pageMount, activeCleanupFunctions) {
         <h2>My Account</h2>
         <div class="account-page-actions">
           <button id="continueShoppingButton" class="account-action-button" type="button">Continue shopping</button>
+          <button id="signOutEverywhereButton" class="account-action-button account-action-button-danger" type="button">Sign out everywhere</button>
         </div>
       </div>
       <div id="accountProfileMount"></div>
@@ -54,6 +57,23 @@ async function renderAccountPage(appState, pageMount, activeCleanupFunctions) {
   const continueShoppingButton = pageMount.querySelector("#continueShoppingButton");
   if (continueShoppingButton) {
     continueShoppingButton.addEventListener("click", () => navigate("/products"));
+  }
+
+  const signOutEverywhereButton = pageMount.querySelector("#signOutEverywhereButton");
+  if (signOutEverywhereButton) {
+    signOutEverywhereButton.addEventListener("click", async () => {
+      signOutEverywhereButton.disabled = true;
+      try {
+        await requestSignOutEverywhere({
+          apiBaseUrl: MOCK_API_BASE_URL,
+          authToken: appState.authToken,
+        });
+      } catch (error) {
+        console.warn("signOutEverywhereButton - error");
+        console.warn(error);
+      }
+      publishLogoutRequested();
+    });
   }
 
   const accountProfileMount = pageMount.querySelector("#accountProfileMount");

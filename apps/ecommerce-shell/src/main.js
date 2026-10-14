@@ -13,6 +13,7 @@ import {
 import loadRemoteModules from "./utils/loadRemoteModules";
 import loadMockData from "./utils/loadData";
 import {
+  publishLogoutRequested,
   publishRenderRequested,
   subscribeToAuthSessionChanges,
   subscribeToCartChanges,
@@ -28,6 +29,8 @@ import {
   startCustomerOrderStatusStream,
   stopCustomerOrderStatusStream,
 } from "@shared/order-status-events";
+import { subscribeToSessionRevoked } from "@shared/session-events";
+import { publishNotification } from "./notifications/notificationAdapter";
 import { registerCustomerOrderStatusToasts } from "./events/customerOrderStatusToasts";
 import { MOCK_API_BASE_URL } from "./utils/constants";
 import { startStockGating } from "./events/stockGating";
@@ -234,6 +237,18 @@ function syncCartLiveEventsWithSession() {
 }
 
 registerCustomerOrderStatusToasts(appState);
+
+subscribeToSessionRevoked(() => {
+  if (!appState.authToken) {
+    return;
+  }
+  publishNotification({
+    type: "error",
+    title: "Session ended",
+    message: "Your session ended on another device.",
+  });
+  publishLogoutRequested();
+});
 
 subscribeToAuthSessionChanges(() => {
   syncCartLiveEventsWithSession();

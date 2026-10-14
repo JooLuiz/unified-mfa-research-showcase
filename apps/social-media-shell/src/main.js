@@ -20,6 +20,7 @@ import {
 import loadMockData from "./utils/loadData";
 import loadRemoteModules from "./utils/loadRemoteModules";
 import {
+  publishLogoutRequested,
   subscribeToAuthSessionChanges,
   subscribeToLogoutRequests,
   subscribeToRenderRequests,
@@ -29,6 +30,7 @@ import { createHeaderApp, createFooterApp } from "./utils/mountActions";
 import { mountNotificationCenter } from "./notifications/notificationCenter";
 import { publishNotification } from "./notifications/notificationAdapter";
 import { subscribeToPostLikesChanged } from "@shared/post-like-events";
+import { subscribeToSessionRevoked } from "@shared/session-events";
 import { MOCK_API_BASE_URL } from "./utils/constants";
 import {
   feedPageApp,
@@ -144,6 +146,18 @@ subscribeToAuthSessionChanges(() => {
 subscribeToLogoutRequests(() => {
   clearAuthSession(appState);
   navigate("/");
+});
+
+subscribeToSessionRevoked(() => {
+  if (!appState.authToken) {
+    return;
+  }
+  publishNotification({
+    type: "error",
+    title: "Session ended",
+    message: "Your session ended on another device.",
+  });
+  publishLogoutRequested();
 });
 
 // Global for the life of the tab (signed-in or guest), independent of which page is mounted:

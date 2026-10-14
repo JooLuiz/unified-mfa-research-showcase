@@ -18,6 +18,7 @@
   "dependencies": {
     "@shared/notifications": "*",
     "@shared/shell-events": "*",
-    "@shared/order-status-events": "*"
+    "@shared/order-status-events": "*",
+    "@shared/session-events": "*"
   }
 }

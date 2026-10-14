@@ -10,7 +10,7 @@
  */
 
 const express = require("express");
-const { buildPublicUser, extractUserIdFromToken } = require("../domain/auth");
+const { buildPublicUser, resolveAuthenticatedUserId } = require("../domain/auth");
 const { generateIdentifier } = require("../domain/identifiers");
 const { readPostLikesData, attachLikeCountsToPosts } = require("../domain/postLikes");
 
@@ -43,7 +43,8 @@ function createPostRouter(jsonStore, adminEventStream) {
         );
 
       const postLikesData = await readPostLikesData(jsonStore);
-      const viewerUserId = extractUserIdFromToken(request.headers.authorization);
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const viewerUserId = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
       const postsWithLikes = attachLikeCountsToPosts(postsWithAuthor, postLikesData, viewerUserId);
 
       response.json({
@@ -60,7 +61,8 @@ function createPostRouter(jsonStore, adminEventStream) {
 
   router.post("/posts", async (request, response) => {
     try {
-      const userIdFromToken = extractUserIdFromToken(request.headers.authorization);
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const userIdFromToken = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
       if (!userIdFromToken) {
         response.status(401).json({ message: "Missing or invalid token" });
         return;

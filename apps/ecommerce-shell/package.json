@@ -21,6 +21,7 @@
     "@shared/notifications": "*",
     "@shared/shell-events": "*",
     "@shared/stock-events": "*",
-    "@shared/order-status-events": "*"
+    "@shared/order-status-events": "*",
+    "@shared/session-events": "*"
   }
 }

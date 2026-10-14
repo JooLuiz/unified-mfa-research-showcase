@@ -92,6 +92,11 @@ react-header-mfe {
   padding: 1rem;
 }
 
+.account-page-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .account-action-button {
   border: 1px solid #333;
   background: #f4f4f4;

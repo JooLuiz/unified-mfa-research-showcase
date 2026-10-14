@@ -10,7 +10,7 @@
  */
 
 const express = require("express");
-const { extractUserIdFromToken, isAdminUser } = require("../domain/auth");
+const { resolveAuthenticatedUserId, isAdminUser } = require("../domain/auth");
 const {
   buildConnectionRolesFromUserRole,
   consumeConnectionTicket,
@@ -32,7 +32,8 @@ const ORDER_STATUS_SSE_HEARTBEAT_INTERVAL_MS = 20_000;
  * @returns {Promise<object | { status: number, message: string }>} Matching user, or an HTTP error body.
  */
 async function resolveAuthenticatedUser(request, jsonStore) {
-  const userIdFromToken = extractUserIdFromToken(request.headers.authorization);
+  const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+  const userIdFromToken = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
   if (!userIdFromToken) {
     return { status: 401, message: "Missing or invalid token" };
   }

@@ -5,6 +5,7 @@ import {
   takePostLoginRedirect,
   writeStoredAuthRecord,
 } from "../notifications/sessionState";
+import { startSessionStream, stopSessionStream } from "@shared/session-events";
 import { MOCK_API_BASE_URL } from "./constants";
 
 const PROTECTED_ROUTE_PATHS = ["/checkout", "/account"];
@@ -22,6 +23,9 @@ function readStoredAuth(appState) {
   const storedAuth = readStoredAuthRecord();
   appState.authToken = storedAuth?.token || null;
   appState.currentUser = storedAuth?.user || null;
+  if (appState.authToken) {
+    startSessionStream({ apiBaseUrl: MOCK_API_BASE_URL, authToken: appState.authToken });
+  }
 }
 
 function persistAuth(appState) {
@@ -32,12 +36,18 @@ function setAuthSession(appState, sessionPayload) {
   appState.authToken = sessionPayload.token || null;
   appState.currentUser = sessionPayload.user || null;
   persistAuth(appState);
+  if (appState.authToken) {
+    startSessionStream({ apiBaseUrl: MOCK_API_BASE_URL, authToken: appState.authToken });
+  } else {
+    stopSessionStream();
+  }
   publishAuthSessionChanged();
 }
 
 function clearAuthSession(appState) {
   appState.authToken = null;
   appState.currentUser = null;
+  stopSessionStream();
   persistAuth(appState);
   publishAuthSessionChanged();
 }
