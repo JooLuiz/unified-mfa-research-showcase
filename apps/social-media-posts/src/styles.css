@@ -34,6 +34,10 @@
   gap: 0.5rem;
 }
 
+.post-card-clickable {
+  cursor: pointer;
+}
+
 .post-card-grid {
   height: 100%;
 }

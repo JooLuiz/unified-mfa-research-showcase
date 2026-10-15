@@ -5,7 +5,7 @@ import {
 import { isAuthenticated } from "./authActions";
 import { navigate } from "./navigate";
 
-function mountHeaderAndFooter(appState, layoutMounts) {
+function mountHeaderAndFooter(appState, layoutMounts, modules, activeCleanupFunctions) {
   const headerElement = document.createElement("react-header-mfe");
   headerElement.state = {
     appType: "admin",
@@ -24,6 +24,20 @@ function mountHeaderAndFooter(appState, layoutMounts) {
     },
   });
   layoutMounts.headerMount.appendChild(headerElement);
+
+  if (isAuthenticated(appState) && modules?.mountNotificationBell) {
+    setTimeout(() => {
+      const bellSlot = headerElement.querySelector("#notificationBellMount");
+      if (bellSlot) {
+        const cleanupBell = modules.mountNotificationBell(bellSlot, {
+          navigate,
+        });
+        if (typeof cleanupBell === "function" && Array.isArray(activeCleanupFunctions)) {
+          activeCleanupFunctions.push(cleanupBell);
+        }
+      }
+    }, 0);
+  }
 
   const footerElement = document.createElement("vue-footer-mfe");
   footerElement.setAttribute(

@@ -1,9 +1,9 @@
 /**
  * Toggles likes for the social media shell.
  * Role: Owns the like/unlike HTTP command, keeps appState.posts in sync with the result, and
- *   fires the liker's own "Post Liked" toast. The named owner toast is a separate concern
- *   (see src/main.js's global subscribeToPostLikesChanged listener), since the owner is not
- *   the one making this request.
+ *   fires the liker's own "Post Liked" toast. The author's persisted toast is a separate concern
+ *   (the shell publishes it when a new inbox row arrives), since the owner is not the one
+ *   making this request.
  * Not in this file: Live reconciliation from other viewers' toggles (src/main.js,
  *   src/pages/feedPage.js, src/pages/postsPage.js, src/pages/accountPage.js) or post creation
  *   (src/commands/postCommands.js).

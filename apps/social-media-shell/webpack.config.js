@@ -40,9 +40,12 @@ module.exports = {
         account: "account@http://localhost:4310/remoteEntry.js",
         login: "login@http://localhost:4311/remoteEntry.js",
         social_media_posts: "social_media_posts@http://localhost:4312/remoteEntry.js",
+        notifications: "notifications@http://localhost:4314/remoteEntry.js",
+        single_post: "single_post@http://localhost:4315/remoteEntry.js",
       },
       shared: {
         "@shared/session-events": { singleton: true },
+        "@shared/notification-inbox-events": { singleton: true },
       },
     }),
     new HtmlWebpackPlugin({

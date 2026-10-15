@@ -30,6 +30,11 @@ import { createHeaderApp, createFooterApp } from "./utils/mountActions";
 import { mountNotificationCenter } from "./notifications/notificationCenter";
 import { publishNotification } from "./notifications/notificationAdapter";
 import { subscribeToPostLikesChanged } from "@shared/post-like-events";
+import {
+  startNotificationInboxLiveEvents,
+  stopNotificationInboxLiveEvents,
+  subscribeToNewInboxNotifications,
+} from "@shared/notification-inbox-events";
 import { subscribeToSessionRevoked } from "@shared/session-events";
 import { MOCK_API_BASE_URL } from "./utils/constants";
 import {
@@ -37,6 +42,8 @@ import {
   postsPageApp,
   loginPageApp,
   accountPageApp,
+  notificationsPageApp,
+  singlePostPageApp,
 } from "./utils/pageApps";
 
 const appState = {
@@ -55,17 +62,27 @@ const FEED_PAGE_APP_NAME = "@social-media/feed-page";
 const POSTS_PAGE_APP_NAME = "@social-media/posts-page";
 const LOGIN_PAGE_APP_NAME = "@social-media/login-page";
 const ACCOUNT_PAGE_APP_NAME = "@social-media/account-page";
+const NOTIFICATIONS_PAGE_APP_NAME = "@social-media/notifications-page";
+const SINGLE_POST_PAGE_APP_NAME = "@social-media/single-post-page";
 
 const PAGE_APP_NAMES = [
   FEED_PAGE_APP_NAME,
   POSTS_PAGE_APP_NAME,
   LOGIN_PAGE_APP_NAME,
   ACCOUNT_PAGE_APP_NAME,
+  NOTIFICATIONS_PAGE_APP_NAME,
+  SINGLE_POST_PAGE_APP_NAME,
 ];
 
 function activeOnExactPath(targetPath) {
   return function activeWhen(currentLocation) {
     return currentLocation.pathname === targetPath;
+  };
+}
+
+function activeOnSinglePostPath() {
+  return function activeWhen(currentLocation) {
+    return currentLocation.pathname.startsWith("/posts/") && currentLocation.pathname !== "/posts";
   };
 }
 
@@ -81,7 +98,7 @@ function reloadActivePageApp() {
   reloadMountedAppsByName(PAGE_APP_NAMES);
 }
 
-function registerLayoutApplications() {
+function registerLayoutApplications(modules) {
   registerApplication({
     name: HEADER_APP_NAME,
     app: () => Promise.resolve(createHeaderApp()),
@@ -89,6 +106,7 @@ function registerLayoutApplications() {
     customProps: {
       appState,
       domElement: document.getElementById("headerMount"),
+      modules,
     },
   });
 
@@ -133,15 +151,51 @@ function registerPageApplications() {
     activeWhen: activeOnExactPath("/account"),
     customProps: { appState, domElement: pageMountElement },
   });
+
+  registerApplication({
+    name: NOTIFICATIONS_PAGE_APP_NAME,
+    app: () => Promise.resolve(notificationsPageApp),
+    activeWhen: activeOnExactPath("/notifications"),
+    customProps: { appState, domElement: pageMountElement },
+  });
+
+  registerApplication({
+    name: SINGLE_POST_PAGE_APP_NAME,
+    app: () => Promise.resolve(singlePostPageApp),
+    activeWhen: activeOnSinglePostPath(),
+    customProps: { appState, domElement: pageMountElement },
+  });
 }
 
 subscribeToRenderRequests(() => {
   reloadActivePageApp();
 });
 
+function syncNotificationInboxWithSession() {
+  if (appState.authToken) {
+    void startNotificationInboxLiveEvents({
+      apiBaseUrl: MOCK_API_BASE_URL,
+      authToken: appState.authToken,
+      shell: "social",
+    });
+  } else {
+    stopNotificationInboxLiveEvents();
+  }
+}
+
+subscribeToNewInboxNotifications((notification) => {
+  publishNotification({
+    type: "success",
+    title: notification.title,
+    message: notification.message,
+    link: notification.link,
+  });
+});
+
 subscribeToAuthSessionChanges(() => {
   // Re-fetches posts so `likedByCurrentUser` reflects the session that is active now (a tab
   // that first loaded as a guest, or as a different user, must not keep a stale like flag).
+  syncNotificationInboxWithSession();
   loadMockData(appState)
     .catch((loadError) => {
       console.warn("subscribeToAuthSessionChanges - loadError");
@@ -170,10 +224,10 @@ subscribeToSessionRevoked(() => {
 });
 
 // Global for the life of the tab (signed-in or guest), independent of which page is mounted:
-// keeps appState.posts correct for the next render, and tells the post's owner — wherever
-// they are in the shell — that someone liked their post. The liker's own "Post Liked" toast is
-// fired separately, from the HTTP response in src/commands/postLikeCommands.js.
-subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes, ownerId, likerId, likerName, liked }) => {
+// keeps appState.posts correct for the next render. The author's "liked your post" toast comes
+// from the inbox stream (subscribeToNewInboxNotifications above). The liker's own "Post Liked"
+// toast is fired separately, from the HTTP response in src/commands/postLikeCommands.js.
+subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes, likerId, liked }) => {
   appState.posts = appState.posts.map((post) => {
     if (post.id !== postId) {
       return post;
@@ -182,13 +236,6 @@ subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes, ownerId, likerI
       likerId === appState.currentUser?.id ? liked : post.likedByCurrentUser;
     return { ...post, likes, likedByCurrentUser };
   });
-  if (liked && appState.currentUser?.id === ownerId) {
-    publishNotification({
-      type: "success",
-      title: "New like",
-      message: `${likerName} liked your post`,
-    });
-  }
 });
 
 function applyInitialAuthGuard() {
@@ -210,11 +257,12 @@ async function bootstrap() {
   if (appState.authToken) {
     void refreshCurrentUserFromApi(appState);
   }
+  syncNotificationInboxWithSession();
 
   applyInitialAuthGuard();
-  await loadRemoteModules;
+  const modules = await loadRemoteModules;
 
-  registerLayoutApplications();
+  registerLayoutApplications(modules);
   registerPageApplications();
   start();
 }

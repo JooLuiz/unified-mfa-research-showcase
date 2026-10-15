@@ -173,6 +173,12 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
     }
   };
 
+  const handlePostClick = (post) => {
+    if (post?.id) {
+      navigate(`/posts/${encodeURIComponent(post.id)}`);
+    }
+  };
+
   const accountPostFeedHandle = modules.mountPostFeed(accountPostsFeedMount, {
     title: "",
     layoutMode: "grid",
@@ -180,6 +186,7 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
     currentUserId,
     onLike: handleLike,
     onAuthorClick: handleAuthorClick,
+    onPostClick: handlePostClick,
   });
   activeCleanupFunctions.push(accountPostFeedHandle);
 
@@ -200,6 +207,7 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
         currentUserId,
         onLike: handleLike,
         onAuthorClick: handleAuthorClick,
+        onPostClick: handlePostClick,
       });
     }),
   );

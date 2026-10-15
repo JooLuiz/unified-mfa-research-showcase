@@ -12,6 +12,7 @@
 
 import { subscribeToPostLikesChanged } from "@shared/post-like-events";
 import { ECOMMERCE_SHELL_BASE_URL, MOCK_API_BASE_URL } from "../utils/constants";
+import { navigate } from "../utils/navigate";
 import { toggleLikeForPost } from "../commands/postLikeCommands";
 
 const TRENDING_LIKES_THRESHOLD = 1;
@@ -49,6 +50,12 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
     }
   };
 
+  const handlePostClick = (post) => {
+    if (post?.id) {
+      navigate(`/posts/${encodeURIComponent(post.id)}`);
+    }
+  };
+
   const trendingPostFeedHandle = modules.mountPostFeed(trendingPostsMount, {
     title: "Trending Posts",
     layoutMode: "grid",
@@ -57,6 +64,7 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
     emptyStateMessage: EMPTY_TRENDING_MESSAGE,
     onLike: handleLike,
     onAuthorClick: handleAuthorClick,
+    onPostClick: handlePostClick,
   });
   activeCleanupFunctions.push(trendingPostFeedHandle);
 
@@ -78,6 +86,7 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
         emptyStateMessage: EMPTY_TRENDING_MESSAGE,
         onLike: handleLike,
         onAuthorClick: handleAuthorClick,
+        onPostClick: handlePostClick,
       });
     }),
   );

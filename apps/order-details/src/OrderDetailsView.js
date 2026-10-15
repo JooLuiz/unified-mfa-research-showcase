@@ -20,7 +20,7 @@ import {
 /**
  * Order details component.
  * Props: order (object, optional pre-loaded order), apiBaseUrl (string), actor ("customer" or "admin"),
- *   authToken (string, optional override), onStatusRejected (function, admin rejection toast).
+ *   authToken (string, optional override), onStatusRejected (function, called for either actor's rejected status write).
  * Renders: loading, missing-id, error, not-found, or the full order details section.
  */
 const OrderDetailsComponent = {

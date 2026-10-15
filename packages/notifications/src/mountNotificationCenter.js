@@ -12,7 +12,7 @@ const DEFAULT_DURATION_MS = 5000;
  * Mounts the notification center in a persistent shell-level container.
  *
  * @param {HTMLElement} containerElement - Element that owns the rendered toast queue.
- * @param {{ subscribeToNotifications: (listener: (notification: object) => void) => () => void }} notificationBus - Bus that delivers notification requests.
+ * @param {{ subscribeToNotifications: (listener: (notification: object) => void) => () => void, onOpenLink?: (notification: { link?: string }) => void }} notificationBus - Bus that delivers notification requests, plus an optional click handler for toasts that carry a link.
  * @returns {() => void} Function that clears pending timers, subscriptions, and rendered toasts.
  * @sideEffects Subscribes to notification events and mutates the supplied container.
  */
@@ -60,9 +60,20 @@ function mountNotificationCenter(containerElement, notificationBus) {
       durationMs,
     );
     dismissalTimers.add(timerId);
-    dismissButton.addEventListener("click", () =>
-      dismissNotification(notificationElement, timerId),
-    );
+    dismissButton.addEventListener("click", (clickEvent) => {
+      clickEvent.stopPropagation();
+      dismissNotification(notificationElement, timerId);
+    });
+
+    const hasDetailLink =
+      typeof notification.link === "string" && notification.link.length > 0;
+    if (hasDetailLink && typeof notificationBus.onOpenLink === "function") {
+      notificationElement.classList.add("notification-toast--linked");
+      notificationElement.addEventListener("click", () => {
+        notificationBus.onOpenLink(notification);
+        dismissNotification(notificationElement, timerId);
+      });
+    }
   });
 
   return () => {

@@ -145,11 +145,6 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
         return;
       }
 
-      publishNotification({
-        type: "success",
-        title: "Order placed",
-        message: "Your order has been created successfully.",
-      });
       navigate("/order-placed");
     },
   });

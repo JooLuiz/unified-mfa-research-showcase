@@ -1,8 +1,8 @@
 /**
  * Renders the all-posts table route for the admin shell.
- * Role: Loads every post via the admin API and renders a read-only table, kept live by
- *   prepending new rows whenever a post is broadcast over SSE and by patching the Likes
- *   column in place whenever a like is toggled. Never shows a toast for either live event.
+ * Role: Loads every post via the admin API and renders a table whose rows open that post,
+ *   kept live by prepending new rows whenever a post is broadcast over SSE and by patching
+ *   the Likes column in place whenever a like is toggled. Never shows a toast for either live event.
  * Not in this file: Auth guard (main.js), post mutations, or table markup
  *   (src/pages/postsTableView.js).
  * Key dependencies: src/utils/fetchJson.js; src/notifications/notificationAdapter.js;
@@ -11,6 +11,7 @@
  */
 
 import fetchJson from "../utils/fetchJson";
+import { navigate } from "../utils/navigate";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import { publishNotification } from "../notifications/notificationAdapter";
 import { subscribeToAdminLiveEvents } from "../events/adminLiveEvents";
@@ -87,6 +88,22 @@ async function renderPostsPage(appState, pageMount, activeCleanupFunctions) {
       message: "Unable to load all posts.",
     });
   }
+
+  const handleRowClick = (clickEvent) => {
+    const postRow = clickEvent.target.closest("tr[data-post-id]");
+    if (!postRow || !tableMount.contains(postRow)) {
+      return;
+    }
+    const postId = postRow.dataset.postId;
+    if (!postId) {
+      return;
+    }
+    navigate(`/posts/${encodeURIComponent(postId)}`);
+  };
+  tableMount.addEventListener("click", handleRowClick);
+  activeCleanupFunctions.push(() => {
+    tableMount.removeEventListener("click", handleRowClick);
+  });
 
   const unsubscribeFromLiveEvents = subscribeToAdminLiveEvents(({ type, data }) => {
     if (type === POST_CREATED_EVENT_TYPE) {

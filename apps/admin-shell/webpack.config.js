@@ -37,10 +37,13 @@ module.exports = {
         login: "login@http://localhost:4311/remoteEntry.js",
         account: "account@http://localhost:4310/remoteEntry.js",
         order_details: "order_details@http://localhost:4313/remoteEntry.js",
+        notifications: "notifications@http://localhost:4314/remoteEntry.js",
+        single_post: "single_post@http://localhost:4315/remoteEntry.js",
       },
       shared: {
         "@shared/order-status-events": { singleton: true },
         "@shared/session-events": { singleton: true },
+        "@shared/notification-inbox-events": { singleton: true },
       },
     }),
     new HtmlWebpackPlugin({
