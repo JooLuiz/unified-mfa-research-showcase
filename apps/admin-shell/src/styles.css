@@ -126,11 +126,13 @@ react-header-mfe {
   text-align: right;
 }
 
-.admin-order-row {
+.admin-order-row,
+.admin-post-row {
   cursor: pointer;
 }
 
-.admin-order-row:hover {
+.admin-order-row:hover,
+.admin-post-row:hover {
   background: #f4f4f4;
 }
 

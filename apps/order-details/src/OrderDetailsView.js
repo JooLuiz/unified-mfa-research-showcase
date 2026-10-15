@@ -20,7 +20,8 @@ import {
 /**
  * Order details component.
  * Props: order (object, optional pre-loaded order), apiBaseUrl (string), actor ("customer" or "admin"),
- *   authToken (string, optional override), onStatusRejected (function, admin rejection toast).
+ *   authToken (string, optional override), getAuthToken (function, live token getter),
+ *   onStatusRejected (function, called for either actor's rejected status write).
  * Renders: loading, missing-id, error, not-found, or the full order details section.
  */
 const OrderDetailsComponent = {
@@ -40,6 +41,10 @@ const OrderDetailsComponent = {
     authToken: {
       type: String,
       default: "",
+    },
+    getAuthToken: {
+      type: Function,
+      default: null,
     },
     onStatusRejected: {
       type: Function,

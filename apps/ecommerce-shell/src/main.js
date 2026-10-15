@@ -59,7 +59,11 @@ import {
   stopSessionLiveEvents,
   subscribeToSessionRevoked,
 } from "@shared/session-events";
-import { registerCustomerOrderStatusToasts } from "./events/customerOrderStatusToasts";
+import {
+  startNotificationInboxLiveEvents,
+  stopNotificationInboxLiveEvents,
+  subscribeToNewInboxNotifications,
+} from "@shared/notification-inbox-events";
 import { MOCK_API_BASE_URL } from "./utils/constants";
 import { startStockGating } from "./events/stockGating";
 import { endCartSession, hydrateSavedCart, mergeGuestCartOnLogin, scheduleCartPersist, startCartTabSync } from "./utils/cartSync";
@@ -143,10 +147,16 @@ function syncCartLiveEventsWithSession() {
       authToken: appState.authToken,
       userId: appState.currentUser?.id,
     });
+    void startNotificationInboxLiveEvents({
+      apiBaseUrl: MOCK_API_BASE_URL,
+      authToken: appState.authToken,
+      shell: "ecommerce",
+    });
   } else {
     stopCartLiveEvents();
     stopCustomerOrderStatusStream();
     stopSessionLiveEvents();
+    stopNotificationInboxLiveEvents();
   }
 }
 
@@ -199,6 +209,7 @@ function startAuthenticatedMeshSession() {
   resetCartEventListeners();
   resetCartSaveListeners();
   stopCartLiveEvents();
+  stopNotificationInboxLiveEvents();
   mesh.close();
   clearMeshSessionFlags();
 
@@ -225,6 +236,7 @@ function downgradeToLocalMeshSession() {
   resetCartSaveListeners();
   stopCartLiveEvents();
   stopSessionLiveEvents();
+  stopNotificationInboxLiveEvents();
   mesh.close();
   clearMeshSessionFlags();
   startLocalMeshSession();
@@ -317,7 +329,12 @@ async function renderApp() {
   }
 
   const layoutMounts = baseLayout();
-  activeHeaderElement = mountHeaderAndFooter(appState, layoutMounts);
+  activeHeaderElement = mountHeaderAndFooter(
+    appState,
+    layoutMounts,
+    modules,
+    activeCleanupFunctions,
+  );
 
   if (pathName === "/") {
     await renderHomePage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
@@ -361,6 +378,18 @@ async function renderApp() {
 
   if (isOrderDetailsPath(pathName)) {
     await renderOrderDetailsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
+    return;
+  }
+
+  if (pathName === "/notifications") {
+    if (modules.mountNotificationsPage) {
+      const cleanupNotifications = modules.mountNotificationsPage(layoutMounts.pageMount, {
+        navigate,
+      });
+      if (typeof cleanupNotifications === "function") {
+        activeCleanupFunctions.push(cleanupNotifications);
+      }
+    }
     return;
   }
 
@@ -592,7 +621,14 @@ window.addEventListener("popstate", () => {
   void renderApp();
 });
 
-registerCustomerOrderStatusToasts(appState);
+subscribeToNewInboxNotifications((notification) => {
+  publishNotification({
+    type: "success",
+    title: notification.title,
+    message: notification.message,
+    link: notification.link,
+  });
+});
 
 subscribeToSessionRevoked(() => {
   if (!appState.authToken) {

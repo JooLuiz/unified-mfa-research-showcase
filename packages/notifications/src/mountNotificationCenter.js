@@ -19,10 +19,11 @@ const DEFAULT_DURATION_MS = 5000;
  *
  * @param {HTMLElement} containerElement - Element that owns the rendered toast queue.
  * @param {{ subscribe: (topic: string, event: string, callback: (message: object) => void) => void }} mesh - Mesh client for notification display subscription.
+ * @param {{ onOpenLink?: (notification: { link?: string }) => void }} [options] - Optional click handler for toasts that carry a link.
  * @returns {{ unmount: () => void, ensureNotificationDisplayListeners: () => void, resetNotificationDisplayListeners: () => void }} Lifecycle API for toast display and mesh subscription management.
  * @sideEffects Mutates the supplied container; registers mesh listeners when ensure is called.
  */
-function mountNotificationCenter(containerElement, mesh) {
+function mountNotificationCenter(containerElement, mesh, { onOpenLink } = {}) {
   const dismissalTimers = new Set();
   let notificationDisplayListenersStarted = false;
 
@@ -67,9 +68,19 @@ function mountNotificationCenter(containerElement, mesh) {
       durationMs,
     );
     dismissalTimers.add(timerId);
-    dismissButton.addEventListener("click", () =>
-      dismissNotification(notificationElement, timerId),
-    );
+    dismissButton.addEventListener("click", (clickEvent) => {
+      clickEvent.stopPropagation();
+      dismissNotification(notificationElement, timerId);
+    });
+
+    const hasDetailLink = typeof notification.link === "string" && notification.link.length > 0;
+    if (hasDetailLink && typeof onOpenLink === "function") {
+      notificationElement.classList.add("notification-toast--linked");
+      notificationElement.addEventListener("click", () => {
+        onOpenLink(notification);
+        dismissNotification(notificationElement, timerId);
+      });
+    }
   }
 
   function handleNotificationRaised(message) {

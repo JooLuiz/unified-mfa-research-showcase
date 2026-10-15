@@ -5,6 +5,8 @@ import {
   renderLoginPage,
   renderAccountPage,
 } from "./renderActions";
+import { MOCK_API_BASE_URL } from "./constants";
+import { navigate } from "./navigate";
 
 function createPageApp(renderPage) {
   let cleanupFunctions = [];
@@ -51,4 +53,40 @@ const postsPageApp = createPageApp(renderPostsPage);
 const loginPageApp = createPageApp(renderLoginPage);
 const accountPageApp = createPageApp(renderAccountPage);
 
-export { feedPageApp, postsPageApp, loginPageApp, accountPageApp };
+const notificationsPageApp = createPageApp(async (appState, domElement, modules, cleanupFunctions) => {
+  if (modules.mountNotificationsPage) {
+    const cleanup = modules.mountNotificationsPage(domElement, {
+      navigate,
+    });
+    if (typeof cleanup === "function") {
+      cleanupFunctions.push(cleanup);
+    }
+  }
+});
+
+const singlePostPageApp = createPageApp(async (appState, domElement, modules, cleanupFunctions) => {
+  const pathName = window.location.pathname;
+  const postId = pathName.startsWith("/posts/") ? pathName.slice("/posts/".length) : "";
+  if (modules.mountSinglePost) {
+    const cleanup = modules.mountSinglePost(domElement, {
+      postId,
+      apiBaseUrl: MOCK_API_BASE_URL,
+      authToken: appState.authToken,
+      currentUserId: appState.currentUser?.id,
+      navigate,
+      canLike: true,
+    });
+    if (typeof cleanup === "function") {
+      cleanupFunctions.push(cleanup);
+    }
+  }
+});
+
+export {
+  feedPageApp,
+  postsPageApp,
+  loginPageApp,
+  accountPageApp,
+  notificationsPageApp,
+  singlePostPageApp,
+};

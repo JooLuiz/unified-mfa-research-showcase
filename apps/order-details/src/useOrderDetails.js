@@ -45,12 +45,16 @@ function readOrderIdFromPathname() {
   }
 }
 
-async function fetchOrderById(apiBaseUrl, orderId, authToken, signal) {
+async function fetchOrderById(apiBaseUrl, orderId, authToken, signal, buildOrderRequestPath) {
   const requestHeaders = {};
   if (authToken) {
     requestHeaders.Authorization = `Bearer ${authToken}`;
   }
-  const response = await fetch(`${apiBaseUrl}/orders/${orderId}`, {
+  const relativePath =
+    typeof buildOrderRequestPath === "function"
+      ? buildOrderRequestPath(orderId)
+      : `/orders/${orderId}`;
+  const response = await fetch(`${apiBaseUrl}${relativePath}`, {
     headers: requestHeaders,
     signal,
   });
@@ -65,7 +69,7 @@ async function fetchOrderById(apiBaseUrl, orderId, authToken, signal) {
 /**
  * Loads the order from props or the mock API and exposes the request state.
  *
- * @param {{ order: object | null, apiBaseUrl: string, actor?: string, authToken?: string, onStatusRejected?: () => void }} props - Component props. A non-empty authToken overrides the ecommerce localStorage token.
+ * @param {{ order: object | null, apiBaseUrl: string, actor?: string, authToken?: string, buildOrderRequestPath?: (orderId: string) => string, onStatusRejected?: (statusResult: { ok: false, code: string }) => void }} props - Component props. A non-empty authToken overrides the ecommerce localStorage token. onStatusRejected fires for any actor whose status write is rejected.
  * @returns {{ orderData: import("vue").Ref<object | null>, isLoading: import("vue").Ref<boolean>, loadError: import("vue").Ref<Error | null>, isMissingOrderId: import("vue").Ref<boolean>, actor: string, applyStatusAction: (nextStatus: string) => Promise<void> }} Reactive order state and the status action.
  * @sideEffects Performs an HTTP request on mount and prop changes, aborted on unmount or reload. Subscribes to the shared order-status stream for this actor.
  */
@@ -78,6 +82,12 @@ function useOrderDetails(props) {
   let unsubscribeFromStatus = null;
 
   const readAuthToken = () => {
+    if (typeof props.getAuthToken === "function") {
+      const liveToken = props.getAuthToken();
+      if (typeof liveToken === "string" && liveToken.trim() !== "") {
+        return liveToken;
+      }
+    }
     if (typeof props.authToken === "string" && props.authToken.trim() !== "") {
       return props.authToken;
     }
@@ -107,8 +117,10 @@ function useOrderDetails(props) {
       orderData.value = statusResult.order;
       return;
     }
-    if (props.actor === "admin" && typeof props.onStatusRejected === "function") {
-      props.onStatusRejected();
+    console.warn("applyStatusAction - rejected");
+    console.warn(statusResult);
+    if (typeof props.onStatusRejected === "function") {
+      props.onStatusRejected(statusResult);
     }
   };
 
@@ -152,6 +164,7 @@ function useOrderDetails(props) {
         orderId,
         authToken,
         abortController.signal,
+        props.buildOrderRequestPath,
       );
       if (!abortController.signal.aborted) {
         orderData.value = fetchedOrder;

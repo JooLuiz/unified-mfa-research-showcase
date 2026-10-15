@@ -17,7 +17,7 @@ import {
   refreshCurrentUserFromApi,
   fetchConnectionTicket,
 } from "./utils/authActions";
-import { AUTH_TOKEN_STORAGE_KEY, ECOMMERCE_SHELL_BASE_URL } from "./utils/constants";
+import { AUTH_TOKEN_STORAGE_KEY, ECOMMERCE_SHELL_BASE_URL, MOCK_API_BASE_URL } from "./utils/constants";
 
 import loadMockData from "./utils/loadData";
 import loadRemoteModules from "./utils/loadRemoteModules";
@@ -60,10 +60,17 @@ import {
   subscribeToSessionRevoked,
 } from "@shared/session-events";
 import {
+  startNotificationInboxLiveEvents,
+  stopNotificationInboxLiveEvents,
+  subscribeToNewInboxNotifications,
+} from "@shared/notification-inbox-events";
+import {
   feedPageApp,
   postsPageApp,
   loginPageApp,
   accountPageApp,
+  notificationsPageApp,
+  singlePostPageApp,
 } from "./utils/pageApps";
 import { persistAccountUpdate } from "./commands/accountCommands";
 import { persistNewPost } from "./commands/postCommands";
@@ -87,12 +94,16 @@ const FEED_PAGE_APP_NAME = "@social-media/feed-page";
 const POSTS_PAGE_APP_NAME = "@social-media/posts-page";
 const LOGIN_PAGE_APP_NAME = "@social-media/login-page";
 const ACCOUNT_PAGE_APP_NAME = "@social-media/account-page";
+const NOTIFICATIONS_PAGE_APP_NAME = "@social-media/notifications-page";
+const SINGLE_POST_PAGE_APP_NAME = "@social-media/single-post-page";
 
 const PAGE_APP_NAMES = [
   FEED_PAGE_APP_NAME,
   POSTS_PAGE_APP_NAME,
   LOGIN_PAGE_APP_NAME,
   ACCOUNT_PAGE_APP_NAME,
+  NOTIFICATIONS_PAGE_APP_NAME,
+  SINGLE_POST_PAGE_APP_NAME,
 ];
 
 function configureGuestApplicationMesh() {
@@ -153,6 +164,7 @@ function startAuthenticatedMeshSession() {
       authToken: appState.authToken,
       userId: appState.currentUser?.id,
     });
+    syncNotificationInboxWithSession();
     return;
   }
 
@@ -164,6 +176,7 @@ function startAuthenticatedMeshSession() {
   resetCommunityIntentListeners();
   resetPostLikeToggleListeners();
   stopCommunityLikesLiveEvents();
+  stopNotificationInboxLiveEvents();
   mesh.close();
   clearMeshSessionFlags();
 
@@ -180,6 +193,7 @@ function startAuthenticatedMeshSession() {
     authToken: appState.authToken,
     userId: appState.currentUser?.id,
   });
+  syncNotificationInboxWithSession();
 }
 
 function downgradeToLocalMeshSession() {
@@ -192,6 +206,7 @@ function downgradeToLocalMeshSession() {
   resetPostLikeToggleListeners();
   stopCommunityLikesLiveEvents();
   stopSessionLiveEvents();
+  stopNotificationInboxLiveEvents();
   mesh.close();
   clearMeshSessionFlags();
   startLocalMeshSession();
@@ -212,6 +227,12 @@ function activeOnExactPath(targetPath) {
   };
 }
 
+function activeOnSinglePostPath() {
+  return function activeWhen(currentLocation) {
+    return currentLocation.pathname.startsWith("/posts/") && currentLocation.pathname !== "/posts";
+  };
+}
+
 function reloadMountedAppsByName(applicationNames) {
   applicationNames.forEach((applicationName) => {
     if (getAppStatus(applicationName) === MOUNTED) {
@@ -224,7 +245,7 @@ function reloadActivePageApp() {
   reloadMountedAppsByName(PAGE_APP_NAMES);
 }
 
-function registerLayoutApplications() {
+function registerLayoutApplications(modules) {
   registerApplication({
     name: HEADER_APP_NAME,
     app: () => Promise.resolve(createHeaderApp()),
@@ -232,6 +253,7 @@ function registerLayoutApplications() {
     customProps: {
       appState,
       domElement: document.getElementById("headerMount"),
+      modules,
     },
   });
 
@@ -274,6 +296,20 @@ function registerPageApplications() {
     name: ACCOUNT_PAGE_APP_NAME,
     app: () => Promise.resolve(accountPageApp),
     activeWhen: activeOnExactPath("/account"),
+    customProps: { appState, domElement: pageMountElement },
+  });
+
+  registerApplication({
+    name: NOTIFICATIONS_PAGE_APP_NAME,
+    app: () => Promise.resolve(notificationsPageApp),
+    activeWhen: activeOnExactPath("/notifications"),
+    customProps: { appState, domElement: pageMountElement },
+  });
+
+  registerApplication({
+    name: SINGLE_POST_PAGE_APP_NAME,
+    app: () => Promise.resolve(singlePostPageApp),
+    activeWhen: activeOnSinglePostPath(),
     customProps: { appState, domElement: pageMountElement },
   });
 }
@@ -378,6 +414,27 @@ const communityIntentHandlers = {
   },
 };
 
+function syncNotificationInboxWithSession() {
+  if (appState.authToken) {
+    void startNotificationInboxLiveEvents({
+      apiBaseUrl: MOCK_API_BASE_URL,
+      authToken: appState.authToken,
+      shell: "social",
+    });
+  } else {
+    stopNotificationInboxLiveEvents();
+  }
+}
+
+subscribeToNewInboxNotifications((notification) => {
+  publishNotification({
+    type: "success",
+    title: notification.title,
+    message: notification.message,
+    link: notification.link,
+  });
+});
+
 const shellEventHandlers = {
   onRenderRequested: () => {
     reloadActivePageApp();
@@ -390,6 +447,7 @@ const shellEventHandlers = {
     readStoredAuth(appState);
     const isNowAuthenticated = Boolean(appState.authToken);
     handleAuthMeshLifecycle();
+    syncNotificationInboxWithSession();
     if (!wasAuthenticated && isNowAuthenticated) {
       const welcomeName =
         appState.currentUser?.fullName ||
@@ -434,20 +492,18 @@ subscribeToSessionRevoked(() => {
 });
 
 // Global for the life of the tab (signed-in or guest), independent of which page is mounted:
-// tells the post's owner — wherever they are in the shell — that someone liked their post.
-// Patching appState.posts/the visible feed is each page's own concern (see
-// src/pages/feedPage.js, postsPage.js, accountPage.js, which hold the mounted remote's
-// update() handle), the same split admin-shell's main.js uses for order_created/post_created
-// toasts versus postsPage.js's own Likes column patch. The liker's own "Post Liked" toast is
-// fired separately, from the accepted reply in src/commands/postLikeCommands.js.
-subscribeToCommunityLikesChanged(({ ownerId, likerName, liked }) => {
-  if (liked && appState.currentUser?.id === ownerId) {
-    publishNotification({
-      type: "success",
-      title: "New like",
-      message: `${likerName} liked your post`,
-    });
-  }
+// keeps appState.posts correct for the next render. The author's "liked your post" toast comes
+// from the inbox stream. The liker's own "Post Liked" toast is fired separately, from the
+// accepted reply in src/commands/postLikeCommands.js.
+subscribeToCommunityLikesChanged(({ postId, likes, likerId, liked }) => {
+  appState.posts = appState.posts.map((post) => {
+    if (post.id !== postId) {
+      return post;
+    }
+    const likedByCurrentUser =
+      likerId === appState.currentUser?.id ? liked : post.likedByCurrentUser;
+    return { ...post, likes, likedByCurrentUser };
+  });
 });
 
 function applyInitialAuthGuard() {
@@ -475,11 +531,12 @@ async function bootstrap() {
   if (appState.authToken) {
     void refreshCurrentUserFromApi(appState);
   }
+  syncNotificationInboxWithSession();
 
   applyInitialAuthGuard();
-  await loadRemoteModules;
+  const modules = await loadRemoteModules;
 
-  registerLayoutApplications();
+  registerLayoutApplications(modules);
   registerPageApplications();
   start();
 }

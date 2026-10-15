@@ -6,6 +6,7 @@ export interface ShellNotification {
   title: string;
   message: string;
   durationMs?: number;
+  link?: string;
 }
 
 export function isValidNotificationPayload(notificationPayload: unknown): notificationPayload is ShellNotification;
@@ -44,4 +45,5 @@ export function createMeshNotificationAdapter(input: {
 export function mountNotificationCenter(
   containerElement: HTMLElement,
   mesh: NotificationMeshClient,
+  options?: { onOpenLink?: (notification: ShellNotification) => void },
 ): NotificationCenterHandle;

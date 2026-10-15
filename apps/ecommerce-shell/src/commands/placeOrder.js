@@ -1,91 +1,103 @@
 /**
  * Places checkout orders for the ecommerce shell through event-mesh request/reply.
- * Role: Publishes order requests over mesh and awaits targeted notification replies.
+ * Role: Publishes order requests over mesh and awaits a targeted accept/error reply.
  * Not in this file: Checkout UI state, cart mutations, or mesh client configuration.
+ *   The "Order placed" toast itself comes from the persisted notification inbox
+ *   (@shared/notification-inbox-events, wired in src/main.js), not from this reply.
  * Key dependencies: event-mesh/mesh.
- * See also: src/pages/checkoutPage.js.
+ * See also: src/pages/checkoutPage.js; apps/mock-data-service/src/event-mesh/orderRequestHandler.js.
  */
 
 import mesh from "event-mesh/mesh";
 
 const ORDERS_TOPIC = "orders";
 const ORDERS_REQUESTED_EVENT = "requested";
+const ORDERS_ACCEPTED_EVENT = "accepted";
 const NOTIFICATION_TOPIC = "notifications";
 const NOTIFICATION_RAISED_EVENT = "raised";
 const ORDER_REPLY_TIMEOUT_MS = 15000;
 const MESH_CONNECT_TIMEOUT_MS = 5000;
 
-/** @type {((notification: { type: string, title: string, message: string }) => void) | null} */
-let pendingNotificationWaiter = null;
-let orderNotificationListenersStarted = false;
+/** @type {((outcome: { ok: boolean }) => void) | null} */
+let pendingOrderOutcomeWaiter = null;
+let orderReplyListenersStarted = false;
 
-function isValidNotificationPayload(notificationPayload) {
-  if (!notificationPayload || typeof notificationPayload !== "object") {
-    return false;
-  }
-
+function isErrorNotificationPayload(notificationPayload) {
   return (
-    (notificationPayload.type === "success" ||
-      notificationPayload.type === "error") &&
+    notificationPayload &&
+    typeof notificationPayload === "object" &&
+    notificationPayload.type === "error" &&
     typeof notificationPayload.title === "string" &&
     typeof notificationPayload.message === "string"
   );
 }
 
-function resolveNotificationOutcome(notificationPayload) {
-  if (!pendingNotificationWaiter) {
+function resolvePendingOrderOutcome(outcome) {
+  if (!pendingOrderOutcomeWaiter) {
     return;
   }
 
-  const resolveWaiter = pendingNotificationWaiter;
-  pendingNotificationWaiter = null;
-  resolveWaiter(notificationPayload);
-}
-
-function handleOrderNotificationRaised(message) {
-  const notificationPayload = message.payload;
-  if (!isValidNotificationPayload(notificationPayload)) {
-    return;
-  }
-
-  resolveNotificationOutcome(notificationPayload);
+  const resolveWaiter = pendingOrderOutcomeWaiter;
+  pendingOrderOutcomeWaiter = null;
+  resolveWaiter(outcome);
 }
 
 /**
- * Registers a one-shot waiter for the next order placement notification reply.
+ * Resolves the in-flight order as accepted. The server sends this reply only on success;
+ * the "Order placed" toast is a separate, persisted notification-inbox push, not this reply.
+ */
+function handleOrderAccepted() {
+  resolvePendingOrderOutcome({ ok: true });
+}
+
+/**
+ * Resolves the in-flight order as rejected when the server replies with an error toast
+ * (e.g. an emptied cart). This channel is shared with every other toast in the shell, but
+ * only one order request is ever in flight per tab, so no further correlation is needed.
+ */
+function handleOrderErrorNotificationRaised(message) {
+  if (!isErrorNotificationPayload(message.payload)) {
+    return;
+  }
+  resolvePendingOrderOutcome({ ok: false });
+}
+
+/**
+ * Registers the one-shot reply listeners for order placement outcomes.
  *
  * @returns {void}
- * @sideEffects Subscribes to mesh notification events used by order replies.
+ * @sideEffects Subscribes to mesh events used by order replies.
  */
-function ensureOrderNotificationListeners() {
-  if (orderNotificationListenersStarted) {
+function ensureOrderReplyListeners() {
+  if (orderReplyListenersStarted) {
     return;
   }
 
-  orderNotificationListenersStarted = true;
+  orderReplyListenersStarted = true;
+  mesh.subscribe(ORDERS_TOPIC, ORDERS_ACCEPTED_EVENT, handleOrderAccepted);
   mesh.subscribe(
     NOTIFICATION_TOPIC,
     NOTIFICATION_RAISED_EVENT,
-    handleOrderNotificationRaised,
+    handleOrderErrorNotificationRaised,
   );
 }
 
-function waitForNextOrderNotification() {
+function waitForOrderOutcome() {
   return new Promise((resolve) => {
     const timeoutId = window.setTimeout(() => {
-      pendingNotificationWaiter = null;
-      resolve(null);
+      pendingOrderOutcomeWaiter = null;
+      resolve({ ok: false });
     }, ORDER_REPLY_TIMEOUT_MS);
 
-    pendingNotificationWaiter = (notificationPayload) => {
+    pendingOrderOutcomeWaiter = (outcome) => {
       window.clearTimeout(timeoutId);
-      resolve(notificationPayload);
+      resolve(outcome);
     };
   });
 }
 
 /**
- * Places an order through the mesh gateway and waits for the server notification reply.
+ * Places an order through the mesh gateway and waits for the server's accept/error reply.
  *
  * @param {object} appStateOrOrderPayload - Shell app state or order values.
  * @param {object} [orderPayload] - Order values accepted by the gateway order handler.
@@ -95,10 +107,10 @@ function waitForNextOrderNotification() {
 async function placeOrder(appStateOrOrderPayload, orderPayload) {
   const payload = orderPayload || (appStateOrOrderPayload && !appStateOrOrderPayload.currentUser && !appStateOrOrderPayload.authToken ? appStateOrOrderPayload : {});
   try {
-    ensureOrderNotificationListeners();
+    ensureOrderReplyListeners();
     await mesh.whenConnected({ timeoutMs: MESH_CONNECT_TIMEOUT_MS });
 
-    const notificationPromise = waitForNextOrderNotification();
+    const outcomePromise = waitForOrderOutcome();
 
     mesh.publish({
       topic: ORDERS_TOPIC,
@@ -107,12 +119,7 @@ async function placeOrder(appStateOrOrderPayload, orderPayload) {
       scope: "distributed",
     });
 
-    const notificationPayload = await notificationPromise;
-    if (!notificationPayload) {
-      return { ok: false };
-    }
-
-    return { ok: notificationPayload.type === "success" };
+    return await outcomePromise;
   } catch (error) {
     console.warn("placeOrder - error");
     console.warn(error);

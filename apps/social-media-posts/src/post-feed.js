@@ -18,9 +18,9 @@ const DEFAULT_EMPTY_STATE_MESSAGE = "No posts available right now.";
 /**
  * Renders the feed list, or an empty-state message when there are no posts.
  *
- * @param {{ posts: object[], title?: string, layoutMode?: string, currentUserId?: string, emptyStateMessage?: string }} feedProps - Feed data and the viewer's id.
+ * @param {{ posts: object[], title?: string, layoutMode?: string, onPostClick?: (post: object) => void, currentUserId?: string, emptyStateMessage?: string }} feedProps - Feed data, an optional card click handler, and the viewer's id.
  */
-function PostFeedView({ posts, title, layoutMode, currentUserId, emptyStateMessage }) {
+function PostFeedView({ posts, title, layoutMode, onPostClick, currentUserId, emptyStateMessage }) {
   if (!Array.isArray(posts) || posts.length === 0) {
     return (
       <section className="post-feed-shell">
@@ -43,6 +43,7 @@ function PostFeedView({ posts, title, layoutMode, currentUserId, emptyStateMessa
             key={post.id}
             post={post}
             layoutMode={layoutMode}
+            onPostClick={onPostClick}
             currentUserId={currentUserId}
           />
         ))}
@@ -69,6 +70,7 @@ export function mountPostFeed(containerElement, props) {
         posts={nextProps.posts}
         title={nextProps.title}
         layoutMode={nextProps.layoutMode}
+        onPostClick={nextProps.onPostClick}
         currentUserId={nextProps.currentUserId}
         emptyStateMessage={nextProps.emptyStateMessage}
       />,

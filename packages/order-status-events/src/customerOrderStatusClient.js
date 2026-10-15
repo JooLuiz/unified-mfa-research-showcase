@@ -65,12 +65,14 @@ function subscribeToOrderStatusChanged(listener) {
  * @param {{ apiBaseUrl?: string, authToken?: string, orderId: string }} requestInput - Order id.
  *   `apiBaseUrl`/`authToken` are accepted for call-site compatibility and unused.
  * @returns {Promise<{ ok: true, order: object } | { ok: false, code: string }>} Updated order, or a rejection code.
- * @sideEffects Publishes orders/status-change-requested with nextStatus cancellation-requested.
+ * @sideEffects Publishes orders/status-change-requested with nextStatus cancellation-requested
+ *   and actor customer. The server grants this when the order belongs to the caller.
  */
 function requestOrderCancellation({ orderId }) {
   return requestOrderStatusChange({
     orderId,
     status: "cancellation-requested",
+    actor: "customer",
   });
 }
 

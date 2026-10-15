@@ -13,13 +13,11 @@ const {
   ORDER_REQUEST_INVALID_CODE,
   createOrderForUser,
 } = require("../domain/orderProcessing");
+const { recordOrderPlacedNotifications } = require("../domain/notificationTriggers");
 const { replyNotificationRaised } = require("./notificationEvents");
 
-const ORDER_SUCCESS_NOTIFICATION = Object.freeze({
-  type: "success",
-  title: "Order placed",
-  message: "Your order has been created successfully.",
-});
+const ORDERS_TOPIC = "orders";
+const ORDERS_ACCEPTED_EVENT = "accepted";
 
 const ORDER_FAILURE_NOTIFICATIONS = Object.freeze({
   [ORDER_REQUEST_INVALID_CODE]: {
@@ -41,10 +39,17 @@ const ORDER_FAILURE_NOTIFICATIONS = Object.freeze({
  * @param {{ broadcastEvent: (eventType: string, payload: object) => void }} adminEventStream - Publisher for admin live order updates.
  * @param {{ broadcastCartChanged: (userId: string, cart: object) => void }} cartEventStream - Notifies that user's watching clients after the cart row is removed.
  * @param {{ broadcastStockChanged: (productId: string, available: number) => void }} stockEventStream - Notifies stock watchers after the sold products' stock is decremented.
+ * @param {{ broadcastNotificationChanged: (userId: string, shell: string, notification: object) => void }} notificationInboxEventStream - Publisher for durable inbox rows.
  * @returns {Promise<void>}
  * @sideEffects Subscribes to order request events on the local gateway singleton.
  */
-async function registerOrderRequestHandler(jsonStore, adminEventStream, cartEventStream, stockEventStream) {
+async function registerOrderRequestHandler(
+  jsonStore,
+  adminEventStream,
+  cartEventStream,
+  stockEventStream,
+  notificationInboxEventStream,
+) {
   const gatewayModule = await import("event-mesh/gateway");
   const gateway = gatewayModule.default;
 
@@ -79,7 +84,16 @@ async function registerOrderRequestHandler(jsonStore, adminEventStream, cartEven
       return;
     }
 
-    await replyNotificationRaised(incomingMessage, ORDER_SUCCESS_NOTIFICATION);
+    // Dedicated accept reply, mirroring orders/status-accepted in orderStatusHandler.js: this
+    // only confirms the write succeeded. The "Order placed" toast itself comes from the
+    // persisted notification inbox broadcast below, not from this reply, so a signed-in
+    // customer never sees it twice.
+    gateway.reply(incomingMessage, {
+      topic: ORDERS_TOPIC,
+      event: ORDERS_ACCEPTED_EVENT,
+      payload: { order: orderResult.order },
+    });
+
     adminEventStream.broadcastEvent("order_created", {
       ...orderResult.order,
       customer: buildPublicUser(user),
@@ -93,6 +107,12 @@ async function registerOrderRequestHandler(jsonStore, adminEventStream, cartEven
     // quantity nets to no visible change in `available`, but every watcher stays consistent.
     orderResult.stockAvailability.forEach(({ productId, available }) => {
       stockEventStream.broadcastStockChanged(productId, available);
+    });
+    await recordOrderPlacedNotifications({
+      jsonStore,
+      notificationInboxEventStream,
+      order: orderResult.order,
+      user,
     });
   });
 }

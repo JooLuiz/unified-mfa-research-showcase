@@ -35,13 +35,17 @@ import { MOCK_API_BASE_URL } from "./utils/constants";
 import {
   startAdminOrderStatusStream,
   stopAdminOrderStatusStream,
-  subscribeToAdminOrderStatusChanged,
 } from "@shared/order-status-events";
 import {
   startSessionLiveEvents,
   stopSessionLiveEvents,
   subscribeToSessionRevoked,
 } from "@shared/session-events";
+import {
+  startNotificationInboxLiveEvents,
+  stopNotificationInboxLiveEvents,
+  subscribeToNewInboxNotifications,
+} from "@shared/notification-inbox-events";
 import {
   isLocalMeshStarted,
   isAuthenticatedMeshActive,
@@ -59,12 +63,7 @@ import {
 import {
   startAdminLiveEvents,
   stopAdminLiveEvents,
-  subscribeToAdminLiveEvents,
 } from "./events/adminLiveEvents";
-import {
-  ORDER_CREATED_EVENT_TYPE,
-  POST_CREATED_EVENT_TYPE,
-} from "./events/adminLiveEventsContracts";
 import {
   renderLoginPage,
   renderDashboardPage,
@@ -74,7 +73,6 @@ import {
   renderAccountPage,
 } from "./utils/renderActions";
 import { persistAccountUpdate } from "./commands/accountCommands";
-import { readOrderIdFromPath } from "./pages/orderDetailsPage";
 
 const appState = {
   authToken: null,
@@ -83,6 +81,15 @@ const appState = {
 
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
+
+subscribeToNewInboxNotifications((notification) => {
+  publishNotification({
+    type: "success",
+    title: notification.title,
+    message: notification.message,
+    link: notification.link,
+  });
+});
 
 /**
  * Starts admin live-event subscriptions when the current user is an admin, and stops them otherwise.
@@ -101,10 +108,16 @@ function syncAdminLiveEventsWithSession() {
       authToken: appState.authToken,
       userId: appState.currentUser?.id,
     });
+    void startNotificationInboxLiveEvents({
+      apiBaseUrl: MOCK_API_BASE_URL,
+      authToken: appState.authToken,
+      shell: "admin",
+    });
   } else {
     stopAdminLiveEvents();
     stopAdminOrderStatusStream();
     stopSessionLiveEvents();
+    stopNotificationInboxLiveEvents();
   }
 }
 
@@ -174,6 +187,7 @@ function startAuthenticatedMeshSession() {
   resetNotificationDisplayListeners();
   resetShellEventListeners();
   resetAccountIntentListeners();
+  stopNotificationInboxLiveEvents();
   mesh.close();
   clearMeshSessionFlags();
 
@@ -188,6 +202,7 @@ function startAuthenticatedMeshSession() {
 function downgradeToLocalMeshSession() {
   stopAdminLiveEvents();
   stopSessionLiveEvents();
+  stopNotificationInboxLiveEvents();
   resetNotificationDisplayListeners();
   resetShellEventListeners();
   resetAccountIntentListeners();
@@ -272,7 +287,7 @@ async function renderApp() {
   }
 
   const layoutMounts = baseLayout();
-  mountHeaderAndFooter(appState, layoutMounts);
+  mountHeaderAndFooter(appState, layoutMounts, modules, activeCleanupFunctions);
 
   if (pathName === "/login") {
     await renderLoginPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
@@ -291,6 +306,36 @@ async function renderApp() {
 
   if (pathName.startsWith("/order-details/")) {
     await renderOrderDetailsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
+    return;
+  }
+
+  if (pathName.startsWith("/posts/")) {
+    const postId = pathName.slice("/posts/".length);
+    if (modules.mountSinglePost) {
+      const cleanupSinglePost = modules.mountSinglePost(layoutMounts.pageMount, {
+        postId,
+        apiBaseUrl: MOCK_API_BASE_URL,
+        authToken: appState.authToken,
+        currentUserId: appState.currentUser?.id,
+        navigate,
+        canLike: false,
+      });
+      if (typeof cleanupSinglePost === "function") {
+        activeCleanupFunctions.push(cleanupSinglePost);
+      }
+    }
+    return;
+  }
+
+  if (pathName === "/notifications") {
+    if (modules.mountNotificationsPage) {
+      const cleanupNotifications = modules.mountNotificationsPage(layoutMounts.pageMount, {
+        navigate,
+      });
+      if (typeof cleanupNotifications === "function") {
+        activeCleanupFunctions.push(cleanupNotifications);
+      }
+    }
     return;
   }
 
@@ -376,43 +421,6 @@ subscribeToSessionRevoked(() => {
   // signed in until refresh. onLogoutRequested clears credentials, then
   // downgradeToLocalMeshSession closes the authenticated socket.
   publishLogoutRequested();
-});
-
-subscribeToAdminOrderStatusChanged(({ orderId, status }) => {
-  const openOrderId = readOrderIdFromPath(window.location.pathname);
-  if (
-    status !== "cancellation-requested" ||
-    window.location.pathname === "/orders" ||
-    openOrderId === orderId
-  ) {
-    return;
-  }
-  publishNotification({
-    type: "success",
-    title: "Cancellation requested",
-    message: `A customer requested cancellation for order ${orderId}.`,
-  });
-});
-
-subscribeToAdminLiveEvents(({ type }) => {
-  // Only order_created and post_created pop a toast here. Other live event types (for
-  // example community.post-likes-changed) are handled by the page that cares about them
-  // (see postsPage.js's Likes column patch) and never show a toast of their own.
-  if (type === ORDER_CREATED_EVENT_TYPE) {
-    publishNotification({
-      type: "success",
-      title: "New order",
-      message: "A new order was placed",
-    });
-    return;
-  }
-  if (type === POST_CREATED_EVENT_TYPE) {
-    publishNotification({
-      type: "success",
-      title: "New post",
-      message: "A new post was made",
-    });
-  }
 });
 
 async function bootstrap() {

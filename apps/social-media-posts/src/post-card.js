@@ -36,13 +36,17 @@ function formatPostDate(isoDateString) {
 /**
  * Renders one post card.
  *
- * @param {{ post: object, layoutMode?: string, currentUserId?: string }} cardProps - Post data and the viewer's id (absent for a guest).
+ * @param {{ post: object, layoutMode?: string, onPostClick?: (post: object) => void, currentUserId?: string }} cardProps - Post data, an optional card click handler, and the viewer's id (absent for a guest).
  */
-function PostCardView({ post, layoutMode, currentUserId }) {
+function PostCardView({ post, layoutMode, onPostClick, currentUserId }) {
   const author = post.author || {};
   const authorDisplayName = author.fullName || author.username || "Unknown user";
-  const cardClassName =
-    layoutMode === "grid" ? "post-card post-card-grid" : "post-card";
+  const cardClassName = [
+    layoutMode === "grid" ? "post-card post-card-grid" : "post-card",
+    typeof onPostClick === "function" ? "post-card-clickable" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   // Announces watching once per mounted card. Not re-announced on every like-count patch:
   // the post id a card renders never changes while it stays mounted, so there is nothing new
@@ -59,22 +63,41 @@ function PostCardView({ post, layoutMode, currentUserId }) {
       ? "You cannot like your own post"
       : undefined;
 
+  const handleCardClick = () => {
+    if (typeof onPostClick === "function") {
+      onPostClick(post);
+    }
+  };
+
+  const handleAuthorClick = (clickEvent) => {
+    clickEvent.stopPropagation();
+    publishAuthorSelected(author);
+  };
+
+  const handleLikeClick = (clickEvent) => {
+    clickEvent.stopPropagation();
+    if (isLikeDisabled) {
+      return;
+    }
+    publishPostLiked(post.id);
+  };
+
   return (
-    <article className={cardClassName}>
+    <article className={cardClassName} onClick={handleCardClick}>
       <header className="post-card-header">
         {author.avatarUrl && (
           <img
             className="post-card-avatar"
             src={author.avatarUrl}
             alt={`${authorDisplayName} avatar`}
-            onClick={() => publishAuthorSelected(author)}
+            onClick={handleAuthorClick}
           />
         )}
         <div className="post-card-author">
           <button
             type="button"
             className="post-card-author-button"
-            onClick={() => publishAuthorSelected(author)}
+            onClick={handleAuthorClick}
           >
             <strong>{authorDisplayName}</strong>
           </button>
@@ -89,7 +112,7 @@ function PostCardView({ post, layoutMode, currentUserId }) {
         <button
           type="button"
           className={`post-card-action${post.likedByCurrentUser ? " post-card-action-liked" : ""}`}
-          onClick={() => publishPostLiked(post.id)}
+          onClick={handleLikeClick}
           disabled={isLikeDisabled}
           title={likeButtonTitle}
         >

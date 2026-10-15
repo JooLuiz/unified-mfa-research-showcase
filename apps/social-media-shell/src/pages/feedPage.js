@@ -13,6 +13,7 @@ import {
   subscribeToCommunityLikesChanged,
   applyLikesChangeToPosts,
 } from "../events/communityLikesLiveEvents";
+import { navigate } from "../utils/navigate";
 
 const TRENDING_LIKES_THRESHOLD = 1;
 const EMPTY_TRENDING_MESSAGE = "No trending posts yet.";
@@ -39,12 +40,19 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
 
   const trendingPostsMount = pageMount.querySelector("#trendingPostsMount");
 
+  const handlePostClick = (post) => {
+    if (post?.id) {
+      navigate(`/posts/${encodeURIComponent(post.id)}`);
+    }
+  };
+
   const trendingPostFeedHandle = modules.mountPostFeed(trendingPostsMount, {
     title: "Trending Posts",
     layoutMode: "grid",
     posts: getTrendingPosts(appState.posts),
     currentUserId: appState.currentUser?.id,
     emptyStateMessage: EMPTY_TRENDING_MESSAGE,
+    onPostClick: handlePostClick,
   });
   activeCleanupFunctions.push(trendingPostFeedHandle);
 
@@ -61,6 +69,7 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
         posts: getTrendingPosts(appState.posts),
         currentUserId: appState.currentUser?.id,
         emptyStateMessage: EMPTY_TRENDING_MESSAGE,
+        onPostClick: handlePostClick,
       });
     }),
   );

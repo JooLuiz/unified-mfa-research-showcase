@@ -170,11 +170,18 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
     "#accountPostsFeedMount",
   );
 
+  const handlePostClick = (post) => {
+    if (post?.id) {
+      navigate(`/posts/${encodeURIComponent(post.id)}`);
+    }
+  };
+
   const accountPostFeedHandle = modules.mountPostFeed(accountPostsFeedMount, {
     title: "",
     layoutMode: "grid",
     posts: currentUserPosts,
     currentUserId,
+    onPostClick: handlePostClick,
   });
   activeCleanupFunctions.push(accountPostFeedHandle);
 
@@ -190,6 +197,7 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
         layoutMode: "grid",
         posts: appState.posts.filter((post) => post.authorId === currentUserId),
         currentUserId,
+        onPostClick: handlePostClick,
       });
     }),
   );

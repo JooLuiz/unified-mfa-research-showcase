@@ -10,12 +10,14 @@ const NOTIFICATION_TOPIC = "notifications";
 const NOTIFICATION_RAISED_EVENT = "raised";
 
 /**
- * @typedef {{ type: "success" | "error", title: string, message: string, durationMs?: number }} ShellNotification
+ * @typedef {{ type: "success" | "error", title: string, message: string, durationMs?: number, link?: string }} ShellNotification
  */
 
 /**
- * @param {unknown} notificationPayload
- * @returns {notificationPayload is ShellNotification}
+ * Checks that a mesh payload is a toast the center can render.
+ *
+ * @param {unknown} notificationPayload - Payload from notifications/raised.
+ * @returns {notificationPayload is ShellNotification} True when type, title, and message are present.
  */
 function isValidNotificationPayload(notificationPayload) {
   if (!notificationPayload || typeof notificationPayload !== "object") {

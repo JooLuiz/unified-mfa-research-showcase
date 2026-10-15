@@ -9,8 +9,8 @@
  *   (each mounted post card already announced watching via
  *   @shared/community-events' publishPostLikesWatching), so src/main.js's global
  *   subscribeToCommunityLikesChanged listener applies that patch once for every viewer rather
- *   than this command patching it twice. The named owner toast is a separate concern handled
- *   by that same global listener, since the owner is not the one making this request.
+ *   than this command patching it twice. The author's persisted toast comes from the inbox
+ *   stream, since the owner is not the one making this request.
  * Key dependencies: event-mesh/mesh; ../notifications/notificationAdapter.js.
  * See also: src/main.js; src/events/communityLikesLiveEvents.js;
  *   apps/mock-data-service/src/event-mesh/postLikeHandler.js.

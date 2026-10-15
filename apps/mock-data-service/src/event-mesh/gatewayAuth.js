@@ -28,6 +28,10 @@ const STOCK_RELEASE_EVENT = "release";
 const COMMUNITY_LIKES_TOPIC = "community-likes";
 const COMMUNITY_LIKES_WATCHING_EVENT = "watching";
 const COMMUNITY_LIKES_TOGGLE_EVENT = "toggle";
+const NOTIFICATION_INBOX_TOPIC = "notification-inbox";
+const NOTIFICATION_INBOX_WATCHING_EVENT = "watching";
+const NOTIFICATION_INBOX_MARK_READ_EVENT = "mark-read";
+const NOTIFICATION_INBOX_MARK_ALL_READ_EVENT = "mark-all-read";
 const GUEST_CREDENTIAL = Object.freeze({
   kind: "guest",
   roles: ["guest"],
@@ -104,12 +108,19 @@ function createAuthorizeMessage() {
       (message.event === COMMUNITY_LIKES_WATCHING_EVENT ||
         message.event === COMMUNITY_LIKES_TOGGLE_EVENT);
 
+    const isNotificationInboxMessage =
+      message.topic === NOTIFICATION_INBOX_TOPIC &&
+      (message.event === NOTIFICATION_INBOX_WATCHING_EVENT ||
+        message.event === NOTIFICATION_INBOX_MARK_READ_EVENT ||
+        message.event === NOTIFICATION_INBOX_MARK_ALL_READ_EVENT);
+
     return (
       isAdminWatchingMessage ||
       isCartSyncMessage ||
       isStockMessage ||
       isOrderStatusMessage ||
       isCommunityLikesMessage ||
+      isNotificationInboxMessage ||
       (message.topic === EXPORT_TOPIC &&
         message.event === EXPORT_REQUESTED_EVENT) ||
       (message.topic === ORDERS_TOPIC &&

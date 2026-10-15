@@ -12,6 +12,7 @@ import {
   rememberPostLoginRedirect,
 } from "../utils/authActions";
 import { MOCK_API_BASE_URL } from "../utils/constants";
+import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
  * Renders the order details page, redirecting to login when unauthenticated.
@@ -49,7 +50,15 @@ async function renderOrderDetailsPage(appState, pageMount, modules, activeCleanu
   activeCleanupFunctions.push(
     modules.mountOrderDetails(orderDetailsMount, {
       apiBaseUrl: MOCK_API_BASE_URL,
+      actor: "customer",
       getAuthToken: () => appState.authToken || "",
+      onStatusRejected: () => {
+        publishNotification({
+          type: "error",
+          title: "Status change rejected",
+          message: "That status change is not allowed.",
+        });
+      },
     }),
   );
 }

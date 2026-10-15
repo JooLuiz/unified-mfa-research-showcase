@@ -81,13 +81,12 @@ function waitForStatusChange(requestId) {
 /**
  * Asks the server to move one order to the given status over the gateway.
  *
- * @param {{ orderId: string, status: string }} changeInput - Order id and the next status.
- *   `apiBaseUrl`/`authToken` are accepted and ignored for call-site compatibility with the HTTP
- *   branch's signature: the open mesh connection already carries the authenticated credential.
+ * @param {{ orderId: string, status: string, actor: "admin" | "customer", apiBaseUrl?: string, authToken?: string }} changeInput - Order id, the next status, and the capacity the caller is acting in.
+ *   `apiBaseUrl`/`authToken` are accepted and ignored: the open mesh connection already carries the authenticated credential.
  * @returns {Promise<{ ok: true, order: object } | { ok: false, code: string }>} Updated order, or a rejection code.
  * @sideEffects Publishes orders/status-change-requested and waits for the targeted reply.
  */
-async function requestOrderStatusChange({ orderId, status }) {
+async function requestOrderStatusChange({ orderId, status, actor }) {
   const requestId = `order-status-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   try {
     ensureStatusChangeListeners();
@@ -97,7 +96,7 @@ async function requestOrderStatusChange({ orderId, status }) {
     mesh.publish({
       topic: ORDERS_TOPIC,
       event: ORDERS_STATUS_CHANGE_REQUESTED_EVENT,
-      payload: { requestId, orderId, nextStatus: status },
+      payload: { requestId, orderId, nextStatus: status, actor },
       scope: "distributed",
     });
 

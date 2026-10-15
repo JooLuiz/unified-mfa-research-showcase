@@ -13,6 +13,7 @@ const loadRemoteModules = Promise.all([
   import("checkout/CheckoutEmpty"),
   import("login/LoginForm"),
   import("order_details/OrderDetails"),
+  import("notifications/Notifications"),
 ]).then(
   ([
     headerModule,
@@ -29,6 +30,7 @@ const loadRemoteModules = Promise.all([
     checkoutEmptyModule,
     loginModule,
     orderDetailsModule,
+    notificationsModule,
   ]) => {
     headerModule.registerHeaderElement();
     footerModule.registerFooterElement();
@@ -48,6 +50,8 @@ const loadRemoteModules = Promise.all([
       mountCheckoutEmpty: checkoutEmptyModule.mountCheckoutEmpty,
       mountLoginForm: loginModule.mountLoginForm,
       mountOrderDetails: orderDetailsModule.mountOrderDetails,
+      mountNotificationBell: notificationsModule.mountNotificationBell,
+      mountNotificationsPage: notificationsModule.mountNotificationsPage,
     };
   },
 );

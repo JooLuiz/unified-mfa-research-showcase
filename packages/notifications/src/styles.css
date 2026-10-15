@@ -27,6 +27,10 @@
   border-left: 0.35rem solid #b42318;
 }
 
+.notification-toast--linked {
+  cursor: pointer;
+}
+
 .notification-toast p {
   grid-column: 1 / -1;
   margin: 0;

@@ -9,6 +9,7 @@
 import "@shared/notifications/styles.css";
 import { mountNotificationCenter as mountSharedNotificationCenter } from "@shared/notifications";
 import mesh from "event-mesh/mesh";
+import { navigate } from "../utils/navigate";
 
 /** @type {{ unmount: () => void, ensureNotificationDisplayListeners: () => void, resetNotificationDisplayListeners: () => void } | null} */
 let notificationCenterLifecycle = null;
@@ -19,12 +20,16 @@ let notificationCenterLifecycle = null;
  * @param {HTMLElement} containerElement - Element that owns the rendered toast queue.
  * @returns {void}
  * @sideEffects Prepares the toast container; mesh subscription starts when ensure is called.
+ *   A toast that carries a link navigates to that path.
  */
 function mountNotificationCenter(containerElement) {
-  notificationCenterLifecycle = mountSharedNotificationCenter(
-    containerElement,
-    mesh,
-  );
+  notificationCenterLifecycle = mountSharedNotificationCenter(containerElement, mesh, {
+    onOpenLink: (notification) => {
+      if (notification.link) {
+        navigate(notification.link);
+      }
+    },
+  });
 }
 
 function ensureNotificationDisplayListeners() {

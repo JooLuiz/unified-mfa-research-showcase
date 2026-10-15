@@ -44,6 +44,7 @@ module.exports = {
         account: "account@http://localhost:4310/remoteEntry.js",
         login: "login@http://localhost:4311/remoteEntry.js",
         order_details: "order_details@http://localhost:4313/remoteEntry.js",
+        notifications: "notifications@http://localhost:4314/remoteEntry.js",
       },
       shared: {
         "event-mesh/mesh": {
@@ -53,6 +54,7 @@ module.exports = {
         "@shared/stock-events": { singleton: true },
         "@shared/order-status-events": { singleton: true },
         "@shared/session-events": { singleton: true },
+        "@shared/notification-inbox-events": { singleton: true },
       },
     }),
     new HtmlWebpackPlugin({

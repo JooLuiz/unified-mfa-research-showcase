@@ -10,6 +10,7 @@
  */
 
 const { LIKE_NOT_ALLOWED_CODE, toggleLike } = require("../domain/postLikes");
+const { recordPostLikedNotification } = require("../domain/notificationTriggers");
 
 const COMMUNITY_LIKES_TOPIC = "community-likes";
 const COMMUNITY_LIKES_TOGGLE_EVENT = "toggle";
@@ -26,10 +27,16 @@ const ADMIN_POST_LIKES_CHANGED_EVENT_TYPE = "post_likes_changed";
  * @param {{ readJsonFile: (fileName: string) => Promise<any>, readJsonFileWithDefault: (fileName: string, defaultValue: any) => Promise<any>, writeJsonFile: (fileName: string, data: any) => Promise<void> }} jsonStore - JSON file store bound to the data directory.
  * @param {{ broadcastLikesChanged: (postId: string, payload: object) => void }} postLikeEventStream - Per-post watcher registry and publisher.
  * @param {{ broadcastEvent: (eventType: string, payload: object) => void }} adminEventStream - Notifies every connected admin client.
+ * @param {{ broadcastNotificationChanged: (userId: string, shell: string, notification: object) => void }} notificationInboxEventStream - Publisher for durable inbox rows.
  * @returns {Promise<void>}
  * @sideEffects Subscribes to the toggle event on the local gateway singleton.
  */
-async function registerPostLikeHandler(jsonStore, postLikeEventStream, adminEventStream) {
+async function registerPostLikeHandler(
+  jsonStore,
+  postLikeEventStream,
+  adminEventStream,
+  notificationInboxEventStream,
+) {
   const gatewayModule = await import("event-mesh/gateway");
   const gateway = gatewayModule.default;
 
@@ -98,6 +105,14 @@ async function registerPostLikeHandler(jsonStore, postLikeEventStream, adminEven
     };
     postLikeEventStream.broadcastLikesChanged(matchingPost.id, likeChangedPayload);
     adminEventStream.broadcastEvent(ADMIN_POST_LIKES_CHANGED_EVENT_TYPE, likeChangedPayload);
+    if (toggleResult.liked) {
+      await recordPostLikedNotification({
+        jsonStore,
+        notificationInboxEventStream,
+        post: matchingPost,
+        likerName: likerUser.fullName || likerUser.username,
+      });
+    }
   });
 }
 

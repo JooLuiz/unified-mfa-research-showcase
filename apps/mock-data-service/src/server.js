@@ -17,6 +17,7 @@ const { createStockEventStream } = require("./infrastructure/stockEventStream");
 const { createOrderEventStream } = require("./infrastructure/orderEventStream");
 const { createPostLikeEventStream } = require("./infrastructure/postLikeEventStream");
 const { createSessionEventStream } = require("./event-mesh/sessionEventStream");
+const { createNotificationInboxEventStream } = require("./infrastructure/notificationInboxEventStream");
 const { createCatalogRouter } = require("./routes/catalogRoutes");
 const { createAuthRouter } = require("./routes/authRoutes");
 const { createUserRouter } = require("./routes/userRoutes");
@@ -40,6 +41,8 @@ const { registerCartUpsertHandler } = require("./event-mesh/cartUpsertHandler");
 const { registerPostLikeHandler } = require("./event-mesh/postLikeHandler");
 const { registerStockHandler } = require("./event-mesh/stockHandler");
 const { registerIframeBridgeHandler } = require("./event-mesh/iframeBridgeHandler");
+const { registerNotificationInboxHandler } = require("./event-mesh/notificationInboxHandler");
+const { createNotificationInboxRouter } = require("./routes/notificationInboxRoutes");
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -51,6 +54,7 @@ const stockEventStream = createStockEventStream();
 const orderEventStream = createOrderEventStream();
 const postLikeEventStream = createPostLikeEventStream();
 const sessionEventStream = createSessionEventStream();
+const notificationInboxEventStream = createNotificationInboxEventStream();
 
 app.use(cors());
 app.use(express.json());
@@ -75,6 +79,7 @@ async function configureAndStartEventGateway() {
       cartEventStream.forgetClient(clientId);
       orderEventStream.forgetClient(clientId);
       postLikeEventStream.forgetClient(clientId);
+      notificationInboxEventStream.forgetClient(clientId);
       const guestSessionId = stockEventStream.takeGuestSessionForClient(clientId);
       stockEventStream.forgetClient(clientId);
       if (guestSessionId) {
@@ -96,13 +101,32 @@ async function configureAndStartEventGateway() {
   await orderEventStream.registerWithGateway();
   await postLikeEventStream.registerWithGateway();
   await sessionEventStream.registerWithGateway();
+  await notificationInboxEventStream.registerWithGateway();
   await registerExportRequestHandler(jsonStore);
-  await registerOrderRequestHandler(jsonStore, adminEventStream, cartEventStream, stockEventStream);
-  await registerOrderStatusHandler(jsonStore, orderEventStream, adminEventStream, stockEventStream);
+  await registerOrderRequestHandler(
+    jsonStore,
+    adminEventStream,
+    cartEventStream,
+    stockEventStream,
+    notificationInboxEventStream,
+  );
+  await registerOrderStatusHandler(
+    jsonStore,
+    orderEventStream,
+    adminEventStream,
+    stockEventStream,
+    notificationInboxEventStream,
+  );
   await registerCartUpsertHandler(jsonStore, cartEventStream, stockEventStream);
-  await registerPostLikeHandler(jsonStore, postLikeEventStream, adminEventStream);
+  await registerPostLikeHandler(
+    jsonStore,
+    postLikeEventStream,
+    adminEventStream,
+    notificationInboxEventStream,
+  );
   await registerStockHandler(jsonStore, stockEventStream);
   await registerIframeBridgeHandler();
+  await registerNotificationInboxHandler(jsonStore, notificationInboxEventStream);
   return gateway;
 }
 
@@ -113,13 +137,14 @@ app.get("/health", (_request, response) => {
 app.use("/api", createCatalogRouter(jsonStore));
 app.use("/api", createAuthRouter(jsonStore));
 app.use("/api", createUserRouter(jsonStore));
-app.use("/api", createPostRouter(jsonStore, adminEventStream));
+app.use("/api", createPostRouter(jsonStore, adminEventStream, notificationInboxEventStream));
 app.use("/api", createFaqRouter(jsonStore));
 app.use("/api", createOrderRouter(jsonStore));
 app.use("/api", createCartRouter(jsonStore));
 app.use("/api", createExportRouter(jsonStore));
 app.use("/api", createAdminRouter(jsonStore));
 app.use("/api", createSessionRouter(jsonStore, sessionEventStream));
+app.use("/api", createNotificationInboxRouter(jsonStore));
 
 async function startServer() {
   await configureAndStartEventGateway();
