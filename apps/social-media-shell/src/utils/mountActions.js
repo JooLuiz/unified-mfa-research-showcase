@@ -27,8 +27,10 @@ function createHeaderApp() {
     return Promise.resolve();
   }
 
+  let cleanupBell = null;
+
   function mount(mountProps) {
-    const { appState, domElement } = mountProps;
+    const { appState, domElement, modules } = mountProps;
     storedAppState = appState;
 
     headerElement = document.createElement("react-header-mfe");
@@ -45,17 +47,39 @@ function createHeaderApp() {
         publishLogoutRequested();
       },
     });
+
+    const updateBellMount = () => {
+      if (cleanupBell) {
+        cleanupBell();
+        cleanupBell = null;
+      }
+      if (headerElement && isAuthenticated(storedAppState) && modules?.mountNotificationBell) {
+        const bellSlot = headerElement.querySelector("#notificationBellMount");
+        if (bellSlot) {
+          cleanupBell = modules.mountNotificationBell(bellSlot, {
+            navigate,
+          });
+        }
+      }
+    };
+
     unsubscribeFromAuthSessionChanges = subscribeToAuthSessionChanges(() => {
       if (headerElement && storedAppState) {
         headerElement.state = buildHeaderState(storedAppState);
+        setTimeout(updateBellMount, 0);
       }
     });
 
     domElement.appendChild(headerElement);
+    setTimeout(updateBellMount, 0);
     return Promise.resolve();
   }
 
   function unmount() {
+    if (cleanupBell) {
+      cleanupBell();
+      cleanupBell = null;
+    }
     if (unsubscribeFromHeaderEvents) {
       unsubscribeFromHeaderEvents();
     }

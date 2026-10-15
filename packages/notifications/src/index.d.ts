@@ -6,6 +6,7 @@ export interface NotificationPayload {
   title: string;
   message: string;
   durationMs?: number;
+  link?: string;
 }
 
 export interface NotificationTransportMessage {
@@ -33,5 +34,7 @@ export function createNotificationPayload(notification: NotificationPayload): No
 export function createNotificationAdapter(transport: NotificationTransport): NotificationAdapter;
 export function mountNotificationCenter(
   containerElement: HTMLElement,
-  notificationBus: Pick<NotificationAdapter, "subscribeToNotifications">,
+  notificationBus: Pick<NotificationAdapter, "subscribeToNotifications"> & {
+    onOpenLink?: (notification: NotificationPayload) => void;
+  },
 ): () => void;

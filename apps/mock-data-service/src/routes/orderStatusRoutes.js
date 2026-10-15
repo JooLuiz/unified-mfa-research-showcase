@@ -21,6 +21,9 @@ const {
   ORDER_STATUS_NOT_ALLOWED_CODE,
   applyOrderStatusChange,
 } = require("../domain/orderStatus");
+const {
+  recordOrderStatusChangedNotifications,
+} = require("../domain/notificationTriggers");
 
 const ORDER_STATUS_SSE_HEARTBEAT_INTERVAL_MS = 20_000;
 
@@ -74,23 +77,37 @@ function openStatusStream(response, registerResponse) {
  * @param {{ readJsonFile: (fileName: string) => Promise<any>, readJsonFileWithDefault: (fileName: string, defaultValue: any) => Promise<any>, writeJsonFile: (fileName: string, data: any) => Promise<void> }} jsonStore - JSON file store bound to the data directory.
  * @param {{ registerCustomer: (userId: string, response: import("express").Response) => void, registerAdmin: (response: import("express").Response) => void, broadcastStatusChanged: (userId: string, orderId: string, status: string) => void }} orderEventStream - SSE registry for customer and admin tabs.
  * @param {{ broadcastStockChanged: (productId: string, available: number) => void }} stockEventStream - Notifies stock watchers after a cancellation restores stock.
+ * @param {{ broadcastNotificationChanged: (userId: string, shell: string, notification: object) => void }} [notificationInboxEventStream] - Broadcaster for notification inbox rows.
  * @returns {import("express").Router} Router with the status write and the two streams.
  */
-function createOrderStatusRouter(jsonStore, orderEventStream, stockEventStream) {
+function createOrderStatusRouter(
+  jsonStore,
+  orderEventStream,
+  stockEventStream,
+  notificationInboxEventStream,
+) {
   const router = express.Router();
 
   /**
-   * PUT /orders/:orderId/status. Auth: Bearer token. Body: { status }.
-   * A customer may set cancellation-requested on their own order. An admin may set every
-   * other allowed status on any order. 404 when the order is missing or is not the
-   * customer's. 403 when the actor cannot make that transition. 409 when the transition
-   * itself is illegal.
+   * PUT /orders/:orderId/status. Auth: Bearer token. Body: { status, actor }.
+   * The caller declares which capacity it is acting in. actor "customer" is granted only on
+   * the caller's own order; actor "admin" is granted only to an admin-role user, on any order.
+   * This lets an admin-role account self-service their own order as a customer from the
+   * ecommerce shell, while keeping full admin transitions available from the admin shell.
+   * 400 when actor is missing or invalid. 403 when the caller cannot claim that actor for this
+   * order. 409 when the transition itself is illegal for that actor.
    */
   router.put("/orders/:orderId/status", async (request, response) => {
     try {
       const authenticatedUser = await resolveAuthenticatedUser(request, jsonStore);
       if (authenticatedUser.status) {
         response.status(authenticatedUser.status).json({ message: authenticatedUser.message });
+        return;
+      }
+
+      const requestedActor = request.body?.actor;
+      if (requestedActor !== "admin" && requestedActor !== "customer") {
+        response.status(400).json({ message: "Request must include a valid actor" });
         return;
       }
 
@@ -102,8 +119,11 @@ function createOrderStatusRouter(jsonStore, orderEventStream, stockEventStream) 
       }
 
       const currentOrder = ordersData[orderIndex];
-      const actorIsAdmin = isAdminUser(authenticatedUser);
-      if (!actorIsAdmin && currentOrder.userId !== authenticatedUser.id) {
+      if (requestedActor === "admin" && !isAdminUser(authenticatedUser)) {
+        response.status(403).json({ message: "Admin access required" });
+        return;
+      }
+      if (requestedActor === "customer" && currentOrder.userId !== authenticatedUser.id) {
         response.status(404).json({ message: "Order not found" });
         return;
       }
@@ -112,7 +132,7 @@ function createOrderStatusRouter(jsonStore, orderEventStream, stockEventStream) 
         jsonStore,
         order: currentOrder,
         nextStatus: request.body?.status,
-        actor: actorIsAdmin ? "admin" : "customer",
+        actor: requestedActor,
       });
       if (!changeResult.ok) {
         if (changeResult.code === ORDER_STATUS_NOT_ALLOWED_CODE) {
@@ -146,6 +166,16 @@ function createOrderStatusRouter(jsonStore, orderEventStream, stockEventStream) 
       changeResult.stockAvailability.forEach(({ productId, available }) => {
         stockEventStream.broadcastStockChanged(productId, available);
       });
+
+      if (notificationInboxEventStream) {
+        await recordOrderStatusChangedNotifications({
+          jsonStore,
+          notificationInboxEventStream,
+          order: changeResult.order,
+          actor: requestedActor,
+        });
+      }
+
       response.json(changeResult.order);
     } catch (error) {
       response.status(500).json({

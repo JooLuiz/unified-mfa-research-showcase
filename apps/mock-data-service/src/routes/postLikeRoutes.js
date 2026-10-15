@@ -14,6 +14,7 @@ const express = require("express");
 const { resolveAuthenticatedUserId } = require("../domain/auth");
 const { LIKE_NOT_ALLOWED_CODE, toggleLike } = require("../domain/postLikes");
 const { POST_LIKES_CHANGED_EVENT_NAME } = require("../infrastructure/postLikeEventStream");
+const { recordPostLikedNotification } = require("../domain/notificationTriggers");
 
 const POST_LIKES_SSE_HEARTBEAT_INTERVAL_MS = 20_000;
 
@@ -23,9 +24,15 @@ const POST_LIKES_SSE_HEARTBEAT_INTERVAL_MS = 20_000;
  * @param {{ readJsonFile: (fileName: string) => Promise<any>, readJsonFileWithDefault: (fileName: string, defaultValue: any) => Promise<any>, writeJsonFile: (fileName: string, data: any) => Promise<void> }} jsonStore - JSON file store bound to the data directory.
  * @param {{ registerClient: (response: import("express").Response) => void, broadcastLikesChanged: (payload: object) => void }} postLikeEventStream - Broadcaster for every open social tab.
  * @param {{ broadcastEvent: (eventType: string, payload: object) => void }} adminEventStream - Existing admin broadcaster, reused for the admin table's live Likes column.
+ * @param {{ broadcastNotificationChanged: (userId: string, shell: string, notification: object) => void }} [notificationInboxEventStream] - Broadcaster for notification inbox rows.
  * @returns {import("express").Router} Router with the toggle endpoint and the social live-updates stream.
  */
-function createPostLikeRouter(jsonStore, postLikeEventStream, adminEventStream) {
+function createPostLikeRouter(
+  jsonStore,
+  postLikeEventStream,
+  adminEventStream,
+  notificationInboxEventStream,
+) {
   const router = express.Router();
 
   /**
@@ -86,6 +93,15 @@ function createPostLikeRouter(jsonStore, postLikeEventStream, adminEventStream) 
       };
       postLikeEventStream.broadcastLikesChanged(likeChangedPayload);
       adminEventStream.broadcastEvent(POST_LIKES_CHANGED_EVENT_NAME, likeChangedPayload);
+
+      if (toggleResult.liked && notificationInboxEventStream) {
+        await recordPostLikedNotification({
+          jsonStore,
+          notificationInboxEventStream,
+          post: matchingPost,
+          likerName: likerUser.fullName || likerUser.username,
+        });
+      }
 
       response.json({ liked: toggleResult.liked, likes: toggleResult.likes });
     } catch (error) {

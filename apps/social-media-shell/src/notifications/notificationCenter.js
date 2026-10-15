@@ -8,6 +8,7 @@
 
 import "@shared/notifications/styles.css";
 import { mountNotificationCenter as mountSharedNotificationCenter } from "@shared/notifications";
+import { navigate } from "../utils/navigate";
 import { subscribeToNotifications } from "./notificationAdapter";
 
 /**
@@ -15,11 +16,16 @@ import { subscribeToNotifications } from "./notificationAdapter";
  *
  * @param {HTMLElement} containerElement - Element that owns the rendered toast queue.
  * @returns {() => void} Function that clears pending timers, subscriptions, and rendered toasts.
- * @sideEffects Subscribes to notification events and mutates the supplied container.
+ * @sideEffects Subscribes to notification events and mutates the supplied container. A toast that carries a link navigates to that path.
  */
 function mountNotificationCenter(containerElement) {
   return mountSharedNotificationCenter(containerElement, {
     subscribeToNotifications,
+    onOpenLink: (notification) => {
+      if (notification.link) {
+        navigate(notification.link);
+      }
+    },
   });
 }
 

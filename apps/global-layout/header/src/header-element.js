@@ -142,6 +142,12 @@ function HeaderView({
         )}
       </div>
       <div className="header-group header-right-group">
+        {isAuthenticated && (
+          <div
+            className="header-notification-slot"
+            id="notificationBellMount"
+          ></div>
+        )}
         {isAuthenticated ? (
           <>
             <button

@@ -77,6 +77,7 @@ async function renderOrderDetailsPage(appState, pageMount, modules, activeCleanu
       apiBaseUrl: MOCK_API_BASE_URL,
       actor: "admin",
       authToken: appState.authToken,
+      buildOrderRequestPath: (id) => `/admin/orders/${id}`,
       onStatusRejected: () => {
         publishNotification({
           type: "error",

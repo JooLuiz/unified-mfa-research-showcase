@@ -13,15 +13,17 @@ const express = require("express");
 const { buildPublicUser, resolveAuthenticatedUserId } = require("../domain/auth");
 const { generateIdentifier } = require("../domain/identifiers");
 const { readPostLikesData, attachLikeCountsToPosts } = require("../domain/postLikes");
+const { recordPostCreatedNotifications } = require("../domain/notificationTriggers");
 
 /**
  * Creates the post router.
  *
- * @param {{ readJsonFile: (fileName: string) => Promise<any>, writeJsonFile: (fileName: string, data: any) => Promise<void> }} jsonStore - JSON file store bound to the data directory.
+ * @param {{ readJsonFile: (fileName: string) => Promise<any>, writeJsonFile: (fileName: string, data: any) => Promise<void>, readJsonFileWithDefault: (fileName: string, defaultValue: any) => Promise<any> }} jsonStore - JSON file store bound to the data directory.
  * @param {{ broadcastEvent: (eventType: string, payload: object) => void }} adminEventStream - Broadcaster notified when a new post is created.
+ * @param {{ broadcastNotificationChanged: (userId: string, shell: string, notification: object) => void }} [notificationInboxEventStream] - Broadcaster for notification inbox rows.
  * @returns {import("express").Router} Router with the /posts routes.
  */
-function createPostRouter(jsonStore, adminEventStream) {
+function createPostRouter(jsonStore, adminEventStream, notificationInboxEventStream) {
   const router = express.Router();
 
   router.get("/posts", async (request, response) => {
@@ -54,6 +56,36 @@ function createPostRouter(jsonStore, adminEventStream) {
     } catch (error) {
       response.status(500).json({
         message: "Unable to load posts",
+        details: error.message,
+      });
+    }
+  });
+
+  router.get("/posts/:postId", async (request, response) => {
+    try {
+      const postsData = await jsonStore.readJsonFile("posts.json");
+      const matchingPost = postsData.find((post) => post.id === request.params.postId);
+      if (!matchingPost) {
+        response.status(404).json({ message: "Post not found" });
+        return;
+      }
+
+      const usersData = await jsonStore.readJsonFile("users.json");
+      const authorRecord = usersData.find((userRecord) => userRecord.id === matchingPost.authorId);
+      const postWithAuthor = {
+        ...matchingPost,
+        author: authorRecord ? buildPublicUser(authorRecord) : null,
+      };
+
+      const postLikesData = await readPostLikesData(jsonStore);
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const viewerUserId = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
+      const [postWithLikes] = attachLikeCountsToPosts([postWithAuthor], postLikesData, viewerUserId);
+
+      response.json(postWithLikes);
+    } catch (error) {
+      response.status(500).json({
+        message: "Unable to load post",
         details: error.message,
       });
     }
@@ -108,6 +140,14 @@ function createPostRouter(jsonStore, adminEventStream) {
       };
 
       adminEventStream.broadcastEvent("post_created", postWithAuthor);
+
+      if (notificationInboxEventStream) {
+        await recordPostCreatedNotifications({
+          jsonStore,
+          notificationInboxEventStream,
+          post: postWithAuthor,
+        });
+      }
 
       response.status(201).json(postWithAuthor);
     } catch (error) {

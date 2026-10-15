@@ -29,9 +29,13 @@ import {
   startCustomerOrderStatusStream,
   stopCustomerOrderStatusStream,
 } from "@shared/order-status-events";
+import {
+  startNotificationInboxLiveEvents,
+  stopNotificationInboxLiveEvents,
+  subscribeToNewInboxNotifications,
+} from "@shared/notification-inbox-events";
 import { subscribeToSessionRevoked } from "@shared/session-events";
 import { publishNotification } from "./notifications/notificationAdapter";
-import { registerCustomerOrderStatusToasts } from "./events/customerOrderStatusToasts";
 import { MOCK_API_BASE_URL } from "./utils/constants";
 import { startStockGating } from "./events/stockGating";
 import { endCartSession, hydrateSavedCart, startCartTabSync } from "./utils/cartSync";
@@ -152,7 +156,12 @@ async function renderApp() {
   }
 
   const layoutMounts = baseLayout();
-  activeHeaderElement = mountHeaderAndFooter(appState, layoutMounts);
+  activeHeaderElement = mountHeaderAndFooter(
+    appState,
+    layoutMounts,
+    modules,
+    activeCleanupFunctions,
+  );
 
   if (pathName === "/") {
     await renderHomePage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
@@ -199,6 +208,18 @@ async function renderApp() {
     return;
   }
 
+  if (pathName === "/notifications") {
+    if (modules.mountNotificationsPage) {
+      const cleanupNotifications = modules.mountNotificationsPage(layoutMounts.pageMount, {
+        navigate,
+      });
+      if (typeof cleanupNotifications === "function") {
+        activeCleanupFunctions.push(cleanupNotifications);
+      }
+    }
+    return;
+  }
+
   layoutMounts.pageMount.innerHTML = `
     <section class="notice-box">
       <h2>Page not found</h2>
@@ -223,6 +244,15 @@ window.addEventListener("popstate", () => {
   renderApp();
 });
 
+subscribeToNewInboxNotifications((notification) => {
+  publishNotification({
+    type: "success",
+    title: notification.title,
+    message: notification.message,
+    link: notification.link,
+  });
+});
+
 function syncCartLiveEventsWithSession() {
   if (appState.authToken) {
     void startCartLiveEvents(appState);
@@ -230,13 +260,17 @@ function syncCartLiveEventsWithSession() {
       apiBaseUrl: MOCK_API_BASE_URL,
       authToken: appState.authToken,
     });
+    void startNotificationInboxLiveEvents({
+      apiBaseUrl: MOCK_API_BASE_URL,
+      authToken: appState.authToken,
+      shell: "ecommerce",
+    });
   } else {
     stopCartLiveEvents();
     stopCustomerOrderStatusStream();
+    stopNotificationInboxLiveEvents();
   }
 }
-
-registerCustomerOrderStatusToasts(appState);
 
 subscribeToSessionRevoked(() => {
   if (!appState.authToken) {

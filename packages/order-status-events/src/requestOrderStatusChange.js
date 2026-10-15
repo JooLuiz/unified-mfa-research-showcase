@@ -9,11 +9,11 @@
 /**
  * Asks the server to move one order to the given status.
  *
- * @param {{ apiBaseUrl: string, authToken: string, orderId: string, status: string }} changeInput - API base, bearer token, order id, and the next status.
+ * @param {{ apiBaseUrl: string, authToken: string, orderId: string, status: string, actor: "admin" | "customer" }} changeInput - API base, bearer token, order id, the next status, and the capacity the caller is acting in.
  * @returns {Promise<{ ok: true, order: object } | { ok: false, code: string }>} Updated order, or a rejection code.
  * @sideEffects Performs the HTTP status write.
  */
-async function requestOrderStatusChange({ apiBaseUrl, authToken, orderId, status }) {
+async function requestOrderStatusChange({ apiBaseUrl, authToken, orderId, status, actor }) {
   try {
     const response = await fetch(
       `${apiBaseUrl}/orders/${encodeURIComponent(orderId)}/status`,
@@ -23,7 +23,7 @@ async function requestOrderStatusChange({ apiBaseUrl, authToken, orderId, status
           "Content-Type": "application/json",
           Authorization: `Bearer ${authToken}`,
         },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, actor }),
       },
     );
     if (!response.ok) {

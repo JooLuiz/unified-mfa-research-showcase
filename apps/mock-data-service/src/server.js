@@ -17,6 +17,7 @@ const { createStockEventStream } = require("./infrastructure/stockEventStream");
 const { createOrderEventStream } = require("./infrastructure/orderEventStream");
 const { createPostLikeEventStream } = require("./infrastructure/postLikeEventStream");
 const { createSessionEventStream } = require("./infrastructure/sessionEventStream");
+const { createNotificationInboxEventStream } = require("./infrastructure/notificationInboxEventStream");
 const { createCatalogRouter } = require("./routes/catalogRoutes");
 const { createAuthRouter } = require("./routes/authRoutes");
 const { createUserRouter } = require("./routes/userRoutes");
@@ -30,6 +31,7 @@ const { createStockRouter } = require("./routes/stockRoutes");
 const { createExportRouter } = require("./routes/exportRoutes");
 const { createAdminRouter } = require("./routes/adminRoutes");
 const { createSessionRouter } = require("./routes/sessionRoutes");
+const { createNotificationInboxRouter } = require("./routes/notificationInboxRoutes");
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -41,6 +43,7 @@ const stockEventStream = createStockEventStream();
 const orderEventStream = createOrderEventStream();
 const postLikeEventStream = createPostLikeEventStream();
 const sessionEventStream = createSessionEventStream();
+const notificationInboxEventStream = createNotificationInboxEventStream();
 
 app.use(cors());
 app.use(express.json());
@@ -52,16 +55,17 @@ app.get("/health", (_request, response) => {
 app.use("/api", createCatalogRouter(jsonStore));
 app.use("/api", createAuthRouter(jsonStore));
 app.use("/api", createUserRouter(jsonStore));
-app.use("/api", createPostRouter(jsonStore, adminEventStream));
-app.use("/api", createPostLikeRouter(jsonStore, postLikeEventStream, adminEventStream));
+app.use("/api", createPostRouter(jsonStore, adminEventStream, notificationInboxEventStream));
+app.use("/api", createPostLikeRouter(jsonStore, postLikeEventStream, adminEventStream, notificationInboxEventStream));
 app.use("/api", createFaqRouter(jsonStore));
-app.use("/api", createOrderStatusRouter(jsonStore, orderEventStream, stockEventStream));
-app.use("/api", createOrderRouter(jsonStore, adminEventStream, cartEventStream, stockEventStream));
+app.use("/api", createOrderStatusRouter(jsonStore, orderEventStream, stockEventStream, notificationInboxEventStream));
+app.use("/api", createOrderRouter(jsonStore, adminEventStream, cartEventStream, stockEventStream, notificationInboxEventStream));
 app.use("/api", createCartRouter(jsonStore, cartEventStream));
 app.use("/api", createStockRouter(jsonStore, stockEventStream));
 app.use("/api", createExportRouter(jsonStore));
 app.use("/api", createAdminRouter(jsonStore, adminEventStream));
 app.use("/api", createSessionRouter(jsonStore, sessionEventStream));
+app.use("/api", createNotificationInboxRouter(jsonStore, notificationInboxEventStream));
 
 app.listen(port, () => {
   const startupMessage = `mock-data-service running on http://localhost:${port}`;

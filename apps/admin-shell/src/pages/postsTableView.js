@@ -46,7 +46,7 @@ function buildPostRowMarkup(postRecord) {
     postRecord.author?.username ||
     "Unknown author";
   return `
-    <tr data-post-id="${postRecord.id}">
+    <tr class="admin-post-row" data-post-id="${postRecord.id}">
       <td>${authorName}</td>
       <td>${formatDate(postRecord.createdAt)}</td>
       <td>${buildExcerpt(postRecord.content)}</td>

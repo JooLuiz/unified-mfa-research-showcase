@@ -15,6 +15,9 @@ const {
   ORDER_REQUEST_INVALID_CODE,
   createOrderForUser,
 } = require("../domain/orderProcessing");
+const {
+  recordOrderPlacedNotifications,
+} = require("../domain/notificationTriggers");
 
 /**
  * Creates the order router.
@@ -23,9 +26,16 @@ const {
  * @param {{ broadcastEvent: (eventType: string, payload: object) => void }} adminEventStream - Broadcaster notified when a new order is placed.
  * @param {{ broadcastCartChanged: (userId: string, cart: object) => void }} cartEventStream - Notifies that user's open cart streams after the cart row is removed.
  * @param {{ broadcastStockChanged: (productId: string, available: number) => void }} stockEventStream - Notifies stock watchers after the sold products' stock is decremented.
+ * @param {{ broadcastNotificationChanged: (userId: string, shell: string, notification: object) => void }} [notificationInboxEventStream] - Broadcaster for notification inbox rows.
  * @returns {import("express").Router} Router with the /orders routes.
  */
-function createOrderRouter(jsonStore, adminEventStream, cartEventStream, stockEventStream) {
+function createOrderRouter(
+  jsonStore,
+  adminEventStream,
+  cartEventStream,
+  stockEventStream,
+  notificationInboxEventStream,
+) {
   const router = express.Router();
 
   router.post("/orders", async (request, response) => {
@@ -76,6 +86,15 @@ function createOrderRouter(jsonStore, adminEventStream, cartEventStream, stockEv
       orderResult.stockAvailability.forEach(({ productId, available }) => {
         stockEventStream.broadcastStockChanged(productId, available);
       });
+
+      if (notificationInboxEventStream) {
+        await recordOrderPlacedNotifications({
+          jsonStore,
+          notificationInboxEventStream,
+          order: orderResult.order,
+          user: matchingUser,
+        });
+      }
 
       response.status(201).json(orderResult.order);
     } catch (error) {

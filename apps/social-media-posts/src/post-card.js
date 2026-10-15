@@ -27,13 +27,17 @@ function formatPostDate(isoDateString) {
 /**
  * Renders one post card.
  *
- * @param {{ post: object, layoutMode?: string, onLike?: (postId: string) => Promise<{ liked: boolean, likes: number } | null>, onAuthorClick?: (author: object) => void, currentUserId?: string }} cardProps - Post data, the host's like/author-click callbacks, and the viewer's id (absent for a guest).
+ * @param {{ post: object, layoutMode?: string, onLike?: (postId: string) => Promise<{ liked: boolean, likes: number } | null>, onAuthorClick?: (author: object) => void, onPostClick?: (post: object) => void, currentUserId?: string }} cardProps - Post data, the host's like/author/post-click callbacks, and the viewer's id (absent for a guest).
  */
-function PostCardView({ post, layoutMode, onLike, onAuthorClick, currentUserId }) {
+function PostCardView({ post, layoutMode, onLike, onAuthorClick, onPostClick, currentUserId }) {
   const author = post.author || {};
   const authorDisplayName = author.fullName || author.username || "Unknown user";
-  const cardClassName =
-    layoutMode === "grid" ? "post-card post-card-grid" : "post-card";
+  const cardClassName = [
+    layoutMode === "grid" ? "post-card post-card-grid" : "post-card",
+    typeof onPostClick === "function" ? "post-card-clickable" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const [likeState, setLikeState] = useState({
     likes: post.likes || 0,
@@ -59,7 +63,21 @@ function PostCardView({ post, layoutMode, onLike, onAuthorClick, currentUserId }
       ? "You cannot like your own post"
       : undefined;
 
-  const handleLikeClick = async () => {
+  const handleCardClick = () => {
+    if (typeof onPostClick === "function") {
+      onPostClick(post);
+    }
+  };
+
+  const handleAuthorClick = (clickEvent) => {
+    clickEvent.stopPropagation();
+    if (onAuthorClick) {
+      onAuthorClick(author);
+    }
+  };
+
+  const handleLikeClick = async (clickEvent) => {
+    clickEvent.stopPropagation();
     if (isLikeDisabled || !onLike) {
       return;
     }
@@ -75,21 +93,21 @@ function PostCardView({ post, layoutMode, onLike, onAuthorClick, currentUserId }
   };
 
   return (
-    <article className={cardClassName}>
+    <article className={cardClassName} onClick={handleCardClick}>
       <header className="post-card-header">
         {author.avatarUrl && (
           <img
             className="post-card-avatar"
             src={author.avatarUrl}
             alt={`${authorDisplayName} avatar`}
-            onClick={() => onAuthorClick && onAuthorClick(author)}
+            onClick={handleAuthorClick}
           />
         )}
         <div className="post-card-author">
           <button
             type="button"
             className="post-card-author-button"
-            onClick={() => onAuthorClick && onAuthorClick(author)}
+            onClick={handleAuthorClick}
           >
             <strong>{authorDisplayName}</strong>
           </button>

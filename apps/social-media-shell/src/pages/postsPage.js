@@ -147,6 +147,12 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
     }
   };
 
+  const handlePostClick = (post) => {
+    if (post?.id) {
+      navigate(`/posts/${encodeURIComponent(post.id)}`);
+    }
+  };
+
   // Tracked so the live-likes subscription below can re-render each group from the latest
   // appState.posts without re-slicing the whole page.
   const mountedPostGroups = [];
@@ -166,6 +172,7 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
       currentUserId: appState.currentUser?.id,
       onLike: handleLike,
       onAuthorClick: handleAuthorClick,
+      onPostClick: handlePostClick,
     });
     activeCleanupFunctions.push(groupFeedHandle);
     mountedPostGroups.push({ groupStartIndex, groupEndIndex, groupTitle, groupFeedHandle });
@@ -210,6 +217,7 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
           currentUserId: appState.currentUser?.id,
           onLike: handleLike,
           onAuthorClick: handleAuthorClick,
+          onPostClick: handlePostClick,
         });
       });
     }),

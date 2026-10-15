@@ -56,10 +56,11 @@ function subscribeToAdminOrderStatusChanged(listener) {
  *
  * @param {{ apiBaseUrl: string, authToken: string, orderId: string, status: string }} changeInput - API base, admin bearer token, order id, and the next status.
  * @returns {Promise<{ ok: true, order: object } | { ok: false, code: string }>} Updated order, or a rejection code.
- * @sideEffects PUTs the requested status.
+ * @sideEffects PUTs the requested status, claiming the admin actor. The server requires the caller
+ *   to hold the admin role for this claim to be granted.
  */
 function requestAdminOrderStatusChange(changeInput) {
-  return requestOrderStatusChange(changeInput);
+  return requestOrderStatusChange({ ...changeInput, actor: "admin" });
 }
 
 export {

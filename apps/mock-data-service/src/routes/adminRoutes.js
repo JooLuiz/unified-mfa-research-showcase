@@ -96,6 +96,39 @@ function createAdminRouter(jsonStore, adminEventStream) {
   });
 
   /**
+   * GET /admin/orders/:orderId. Auth: Bearer token with admin role. Output: single order with customer embedded.
+   */
+  router.get("/admin/orders/:orderId", async (request, response) => {
+    try {
+      const adminUser = await requireAdminUser(request, response);
+      if (!adminUser) {
+        return;
+      }
+
+      const ordersData = await jsonStore.readJsonFileWithDefault("orders.json", []);
+      const matchingOrder = ordersData.find((order) => order.id === request.params.orderId);
+      if (!matchingOrder) {
+        response.status(404).json({ message: "Order not found" });
+        return;
+      }
+
+      const usersData = await jsonStore.readJsonFile("users.json");
+      const usersById = buildUsersById(usersData);
+      const orderWithCustomer = {
+        ...matchingOrder,
+        customer: usersById[matchingOrder.userId] || null,
+      };
+
+      response.json(orderWithCustomer);
+    } catch (error) {
+      response.status(500).json({
+        message: "Unable to load order",
+        details: error.message,
+      });
+    }
+  });
+
+  /**
    * GET /admin/posts. Auth: Bearer token with admin role. Output: every post with its author embedded.
    */
   router.get("/admin/posts", async (request, response) => {
