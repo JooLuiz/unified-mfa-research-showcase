@@ -9,6 +9,7 @@
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import fetchJson from "../utils/fetchJson";
 import { publishNotification } from "../notifications/notificationAdapter";
+import { addPostIfMissing } from "../utils/postsState";
 
 /**
  * Persists a new post and retains the current feed when the command fails.
@@ -36,7 +37,10 @@ async function persistNewPost(appState, postPayload) {
       },
       body: JSON.stringify(postPayload),
     });
-    appState.posts = [createdPost, ...appState.posts];
+    // Guarded (not a raw prepend): the server's live post-created push (src/main.js) reaches
+    // this same tab too, and the HTTP response here and that SSE push can arrive in either
+    // order, so whichever runs second must not insert the post a second time.
+    addPostIfMissing(appState, createdPost);
     return { ok: true, post: createdPost };
   } catch (error) {
     console.warn("persistNewPost - error");

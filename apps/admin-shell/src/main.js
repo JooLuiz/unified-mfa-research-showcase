@@ -59,6 +59,7 @@ subscribeToNewInboxNotifications((notification) => {
     title: notification.title,
     message: notification.message,
     link: notification.link,
+    notificationId: notification.id,
   });
 });
 

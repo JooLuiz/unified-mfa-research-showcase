@@ -9,8 +9,8 @@
 /**
  * Builds a toast payload from a caller-supplied notification.
  *
- * @param {{ type: "success" | "error", title: string, message: string, durationMs?: number, link?: string }} notification - Toast content, optional display duration, and optional detail path.
- * @returns {{ type: "success" | "error", title: string, message: string, durationMs?: number, link?: string }} Payload safe to publish.
+ * @param {{ type: "success" | "error", title: string, message: string, durationMs?: number, link?: string, notificationId?: string }} notification - Toast content, optional display duration, optional detail path, and optional id of the persisted inbox row this toast was raised from.
+ * @returns {{ type: "success" | "error", title: string, message: string, durationMs?: number, link?: string, notificationId?: string }} Payload safe to publish.
  * @throws {Error} When type, title, or message is missing.
  */
 function createNotificationPayload(notification) {
@@ -34,6 +34,9 @@ function createNotificationPayload(notification) {
   }
   if (typeof notification.link === "string" && notification.link.length > 0) {
     payload.link = notification.link;
+  }
+  if (typeof notification.notificationId === "string" && notification.notificationId.length > 0) {
+    payload.notificationId = notification.notificationId;
   }
   return payload;
 }

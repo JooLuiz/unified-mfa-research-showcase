@@ -6,7 +6,11 @@ module.exports = {
   mode: "development",
   entry: path.resolve(__dirname, "src/index.js"),
   output: {
-    publicPath: "auto",
+    // Absolute (not "auto") so the emitted <script> tag resolves correctly when the dev
+    // server's historyApiFallback serves this same index.html for a deep route like
+    // /posts/:id — a relative "main.js" would otherwise resolve against the current path
+    // (e.g. /posts/main.js) and 404, leaving the shell blank on refresh.
+    publicPath: "/",
     clean: true,
   },
   devServer: {

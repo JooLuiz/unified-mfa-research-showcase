@@ -4,7 +4,7 @@
  * Not in this file: Token helpers (src/domain/auth.js), id generation
  *   (src/domain/identifiers.js), the admin broadcast implementation
  *   (src/infrastructure/adminEventStream.js), or the like toggle/stream
- *   (src/routes/postLikeRoutes.js).
+ *   (src/routes/postLikeRoutes.js, src/infrastructure/postLikeEventStream.js).
  * Key dependencies: posts.json and users.json via the JSON store; src/domain/postLikes.js.
  * See also: src/server.js; src/routes/adminRoutes.js (admin live-notifications stream).
  */
@@ -14,16 +14,18 @@ const { buildPublicUser, resolveAuthenticatedUserId } = require("../domain/auth"
 const { generateIdentifier } = require("../domain/identifiers");
 const { readPostLikesData, attachLikeCountsToPosts } = require("../domain/postLikes");
 const { recordPostCreatedNotifications } = require("../domain/notificationTriggers");
+const { POST_CREATED_EVENT_NAME } = require("../infrastructure/postLikeEventStream");
 
 /**
  * Creates the post router.
  *
  * @param {{ readJsonFile: (fileName: string) => Promise<any>, writeJsonFile: (fileName: string, data: any) => Promise<void>, readJsonFileWithDefault: (fileName: string, defaultValue: any) => Promise<any> }} jsonStore - JSON file store bound to the data directory.
  * @param {{ broadcastEvent: (eventType: string, payload: object) => void }} adminEventStream - Broadcaster notified when a new post is created.
+ * @param {{ broadcastEvent: (eventType: string, payload: object) => void }} postLikeEventStream - Social live-updates registry; reused here to push the new post to every open social tab, over the same connection likes already use.
  * @param {{ broadcastNotificationChanged: (userId: string, shell: string, notification: object) => void }} [notificationInboxEventStream] - Broadcaster for notification inbox rows.
  * @returns {import("express").Router} Router with the /posts routes.
  */
-function createPostRouter(jsonStore, adminEventStream, notificationInboxEventStream) {
+function createPostRouter(jsonStore, adminEventStream, postLikeEventStream, notificationInboxEventStream) {
   const router = express.Router();
 
   router.get("/posts", async (request, response) => {
@@ -140,6 +142,7 @@ function createPostRouter(jsonStore, adminEventStream, notificationInboxEventStr
       };
 
       adminEventStream.broadcastEvent("post_created", postWithAuthor);
+      postLikeEventStream.broadcastEvent(POST_CREATED_EVENT_NAME, postWithAuthor);
 
       if (notificationInboxEventStream) {
         await recordPostCreatedNotifications({

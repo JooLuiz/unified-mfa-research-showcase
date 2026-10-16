@@ -26,10 +26,12 @@ import {
   subscribeToRenderRequests,
 } from "./events/eventBus";
 import { navigate } from "./utils/navigate";
+import { isSinglePostPath } from "./utils/singlePostRoute";
+import { addPostIfMissing } from "./utils/postsState";
 import { createHeaderApp, createFooterApp } from "./utils/mountActions";
 import { mountNotificationCenter } from "./notifications/notificationCenter";
 import { publishNotification } from "./notifications/notificationAdapter";
-import { subscribeToPostLikesChanged } from "@shared/post-like-events";
+import { subscribeToPostLikesChanged, subscribeToPostCreated } from "@shared/post-like-events";
 import {
   startNotificationInboxLiveEvents,
   stopNotificationInboxLiveEvents,
@@ -82,7 +84,7 @@ function activeOnExactPath(targetPath) {
 
 function activeOnSinglePostPath() {
   return function activeWhen(currentLocation) {
-    return currentLocation.pathname.startsWith("/posts/") && currentLocation.pathname !== "/posts";
+    return isSinglePostPath(currentLocation.pathname);
   };
 }
 
@@ -189,6 +191,7 @@ subscribeToNewInboxNotifications((notification) => {
     title: notification.title,
     message: notification.message,
     link: notification.link,
+    notificationId: notification.id,
   });
 });
 
@@ -236,6 +239,17 @@ subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes, likerId, liked 
       likerId === appState.currentUser?.id ? liked : post.likedByCurrentUser;
     return { ...post, likes, likedByCurrentUser };
   });
+});
+
+// The single place that inserts a newly created post into appState.posts. This subscription is
+// registered before any page can mount, so it always runs before a page-level subscriber to the
+// same push (feedPage.js, postsPage.js) — those only re-render from this already-updated array
+// instead of inserting again, which would duplicate the post. addPostIfMissing is required (not
+// a raw prepend) because the server broadcasts this push to every open tab including the post's
+// own author, whose tab may have already inserted it optimistically from the HTTP response in
+// src/commands/postCommands.js.
+subscribeToPostCreated(MOCK_API_BASE_URL, (newPost) => {
+  addPostIfMissing(appState, { ...newPost, likedByCurrentUser: false });
 });
 
 function applyInitialAuthGuard() {
