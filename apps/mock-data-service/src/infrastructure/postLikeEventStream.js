@@ -1,16 +1,21 @@
 /**
- * Broadcasts live post-like events over every open social Server-Sent Events connection.
- * Role: Owns the in-memory set of open social SSE responses and writes `community.post-likes-changed`
- *   events to all of them. Guests and signed-in viewers connect to this stream the same way,
- *   since the like count itself is public information.
+ * Broadcasts live social events over every open social Server-Sent Events connection.
+ * Role: Owns the in-memory set of open social SSE responses and writes events to all of them.
+ *   Started out carrying only `community.post-likes-changed`; `src/routes/postRoutes.js` now
+ *   reuses this same registry (and the one open connection per tab) to push
+ *   `community.post-created` too, instead of opening a second SSE connection. Guests and
+ *   signed-in viewers connect to this stream the same way, since both likes and new posts are
+ *   public information.
  * Not in this file: Route handling, authentication, or the toggle rule (src/domain/postLikes.js).
  * Key dependencies: None (pure Node `http.ServerResponse` writes).
  * See also: src/routes/postLikeRoutes.js (registers clients, broadcasts on toggle);
- *   src/infrastructure/adminEventStream.js (the admin side reuses that existing broadcaster
- *   for the same event, rather than a second registry).
+ *   src/routes/postRoutes.js (broadcasts on create); src/infrastructure/adminEventStream.js
+ *   (the admin side reuses that existing broadcaster for the same events, rather than a
+ *   second registry — the same idiom this file now follows for the social side).
  */
 
 const POST_LIKES_CHANGED_EVENT_NAME = "community.post-likes-changed";
+const POST_CREATED_EVENT_NAME = "community.post-created";
 
 /**
  * Creates a post-like event stream broadcaster.
@@ -36,6 +41,23 @@ function createPostLikeEventStream() {
   }
 
   /**
+   * Writes one event to every currently connected social client. Shared by every event type
+   * this stream carries (post-likes-changed, post-created, ...) so they all travel over the
+   * same open connection per tab.
+   *
+   * @param {string} eventType - SSE event name (e.g. "community.post-created").
+   * @param {object} payload - JSON-serializable event payload.
+   * @returns {void}
+   * @sideEffects Writes to every open social SSE response.
+   */
+  function broadcastEvent(eventType, payload) {
+    const serializedMessage = `event: ${eventType}\ndata: ${JSON.stringify(payload)}\n\n`;
+    for (const clientResponse of connectedSocialClients) {
+      clientResponse.write(serializedMessage);
+    }
+  }
+
+  /**
    * Writes a post-like change to every currently connected social client.
    *
    * @param {{ postId: string, likes: number, ownerId: string, likerName: string, liked: boolean }} payload - Event payload.
@@ -43,13 +65,14 @@ function createPostLikeEventStream() {
    * @sideEffects Writes to every open social SSE response.
    */
   function broadcastLikesChanged(payload) {
-    const serializedMessage = `event: ${POST_LIKES_CHANGED_EVENT_NAME}\ndata: ${JSON.stringify(payload)}\n\n`;
-    for (const clientResponse of connectedSocialClients) {
-      clientResponse.write(serializedMessage);
-    }
+    broadcastEvent(POST_LIKES_CHANGED_EVENT_NAME, payload);
   }
 
-  return { registerClient, broadcastLikesChanged };
+  return { registerClient, broadcastEvent, broadcastLikesChanged };
 }
 
-module.exports = { POST_LIKES_CHANGED_EVENT_NAME, createPostLikeEventStream };
+module.exports = {
+  POST_LIKES_CHANGED_EVENT_NAME,
+  POST_CREATED_EVENT_NAME,
+  createPostLikeEventStream,
+};

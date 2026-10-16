@@ -55,8 +55,13 @@ app.get("/health", (_request, response) => {
 app.use("/api", createCatalogRouter(jsonStore));
 app.use("/api", createAuthRouter(jsonStore));
 app.use("/api", createUserRouter(jsonStore));
-app.use("/api", createPostRouter(jsonStore, adminEventStream, notificationInboxEventStream));
+// createPostLikeRouter is mounted before createPostRouter: it owns the literal GET /posts/stream
+// path, and createPostRouter's GET /posts/:postId would otherwise shadow it (postId = "stream"),
+// returning a 404 instead of ever reaching the SSE handler. createPostLikeRouter's own
+// POST /posts/:postId/like is a different method, so every other GET /posts/:id request still
+// falls through to createPostRouter correctly.
 app.use("/api", createPostLikeRouter(jsonStore, postLikeEventStream, adminEventStream, notificationInboxEventStream));
+app.use("/api", createPostRouter(jsonStore, adminEventStream, postLikeEventStream, notificationInboxEventStream));
 app.use("/api", createFaqRouter(jsonStore));
 app.use("/api", createOrderStatusRouter(jsonStore, orderEventStream, stockEventStream, notificationInboxEventStream));
 app.use("/api", createOrderRouter(jsonStore, adminEventStream, cartEventStream, stockEventStream, notificationInboxEventStream));

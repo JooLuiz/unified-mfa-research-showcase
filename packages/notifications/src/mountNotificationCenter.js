@@ -12,7 +12,7 @@ const DEFAULT_DURATION_MS = 5000;
  * Mounts the notification center in a persistent shell-level container.
  *
  * @param {HTMLElement} containerElement - Element that owns the rendered toast queue.
- * @param {{ subscribeToNotifications: (listener: (notification: object) => void) => () => void, onOpenLink?: (notification: { link?: string }) => void }} notificationBus - Bus that delivers notification requests, plus an optional click handler for toasts that carry a link.
+ * @param {{ subscribeToNotifications: (listener: (notification: object) => void) => () => void, onOpenLink?: (notification: { link?: string, notificationId?: string }) => void }} notificationBus - Bus that delivers notification requests, plus an optional click handler for toasts that carry a link. When the toast was raised from a persisted inbox row, `notification.notificationId` is also present so the host can mark it read.
  * @returns {() => void} Function that clears pending timers, subscriptions, and rendered toasts.
  * @sideEffects Subscribes to notification events and mutates the supplied container.
  */

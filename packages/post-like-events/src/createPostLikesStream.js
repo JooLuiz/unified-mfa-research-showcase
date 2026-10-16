@@ -1,15 +1,21 @@
 /**
- * One EventSource per tab for post-like changes.
- * Role: Opens the public, guest-friendly community.post-likes-changed stream immediately and
- *   keeps it open with reconnect-with-backoff for the life of the tab, fanning events out to
- *   listeners that may have registered before the socket opened.
+ * One EventSource per tab for post-like changes and new-post pushes.
+ * Role: Opens the public, guest-friendly social stream immediately and keeps it open with
+ *   reconnect-with-backoff for the life of the tab, fanning out both
+ *   community.post-likes-changed and community.post-created events to whichever listeners
+ *   registered for each (even if they registered before the socket opened).
  * Not in this file: The module-level singleton that lets many callers share one connection
  *   (src/postLikeEventsClient.js) or the toggle write (src/togglePostLike.js).
  * Key dependencies: EventSource; src/postLikeEventsContracts.js.
- * See also: apps/mock-data-service/src/routes/postLikeRoutes.js (GET /posts/stream).
+ * See also: apps/mock-data-service/src/routes/postLikeRoutes.js (GET /posts/stream);
+ *   apps/mock-data-service/src/routes/postRoutes.js (broadcasts post-created on the same stream).
  */
 
-import { POST_LIKES_CHANGED_EVENT_NAME, POST_LIKES_STREAM_PATH } from "./postLikeEventsContracts.js";
+import {
+  POST_LIKES_CHANGED_EVENT_NAME,
+  POST_CREATED_EVENT_NAME,
+  POST_LIKES_STREAM_PATH,
+} from "./postLikeEventsContracts.js";
 
 const INITIAL_RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
@@ -20,11 +26,13 @@ const MAX_RECONNECT_DELAY_MS = 30_000;
  * information, and guests must receive it the same way signed-in viewers do.
  *
  * @param {{ apiBaseUrl: string }} streamInput - Mock API base URL.
- * @returns {{ subscribe: (listener: (event: { postId: string, likes: number, ownerId: string, likerId: string, likerName: string, liked: boolean }) => void) => () => void }} Stream controls.
+ * @returns {{ subscribe: (listener: (event: { postId: string, likes: number, ownerId: string, likerId: string, likerName: string, liked: boolean }) => void) => () => void, subscribeToPostCreated: (listener: (post: object) => void) => () => void }} Stream controls.
  */
 function createPostLikesStream({ apiBaseUrl }) {
   /** @type {Set<(event: { postId: string, likes: number, ownerId: string, likerId: string, likerName: string, liked: boolean }) => void>} */
   const listeners = new Set();
+  /** @type {Set<(post: object) => void>} */
+  const postCreatedListeners = new Set();
   let activeEventSource = null;
   let reconnectTimeoutId = null;
   let reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
@@ -39,6 +47,11 @@ function createPostLikesStream({ apiBaseUrl }) {
   function dispatchLikesChanged(messageEvent) {
     const likesChangedEvent = JSON.parse(messageEvent.data);
     listeners.forEach((listener) => listener(likesChangedEvent));
+  }
+
+  function dispatchPostCreated(messageEvent) {
+    const createdPost = JSON.parse(messageEvent.data);
+    postCreatedListeners.forEach((listener) => listener(createdPost));
   }
 
   function scheduleReconnect() {
@@ -56,6 +69,7 @@ function createPostLikesStream({ apiBaseUrl }) {
     }
     activeEventSource = new EventSource(`${apiBaseUrl}${POST_LIKES_STREAM_PATH}`);
     activeEventSource.addEventListener(POST_LIKES_CHANGED_EVENT_NAME, dispatchLikesChanged);
+    activeEventSource.addEventListener(POST_CREATED_EVENT_NAME, dispatchPostCreated);
     activeEventSource.onerror = () => {
       if (activeEventSource) {
         activeEventSource.close();
@@ -79,9 +93,23 @@ function createPostLikesStream({ apiBaseUrl }) {
     };
   }
 
+  /**
+   * Subscribes to every community.post-created push on this same connection.
+   *
+   * @param {(post: object) => void} listener - Called with the newly created post (same shape
+   *   GET /posts items have, author attached, likes 0).
+   * @returns {() => void} Unsubscribe function.
+   */
+  function subscribeToPostCreated(listener) {
+    postCreatedListeners.add(listener);
+    return function unsubscribe() {
+      postCreatedListeners.delete(listener);
+    };
+  }
+
   openStream();
 
-  return { subscribe };
+  return { subscribe, subscribeToPostCreated };
 }
 
 export { createPostLikesStream };

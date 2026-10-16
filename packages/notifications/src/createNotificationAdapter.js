@@ -22,7 +22,7 @@ function createNotificationAdapter({ publish, subscribe }) {
   /**
    * Publishes a page-local notification request.
    *
-   * @param {{ type: "success" | "error", title: string, message: string, durationMs?: number, link?: string }} notification - Toast content, display behavior, and optional detail path.
+   * @param {{ type: "success" | "error", title: string, message: string, durationMs?: number, link?: string, notificationId?: string }} notification - Toast content, display behavior, optional detail path, and optional id of the persisted inbox row this toast was raised from.
    * @returns {void}
    * @sideEffects Publishes a notifications.requested message.
    */
@@ -38,7 +38,7 @@ function createNotificationAdapter({ publish, subscribe }) {
   /**
    * Subscribes to page-local notification requests.
    *
-   * @param {(notification: { type: "success" | "error", title: string, message: string, durationMs?: number, link?: string }) => void} listener - Handler invoked for each notification.
+   * @param {(notification: { type: "success" | "error", title: string, message: string, durationMs?: number, link?: string, notificationId?: string }) => void} listener - Handler invoked for each notification.
    * @returns {() => void} Function that removes the subscription.
    * @sideEffects Registers a transport subscription.
    */
