@@ -28,6 +28,8 @@ const STOCK_RELEASE_EVENT = "release";
 const COMMUNITY_LIKES_TOPIC = "community-likes";
 const COMMUNITY_LIKES_WATCHING_EVENT = "watching";
 const COMMUNITY_LIKES_TOGGLE_EVENT = "toggle";
+const COMMUNITY_POSTS_TOPIC = "community-posts";
+const COMMUNITY_POSTS_WATCHING_EVENT = "watching";
 const NOTIFICATION_INBOX_TOPIC = "notification-inbox";
 const NOTIFICATION_INBOX_WATCHING_EVENT = "watching";
 const NOTIFICATION_INBOX_MARK_READ_EVENT = "mark-read";
@@ -77,11 +79,21 @@ function createAuthorizeMessage() {
       message.topic === COMMUNITY_LIKES_TOPIC &&
       message.event === COMMUNITY_LIKES_WATCHING_EVENT;
 
+    const isCommunityPostsWatchingMessage =
+      message.topic === COMMUNITY_POSTS_TOPIC &&
+      message.event === COMMUNITY_POSTS_WATCHING_EVENT;
+
     if (credential?.kind === "guest") {
-      // Guests may watch stock and community likes (both public counts), reserve/release
-      // stock, and relay iframe-bridge messages, but never publish cart-sync — a guest hold
-      // lives in guestHolds.json, not a saved cart — or toggle a like, which requires an author.
-      return isIframeBridgeMessage || isStockMessage || isCommunityLikesWatchingMessage;
+      // Guests may watch stock, community likes, and community posts (all public), reserve/
+      // release stock, and relay iframe-bridge messages, but never publish cart-sync — a guest
+      // hold lives in guestHolds.json, not a saved cart — or toggle a like, which requires an
+      // author.
+      return (
+        isIframeBridgeMessage ||
+        isStockMessage ||
+        isCommunityLikesWatchingMessage ||
+        isCommunityPostsWatchingMessage
+      );
     }
 
     if (!credential?.userId) {
@@ -120,6 +132,7 @@ function createAuthorizeMessage() {
       isStockMessage ||
       isOrderStatusMessage ||
       isCommunityLikesMessage ||
+      isCommunityPostsWatchingMessage ||
       isNotificationInboxMessage ||
       (message.topic === EXPORT_TOPIC &&
         message.event === EXPORT_REQUESTED_EVENT) ||

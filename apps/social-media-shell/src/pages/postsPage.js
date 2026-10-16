@@ -1,7 +1,8 @@
 /**
  * Renders the community posts route.
  * Role: Composes the new-post entry point, grouped post feeds, and interleaved promotional
- *   banners, kept live by patching each mounted group whenever a like is toggled anywhere.
+ *   banners, kept live by patching each mounted group whenever a like is toggled anywhere, or
+ *   whenever anyone publishes a new post.
  * Not in this file: Post persistence (src/commands/postCommands.js), trending selection
  *   (src/pages/feedPage.js), or the toggle write itself (src/commands/postLikeCommands.js).
  * Key dependencies: Banner remotes publish promotion intents; social main handles ecommerce
@@ -18,6 +19,7 @@ import {
   subscribeToCommunityLikesChanged,
   applyLikesChangeToPosts,
 } from "../events/communityLikesLiveEvents";
+import { subscribeToPostCreated } from "../events/communityPostLiveEvents";
 
 const POSTS_PER_BANNER_GROUP = 4;
 
@@ -97,7 +99,7 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
     }
   };
 
-  // Tracked so the live-likes subscription below can re-render each group from the latest
+  // Tracked so the live subscriptions below can re-render each group from the latest
   // appState.posts without re-slicing the whole page.
   const mountedPostGroups = [];
 
@@ -141,6 +143,23 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
     );
   }
 
+  // Re-renders every mounted group from the latest appState.posts, re-slicing each one with the
+  // same groupStartIndex/groupEndIndex it was first mounted with. Shared by the likes-changed
+  // and post-created subscriptions below so both live pushes stay in sync. Groups and banners
+  // themselves are not recomputed, so when a post is prepended elsewhere (main.js) the trailing
+  // post of the last rendered group can be temporarily hidden until the next real navigation or
+  // refresh recomputes groups and banners from scratch.
+  const renderAllGroups = () => {
+    mountedPostGroups.forEach(({ groupStartIndex, groupEndIndex, groupTitle, groupFeedHandle }) => {
+      groupFeedHandle.update({
+        title: groupTitle,
+        posts: appState.posts.slice(groupStartIndex, groupEndIndex),
+        currentUserId: appState.currentUser?.id,
+        onPostClick: handlePostClick,
+      });
+    });
+  };
+
   activeCleanupFunctions.push(
     subscribeToCommunityLikesChanged((likesChangedPayload) => {
       appState.posts = applyLikesChangeToPosts(
@@ -148,16 +167,13 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
         appState.currentUser?.id,
         likesChangedPayload,
       );
-      mountedPostGroups.forEach(({ groupStartIndex, groupEndIndex, groupTitle, groupFeedHandle }) => {
-        groupFeedHandle.update({
-          title: groupTitle,
-          posts: appState.posts.slice(groupStartIndex, groupEndIndex),
-          currentUserId: appState.currentUser?.id,
-          onPostClick: handlePostClick,
-        });
-      });
+      renderAllGroups();
     }),
   );
+
+  // appState.posts was already prepended by the global subscription in main.js; this one only
+  // re-renders (see renderAllGroups' doc comment for the accepted trade-off).
+  activeCleanupFunctions.push(subscribeToPostCreated(renderAllGroups));
 }
 
 export { renderPostsPage };

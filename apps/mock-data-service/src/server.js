@@ -16,6 +16,7 @@ const { createCartEventStream } = require("./infrastructure/cartEventStream");
 const { createStockEventStream } = require("./infrastructure/stockEventStream");
 const { createOrderEventStream } = require("./infrastructure/orderEventStream");
 const { createPostLikeEventStream } = require("./infrastructure/postLikeEventStream");
+const { createCommunityPostEventStream } = require("./infrastructure/communityPostEventStream");
 const { createSessionEventStream } = require("./event-mesh/sessionEventStream");
 const { createNotificationInboxEventStream } = require("./infrastructure/notificationInboxEventStream");
 const { createCatalogRouter } = require("./routes/catalogRoutes");
@@ -53,6 +54,7 @@ const cartEventStream = createCartEventStream();
 const stockEventStream = createStockEventStream();
 const orderEventStream = createOrderEventStream();
 const postLikeEventStream = createPostLikeEventStream();
+const communityPostEventStream = createCommunityPostEventStream();
 const sessionEventStream = createSessionEventStream();
 const notificationInboxEventStream = createNotificationInboxEventStream();
 
@@ -79,6 +81,7 @@ async function configureAndStartEventGateway() {
       cartEventStream.forgetClient(clientId);
       orderEventStream.forgetClient(clientId);
       postLikeEventStream.forgetClient(clientId);
+      communityPostEventStream.forgetClient(clientId);
       notificationInboxEventStream.forgetClient(clientId);
       const guestSessionId = stockEventStream.takeGuestSessionForClient(clientId);
       stockEventStream.forgetClient(clientId);
@@ -100,6 +103,7 @@ async function configureAndStartEventGateway() {
   await stockEventStream.registerWithGateway();
   await orderEventStream.registerWithGateway();
   await postLikeEventStream.registerWithGateway();
+  await communityPostEventStream.registerWithGateway();
   await sessionEventStream.registerWithGateway();
   await notificationInboxEventStream.registerWithGateway();
   await registerExportRequestHandler(jsonStore);
@@ -137,7 +141,10 @@ app.get("/health", (_request, response) => {
 app.use("/api", createCatalogRouter(jsonStore));
 app.use("/api", createAuthRouter(jsonStore));
 app.use("/api", createUserRouter(jsonStore));
-app.use("/api", createPostRouter(jsonStore, adminEventStream, notificationInboxEventStream));
+app.use(
+  "/api",
+  createPostRouter(jsonStore, adminEventStream, communityPostEventStream, notificationInboxEventStream),
+);
 app.use("/api", createFaqRouter(jsonStore));
 app.use("/api", createOrderRouter(jsonStore));
 app.use("/api", createCartRouter(jsonStore));

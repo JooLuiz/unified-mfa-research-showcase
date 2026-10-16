@@ -19,7 +19,7 @@ const DEFAULT_DURATION_MS = 5000;
  *
  * @param {HTMLElement} containerElement - Element that owns the rendered toast queue.
  * @param {{ subscribe: (topic: string, event: string, callback: (message: object) => void) => void }} mesh - Mesh client for notification display subscription.
- * @param {{ onOpenLink?: (notification: { link?: string }) => void }} [options] - Optional click handler for toasts that carry a link.
+ * @param {{ onOpenLink?: (notification: { link?: string, notificationId?: string }) => void }} [options] - Optional click handler for toasts that carry a link. When the toast was raised from a persisted inbox row, `notification.notificationId` is also present so the host can mark it read.
  * @returns {{ unmount: () => void, ensureNotificationDisplayListeners: () => void, resetNotificationDisplayListeners: () => void }} Lifecycle API for toast display and mesh subscription management.
  * @sideEffects Mutates the supplied container; registers mesh listeners when ensure is called.
  */

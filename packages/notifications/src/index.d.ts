@@ -7,6 +7,7 @@ export interface ShellNotification {
   message: string;
   durationMs?: number;
   link?: string;
+  notificationId?: string;
 }
 
 export function isValidNotificationPayload(notificationPayload: unknown): notificationPayload is ShellNotification;
