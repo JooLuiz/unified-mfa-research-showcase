@@ -5,3 +5,9 @@ coverage/
 *.log
 apps/**/dist/
 temp-plans/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/e2e/.snapshot/

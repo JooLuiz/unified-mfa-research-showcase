@@ -25,7 +25,12 @@ import { publishNotification } from "../notifications/notificationAdapter";
  * @returns {Promise<void>}
  * @sideEffects On login success stores the session, notifies, and navigates.
  */
-async function renderLoginPage(appState, pageMount, modules, activeCleanupFunctions) {
+async function renderLoginPage(
+  appState,
+  pageMount,
+  modules,
+  activeCleanupFunctions,
+) {
   if (isAuthenticated(appState)) {
     const redirectPath = consumePostLoginRedirect() || "/";
     navigate(redirectPath);
@@ -46,7 +51,7 @@ async function renderLoginPage(appState, pageMount, modules, activeCleanupFuncti
           title: "Signed in",
           message: `Welcome back, ${user.fullName || user.username}.`,
         });
-        const targetPath = redirectAfterLogin || "/account";
+        const targetPath = redirectAfterLogin || "/";
         navigate(targetPath);
       },
       onCancel: () => navigate("/"),
