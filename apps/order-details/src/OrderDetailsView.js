@@ -18,10 +18,28 @@ import {
 } from "./order-details-renderers";
 
 /**
+ * Copy for a failed order fetch. A 403 stays on this page; the shell owns login redirects.
+ *
+ * @param {Error & { status?: number }} loadError - Failure from fetchOrderById, with the HTTP status attached.
+ * @returns {string} Message for the empty order-details state.
+ */
+function orderLoadFailureMessage(loadError) {
+  if (loadError?.status === 403) {
+    return "This order belongs to another account.";
+  }
+
+  if (loadError?.status === 404) {
+    return "Order not found.";
+  }
+
+  return "Unable to load order details.";
+}
+
+/**
  * Order details component.
  * Props: order (object, optional pre-loaded order), apiBaseUrl (string), actor ("customer" or "admin"),
  *   authToken (string, optional override), onStatusRejected (function, called for either actor's rejected status write).
- * Renders: loading, missing-id, error, not-found, or the full order details section.
+ * Renders: loading, missing-id, forbidden, not-found, generic error, or the full order details section.
  */
 const OrderDetailsComponent = {
   props: {
@@ -47,8 +65,14 @@ const OrderDetailsComponent = {
     },
   },
   setup(props) {
-    const { orderData, isLoading, loadError, isMissingOrderId, actor, applyStatusAction } =
-      useOrderDetails(props);
+    const {
+      orderData,
+      isLoading,
+      loadError,
+      isMissingOrderId,
+      actor,
+      applyStatusAction,
+    } = useOrderDetails(props);
 
     return () => {
       if (isLoading.value && !orderData.value) {
@@ -71,7 +95,7 @@ const OrderDetailsComponent = {
         return h(
           "section",
           { class: "order-details-empty" },
-          "Unable to load order details.",
+          orderLoadFailureMessage(loadError.value),
         );
       }
 

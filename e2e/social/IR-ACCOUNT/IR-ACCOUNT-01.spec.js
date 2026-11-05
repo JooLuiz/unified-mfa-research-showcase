@@ -12,6 +12,12 @@ test.beforeEach(() => {
   restoreMockData();
 });
 
+function headerAccountButton(page, name) {
+  return page
+    .locator("#headerMount")
+    .getByRole("button", { name, exact: true });
+}
+
 async function signInThroughTheForm(page) {
   await page.getByLabel("Username or email").fill(USERNAME);
   await page.getByLabel("Password").fill("password123");
@@ -24,7 +30,7 @@ test("saving profile and address keeps the user after signing in again", async (
 }) => {
   await page.goto("/login", { waitUntil: "domcontentloaded" });
   await signInThroughTheForm(page);
-  await page.getByRole("button", { name: "Carla Nguyen" }).click();
+  await headerAccountButton(page, "Carla Nguyen").click();
   await expect(page.getByRole("heading", { name: "My Account" })).toBeVisible();
   await page.getByLabel("Full name").fill(NEW_NAME);
   await page.getByLabel("Gender").selectOption(NEW_GENDER);
@@ -32,7 +38,7 @@ test("saving profile and address keeps the user after signing in again", async (
   await expect(
     page.getByRole("status").filter({ hasText: "Profile updated" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: NEW_NAME })).toBeVisible();
+  await expect(headerAccountButton(page, NEW_NAME)).toBeVisible();
   await page.getByLabel("Street").fill(NEW_STREET);
   await page.getByRole("button", { name: "Save address" }).click();
   await expect(
@@ -41,8 +47,8 @@ test("saving profile and address keeps the user after signing in again", async (
   await page.getByRole("button", { name: "Log out" }).click();
   await page.getByRole("button", { name: "Log in" }).click();
   await signInThroughTheForm(page);
-  await expect(page.getByRole("button", { name: NEW_NAME })).toBeVisible();
-  await page.getByRole("button", { name: NEW_NAME }).click();
+  await expect(headerAccountButton(page, NEW_NAME)).toBeVisible();
+  await headerAccountButton(page, NEW_NAME).click();
   await expect(page.getByLabel("Full name")).toHaveValue(NEW_NAME);
   await expect(page.getByLabel("Gender")).toHaveValue(NEW_GENDER);
   await expect(page.getByLabel("Street")).toHaveValue(NEW_STREET);

@@ -45,7 +45,9 @@ test("opening the cart draws each saved line in checkout", async ({ page }) => {
   ).toBeVisible();
   await page.locator(".cart-action").click();
   await expect(page).toHaveURL(/\/checkout$/);
-  await expect(page.getByRole("heading", { name: "Checkout" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Checkout", exact: true }),
+  ).toBeVisible();
   await expect(page.locator('iframe[title="Checkout Empty"]')).toHaveCount(0);
   const keyboard = page.locator("article.checkout-item", {
     hasText: "Mechanical Wireless Keyboard",

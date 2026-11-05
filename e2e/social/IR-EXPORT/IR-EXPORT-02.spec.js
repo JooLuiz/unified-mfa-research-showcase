@@ -105,12 +105,18 @@ async function publishAlicePost(request) {
   return createdPost.id;
 }
 
+function headerAccountButton(page, name) {
+  return page
+    .locator("#headerMount")
+    .getByRole("button", { name, exact: true });
+}
+
 async function openCarlaAccount(page) {
   await page.goto("/login", { waitUntil: "domcontentloaded" });
   await page.getByLabel("Username or email").fill("carla.nguyen");
   await page.getByLabel("Password").fill("password123");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.getByRole("button", { name: "Carla Nguyen" }).click();
+  await headerAccountButton(page, "Carla Nguyen").click();
   await expect(page).toHaveURL(/\/account$/);
   await expect(page.getByRole("heading", { name: "My Posts" })).toBeVisible();
   await expect(page.getByText("7 posts shared.")).toBeVisible();

@@ -1,10 +1,13 @@
-const { test, expect } = require("@playwright/test");
+const { test, expect, chromium } = require("@playwright/test");
 const { restoreMockData } = require("../../support/reset-mock-data");
 
 // IR-CART-07 - Cart changes sync across tabs and browsers. An order empties that cart.
 // Logout clears the open screens. Items added before login join the saved cart.
+// Each extra signed-in store page runs in its own Chromium process so Chrome's
+// 6-connection cap to the mock API is not exhausted (a signed-in tab already holds 5 SSE slots).
 
 const API_BASE_URL = "http://localhost:4000/api";
+const STORE_ORIGIN = "http://localhost:4200";
 const KEYBOARD = "Mechanical Wireless Keyboard";
 
 test.beforeEach(() => {
@@ -37,11 +40,7 @@ async function installSession(context, session) {
 }
 
 async function openSignedInHome(page) {
-  const cartStream = page.waitForResponse(
-    (response) => response.url().includes("/api/cart/events") && response.ok(),
-  );
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await cartStream;
+  await page.goto(`${STORE_ORIGIN}/`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "Bruno Silva" })).toBeVisible();
 }
 
@@ -65,54 +64,67 @@ async function raiseKeyboardQuantity(page) {
 }
 
 test("a checkout change shows on another tab", async ({ page, context }) => {
+  test.setTimeout(180_000);
   const bruno = await loginAs(page, "bruno.silva");
   await saveCart(page, bruno.token, [{ productId: "p-03", quantity: 1 }]);
   await installSession(context, bruno);
-  const otherTab = await context.newPage();
-  await openSignedInHome(otherTab);
-  await openSignedInHome(page);
-  await expectCart(otherTab, "1", "Total: $120.50");
-  await raiseKeyboardQuantity(page);
-  await expectCart(otherTab, "2", "Total: $241.00");
+  const otherBrowser = await chromium.launch({ headless: false });
+  try {
+    const otherContext = await otherBrowser.newContext();
+    await installSession(otherContext, bruno);
+    const otherTab = await otherContext.newPage();
+    await openSignedInHome(otherTab);
+    await openSignedInHome(page);
+    await expectCart(otherTab, "1", "Total: $120.50");
+    await raiseKeyboardQuantity(page);
+    await expectCart(otherTab, "2", "Total: $241.00");
+  } finally {
+    await otherBrowser.close();
+  }
 });
 
 test("a checkout change shows in another browser", async ({
   page,
   context,
-  browser,
 }) => {
+  test.setTimeout(180_000);
   const bruno = await loginAs(page, "bruno.silva");
   await saveCart(page, bruno.token, [{ productId: "p-03", quantity: 1 }]);
   await installSession(context, bruno);
-  const otherContext = await browser.newContext();
+  const otherBrowser = await chromium.launch({ headless: false });
   try {
+    const otherContext = await otherBrowser.newContext();
     await installSession(otherContext, bruno);
-    const otherBrowser = await otherContext.newPage();
-    await openSignedInHome(otherBrowser);
+    const otherBrowserPage = await otherContext.newPage();
+    await openSignedInHome(otherBrowserPage);
     await openSignedInHome(page);
-    await expectCart(otherBrowser, "1", "Total: $120.50");
+    await expectCart(otherBrowserPage, "1", "Total: $120.50");
     await raiseKeyboardQuantity(page);
-    await expectCart(otherBrowser, "2", "Total: $241.00");
+    await expectCart(otherBrowserPage, "2", "Total: $241.00");
   } finally {
-    await otherContext.close();
+    await otherBrowser.close();
   }
 });
 
 test("placing an order empties the cart on the other screens", async ({
   page,
   context,
-  browser,
 }) => {
+  test.setTimeout(180_000);
   const bruno = await loginAs(page, "bruno.silva");
   await saveCart(page, bruno.token, [{ productId: "p-03", quantity: 1 }]);
   await installSession(context, bruno);
-  const otherTab = await context.newPage();
-  const otherContext = await browser.newContext();
+  const tabBrowser = await chromium.launch({ headless: false });
+  const otherBrowser = await chromium.launch({ headless: false });
   try {
+    const tabContext = await tabBrowser.newContext();
+    await installSession(tabContext, bruno);
+    const otherTab = await tabContext.newPage();
+    const otherContext = await otherBrowser.newContext();
     await installSession(otherContext, bruno);
-    const otherBrowser = await otherContext.newPage();
+    const otherBrowserPage = await otherContext.newPage();
     await openSignedInHome(otherTab);
-    await openSignedInHome(otherBrowser);
+    await openSignedInHome(otherBrowserPage);
     await openSignedInHome(page);
     await page.goto("/checkout", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Place Order" }).click();
@@ -121,16 +133,31 @@ test("placing an order empties the cart on the other screens", async ({
     ).toBeVisible();
     await expectCart(page, "0", "Total: $0.00");
     await expectCart(otherTab, "0", "Total: $0.00");
-    await expectCart(otherBrowser, "0", "Total: $0.00");
+    await expectCart(otherBrowserPage, "0", "Total: $0.00");
   } finally {
-    await otherContext.close();
+    await tabBrowser.close();
+    await otherBrowser.close();
   }
 });
 
 test("logging out clears the other open tab", async ({ page, context }) => {
+  test.setTimeout(180_000);
   const bruno = await loginAs(page, "bruno.silva");
   await saveCart(page, bruno.token, [{ productId: "p-03", quantity: 1 }]);
   await installSession(context, bruno);
+  // Logout reaches the other tab through a localStorage event, so both tabs share
+  // this browser. A signed-in tab holds 5 SSE connections and Chrome allows 6 to the
+  // mock API, so the second tab never finishes loading. The streams are not what
+  // carries logout, so this test replaces EventSource with a silent stub.
+  await context.addInitScript(() => {
+    class SilentEventSource {
+      constructor() {}
+      close() {}
+      addEventListener() {}
+      removeEventListener() {}
+    }
+    window.EventSource = SilentEventSource;
+  });
   const otherTab = await context.newPage();
   await openSignedInHome(otherTab);
   await openSignedInHome(page);
@@ -146,18 +173,17 @@ test("logging out clears the other open tab", async ({ page, context }) => {
   await expectCart(page, "1", "Total: $120.50");
 });
 
-test("items added before login join the saved cart", async ({
-  page,
-  browser,
-}) => {
+test("items added before login join the saved cart", async ({ page }) => {
+  test.setTimeout(180_000);
   const bruno = await loginAs(page, "bruno.silva");
   await saveCart(page, bruno.token, [{ productId: "p-04", quantity: 1 }]);
-  const otherContext = await browser.newContext();
+  const otherBrowser = await chromium.launch({ headless: false });
   try {
+    const otherContext = await otherBrowser.newContext();
     await installSession(otherContext, bruno);
-    const otherBrowser = await otherContext.newPage();
-    await openSignedInHome(otherBrowser);
-    await expectCart(otherBrowser, "1", "Total: $55.00");
+    const otherBrowserPage = await otherContext.newPage();
+    await openSignedInHome(otherBrowserPage);
+    await expectCart(otherBrowserPage, "1", "Total: $55.00");
     await page.goto("/product?productId=p-03", {
       waitUntil: "domcontentloaded",
     });
@@ -169,10 +195,10 @@ test("items added before login join the saved cart", async ({
     await page.getByRole("button", { name: "Log in" }).click();
     await signInThroughTheForm(page);
     await expectCart(page, "2", "Total: $175.50");
-    await expectCart(otherBrowser, "2", "Total: $175.50");
+    await expectCart(otherBrowserPage, "2", "Total: $175.50");
     await page.reload({ waitUntil: "domcontentloaded" });
     await expectCart(page, "2", "Total: $175.50");
   } finally {
-    await otherContext.close();
+    await otherBrowser.close();
   }
 });

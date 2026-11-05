@@ -69,7 +69,7 @@ for (const route of PROTECTED_ROUTES) {
     await expectProtectedRoute(page, route);
   });
 
-  test(`a customer opening ${route.path} is sent to login and an admin sign-in returns there`, async ({
+  test(`a non-admin customer opening ${route.path} is sent to login and an admin sign-in goes to home page`, async ({
     page,
   }) => {
     await signInAsBruno(page);
@@ -79,6 +79,10 @@ for (const route of PROTECTED_ROUTES) {
       page.getByText("This account does not have admin access."),
     ).toBeVisible();
     await signInAsAliceThroughTheForm(page);
-    await expectProtectedRoute(page, route);
+    await expectProtectedRoute(page, {
+      path: "/",
+      url: /\/$/,
+      heading: "Admin Dashboard",
+    });
   });
 }

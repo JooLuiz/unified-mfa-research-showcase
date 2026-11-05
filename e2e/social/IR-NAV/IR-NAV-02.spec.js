@@ -17,6 +17,12 @@ async function expectRoute(page, url, headingName) {
   await expect(page.getByRole("heading", { name: headingName })).toBeVisible();
 }
 
+function headerAccountButton(page, name) {
+  return page
+    .locator("#headerMount")
+    .getByRole("button", { name, exact: true });
+}
+
 test.beforeEach(() => {
   restoreMockData();
 });
@@ -42,7 +48,7 @@ test("signed-in header links change the social media route", async ({
   await page.getByRole("button", { name: "Posts" }).click();
   await expectRoute(page, /\/posts$/, "Community Posts");
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "Bruno Silva" }).click();
+  await headerAccountButton(page, "Bruno Silva").click();
   await expectRoute(page, /\/account$/, "My Account");
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Notifications" }).click();

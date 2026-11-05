@@ -56,7 +56,7 @@ test("the bell and inbox load the saved admin notice", async ({ page }) => {
   await expect(bell.locator(".notification-bell-badge")).toHaveText("1");
   await bell.click();
   const dropdown = page.locator(".notification-dropdown");
-  await expect(dropdown.getByText("New post")).toBeVisible();
+  await expect(dropdown.getByText("New post", { exact: true })).toBeVisible();
   await expect(dropdown.getByText(SAVED_MESSAGE)).toBeVisible();
   await expect(dropdown.getByText(STORE_MESSAGE)).toHaveCount(0);
   await dropdown.getByRole("button", { name: "See all" }).click();
@@ -65,7 +65,7 @@ test("the bell and inbox load the saved admin notice", async ({ page }) => {
   await expect(
     inbox.getByRole("heading", { name: "Notification Inbox" }),
   ).toBeVisible();
-  await expect(inbox.getByText("New post")).toBeVisible();
+  await expect(inbox.getByText("New post", { exact: true })).toBeVisible();
   await expect(inbox.getByText(SAVED_MESSAGE)).toBeVisible();
   await expect(inbox.getByText(STORE_MESSAGE)).toHaveCount(0);
 });

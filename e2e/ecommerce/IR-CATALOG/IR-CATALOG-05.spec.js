@@ -39,9 +39,9 @@ test("the product list keeps the last filters after a reload", async ({
   const restoredFilters = waitForSavedFilters(page);
   await page.reload({ waitUntil: "domcontentloaded" });
   await restoredFilters;
-  await expect(page.getByLabel("Search")).toHaveValue("lamp");
-  await expect(page.getByLabel("Min Price")).toHaveValue("40");
-  await expect(page.getByLabel("Max Price")).toHaveValue("50");
+  await expect(page.getByLabel("Search", { exact: true })).toHaveValue("lamp");
+  await expect(page.getByLabel("Min Price", { exact: true })).toHaveValue("40");
+  await expect(page.getByLabel("Max Price", { exact: true })).toHaveValue("50");
   await expect(page.getByRole("checkbox", { name: "Lighting" })).toBeChecked();
   await expect(page.getByText("Total Quantity: 1")).toBeVisible();
   await expect(

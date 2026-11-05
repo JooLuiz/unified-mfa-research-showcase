@@ -76,7 +76,7 @@ test("a new order arrives in the open inbox and raises a toast", async ({
   await expect(toast).toBeVisible();
   await expect(toast).toHaveAttribute("role", "status");
   await expect(toast.getByText(noticeMessage)).toBeVisible();
-  await expect(inbox.getByText(NOTICE_TITLE)).toBeVisible();
+  await expect(inbox.getByText(NOTICE_TITLE, { exact: true })).toBeVisible();
   await expect(inbox.getByText(noticeMessage)).toBeVisible();
   await expect(inbox.getByText("No notifications in your inbox.")).toHaveCount(
     0,

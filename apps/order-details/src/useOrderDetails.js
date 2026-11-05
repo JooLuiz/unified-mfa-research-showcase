@@ -59,9 +59,11 @@ async function fetchOrderById(apiBaseUrl, orderId, authToken, signal, buildOrder
     signal,
   });
   if (!response.ok) {
-    throw new Error(
+    const loadFailure = new Error(
       `fetchOrderById - request failed: ${response.status} ${response.statusText}`,
     );
+    loadFailure.status = response.status;
+    throw loadFailure;
   }
   return response.json();
 }

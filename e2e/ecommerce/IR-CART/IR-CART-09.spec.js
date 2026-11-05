@@ -65,7 +65,10 @@ test("confirming checkout saves the order and clears the saved cart", async ({
   await expect(
     page.getByRole("heading", { name: "Order Details" }),
   ).toBeVisible();
-  await expect(page.getByRole("cell", { name: KEYBOARD })).toBeVisible();
-  await expect(page.getByText("Total:")).toBeVisible();
-  await expect(page.getByText("$120.50").last()).toBeVisible();
+  const orderDetails = page.locator(".order-details-shell");
+  await expect(
+    orderDetails.getByRole("cell", { name: KEYBOARD }),
+  ).toBeVisible();
+  await expect(orderDetails.locator(".is-total")).toContainText("Total:");
+  await expect(orderDetails.locator(".is-total")).toContainText("$120.50");
 });

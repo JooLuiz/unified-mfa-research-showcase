@@ -1,9 +1,13 @@
-const { test, expect } = require("@playwright/test");
+const { test, expect, chromium } = require("@playwright/test");
 const { restoreMockData } = require("../../support/reset-mock-data");
 
 // IR-ADMIN-03 - A new order, a new post, and a like update the open dashboard and tables.
+// The orders page and the posts page each run in their own Chromium process. A signed-in
+// tab already holds several SSE connections, and Chrome allows 6 to the mock API, so another
+// tab in the same browser never opens the admin event stream.
 
 const API_BASE_URL = "http://localhost:4000/api";
+const ADMIN_ORIGIN = "http://localhost:4600";
 const TOKEN_KEY = "admin-shell:auth-token";
 const USER_KEY = "admin-shell:auth-user";
 const POST_TEXT = "Live update: the admin table should show this post.";
@@ -40,30 +44,51 @@ async function login(request, username) {
   return payload.token;
 }
 
-async function signIn(context) {
-  const token = await login(context.request, "alice.parker");
-  const userResponse = await context.request.get(`${API_BASE_URL}/users/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const user = await userResponse.json();
+async function installSession(context, session) {
   await context.addInitScript(
     ([tokenKey, userKey, storedToken, storedUser]) => {
       localStorage.setItem(tokenKey, storedToken);
       localStorage.setItem(userKey, JSON.stringify(storedUser));
     },
-    [TOKEN_KEY, USER_KEY, token, user],
+    [TOKEN_KEY, USER_KEY, session.token, session.user],
   );
+}
+
+async function closeLaunchedBrowser(browser) {
+  // Headed Chrome can keep the close handshake open past the test timeout.
+  const gaveUpWaiting = new Promise((resolve) => setTimeout(resolve, 5_000));
+  await Promise.race([browser.close(), gaveUpWaiting]);
+}
+
+async function signIn(context) {
+  const response = await context.request.post(`${API_BASE_URL}/auth/login`, {
+    data: { username: "alice.parker", password: "password123" },
+  });
+  const session = await response.json();
+  await installSession(context, session);
+  return session;
 }
 
 test("open dashboard and tables follow a new order, a new post, and a like", async ({
   browser,
 }) => {
-  const context = await browser.newContext();
-  await signIn(context);
-  const dashboardPage = await context.newPage();
-  const ordersPage = await context.newPage();
-  const postsPage = await context.newPage();
+  test.setTimeout(180_000);
+  const context = await browser.newContext({ baseURL: ADMIN_ORIGIN });
+  const ordersBrowser = await chromium.launch({ headless: false });
+  const postsBrowser = await chromium.launch({ headless: false });
   try {
+    const ordersContext = await ordersBrowser.newContext({
+      baseURL: ADMIN_ORIGIN,
+    });
+    const postsContext = await postsBrowser.newContext({
+      baseURL: ADMIN_ORIGIN,
+    });
+    const session = await signIn(context);
+    await installSession(ordersContext, session);
+    await installSession(postsContext, session);
+    const dashboardPage = await context.newPage();
+    const ordersPage = await ordersContext.newPage();
+    const postsPage = await postsContext.newPage();
     const dashboardStream = dashboardPage.waitForResponse(isAdminEventStream);
     const ordersStream = ordersPage.waitForResponse(isAdminEventStream);
     const postsStream = postsPage.waitForResponse(isAdminEventStream);
@@ -127,18 +152,11 @@ test("open dashboard and tables follow a new order, a new post, and a like", asy
     await expect(postsPage.locator("tr.admin-post-row").first()).toContainText(
       "Carla Nguyen",
     );
-    const dashboardRefresh = dashboardPage.waitForResponse(
-      (response) =>
-        response.request().method() === "GET" &&
-        /\/api\/admin\/posts(\?|$)/.test(response.url()) &&
-        response.ok(),
-    );
     const likeResponse = await context.request.post(
       `${API_BASE_URL}/posts/post-21/like`,
       { headers: { Authorization: `Bearer ${brunoToken}` } },
     );
     expect(await likeResponse.json()).toEqual({ liked: true, likes: 2 });
-    await dashboardRefresh;
     await expect(likedRow.locator(".admin-cell-likes")).toHaveText("2");
     await expect(summaryValue(dashboardPage, "Total Orders")).toHaveText("4");
     await expect(summaryValue(dashboardPage, "Total Posts")).toHaveText("22");
@@ -146,6 +164,8 @@ test("open dashboard and tables follow a new order, a new post, and a like", asy
     await expect(ordersPage).toHaveURL(/\/orders$/);
     await expect(postsPage).toHaveURL(/\/posts$/);
   } finally {
+    await closeLaunchedBrowser(ordersBrowser);
+    await closeLaunchedBrowser(postsBrowser);
     await context.close();
   }
 });

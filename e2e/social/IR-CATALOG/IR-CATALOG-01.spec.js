@@ -15,7 +15,9 @@ test("the social network shows posts, a showcase, its products, and a banner", a
     page.getByRole("heading", { name: "Trending Posts" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Just set up my new minimalist desk lamp from MFE Lab."),
+    page.getByText(
+      "Sunday reset: clean desk, empty inbox, full water bottle. Ready for the week.",
+    ),
   ).toBeVisible();
   const showcase = page.locator("angular-product-showcase");
   await expect(

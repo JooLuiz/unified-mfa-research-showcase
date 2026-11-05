@@ -7,6 +7,12 @@ test.beforeEach(() => {
   restoreMockData();
 });
 
+function headerAccountButton(page, name) {
+  return page
+    .locator("#headerMount")
+    .getByRole("button", { name, exact: true });
+}
+
 test("log out clears the session and returns to the feed", async ({ page }) => {
   await page.goto("/login", { waitUntil: "domcontentloaded" });
   await page.getByLabel("Username or email").fill("bruno.silva");
@@ -20,9 +26,7 @@ test("log out clears the session and returns to the feed", async ({ page }) => {
     page.getByRole("heading", { name: "Trending Posts" }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Log in" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Bruno Silva" })).toHaveCount(
-    0,
-  );
+  await expect(headerAccountButton(page, "Bruno Silva")).toHaveCount(0);
   const storedSession = await page.evaluate(() => ({
     token: localStorage.getItem("social-media-shell:auth-token"),
     user: localStorage.getItem("social-media-shell:auth-user"),

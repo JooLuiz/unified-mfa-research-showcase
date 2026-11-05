@@ -1,9 +1,13 @@
-const { test, expect } = require("@playwright/test");
+const { test, expect, chromium } = require("@playwright/test");
 const { restoreMockData } = require("../../support/reset-mock-data");
 
 // IR-NOTIFY-04 - Marking one social notice, then the rest, updates the other social tab.
+// The follower tab runs in its own Chromium process. A signed-in tab already holds
+// several SSE connections, and Chrome allows 6 to the mock API, so a second tab in
+// the same browser never opens the notification stream.
 
 const API_BASE_URL = "http://localhost:4000/api";
+const SOCIAL_ORIGIN = "http://localhost:4500";
 const TOKEN_KEY = "social-media-shell:auth-token";
 const USER_KEY = "social-media-shell:auth-user";
 
@@ -19,19 +23,23 @@ async function login(request, username) {
   return payload.token;
 }
 
-async function signIn(context) {
-  const response = await context.request.post(`${API_BASE_URL}/auth/login`, {
-    data: { username: "carla.nguyen", password: "password123" },
-  });
-  const payload = await response.json();
+async function installSession(context, session) {
   await context.addInitScript(
     ([tokenKey, userKey, token, user]) => {
       localStorage.setItem(tokenKey, token);
       localStorage.setItem(userKey, JSON.stringify(user));
     },
-    [TOKEN_KEY, USER_KEY, payload.token, payload.user],
+    [TOKEN_KEY, USER_KEY, session.token, session.user],
   );
-  return payload.token;
+}
+
+async function signIn(context) {
+  const response = await context.request.post(`${API_BASE_URL}/auth/login`, {
+    data: { username: "carla.nguyen", password: "password123" },
+  });
+  const session = await response.json();
+  await installSession(context, session);
+  return session;
 }
 
 function isSocialInboxStream(response) {
@@ -49,7 +57,9 @@ function markReadButtons(targetPage) {
 }
 
 test("both social tabs follow mark-one and mark-all", async ({ browser }) => {
-  const context = await browser.newContext();
+  test.setTimeout(180_000);
+  const context = await browser.newContext({ baseURL: SOCIAL_ORIGIN });
+  const otherBrowser = await chromium.launch({ headless: false });
   try {
     const brunoToken = await login(context.request, "bruno.silva");
     for (const postId of ["post-03", "post-06"]) {
@@ -77,9 +87,12 @@ test("both social tabs follow mark-one and mark-all", async ({ browser }) => {
       },
     });
     expect(orderResponse.status()).toBe(201);
-    const token = await signIn(context);
+    const otherContext = await otherBrowser.newContext({ baseURL: SOCIAL_ORIGIN });
+    const session = await signIn(context);
+    await installSession(otherContext, session);
+    const token = session.token;
     const actingPage = await context.newPage();
-    const otherPage = await context.newPage();
+    const otherPage = await otherContext.newPage();
     const followedTabWrites = [];
     otherPage.on("request", (request) => {
       if (
@@ -160,6 +173,7 @@ test("both social tabs follow mark-one and mark-all", async ({ browser }) => {
     ]);
     expect(storeInbox.items[0].read).toBe(false);
   } finally {
+    await otherBrowser.close();
     await context.close();
   }
 });
