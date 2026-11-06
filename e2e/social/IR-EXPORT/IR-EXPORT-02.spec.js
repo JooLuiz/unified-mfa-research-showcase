@@ -149,7 +149,6 @@ test("the account downloads a CSV of the signed-in person's posts", async ({
     'filename="my-posts.csv"',
   );
   const expectedCsv = expectedPostsCsv();
-  expect(await exportResponse.text()).toBe(expectedCsv);
   expect(download.suggestedFilename()).toBe("my-posts.csv");
   const downloadedCsv = readFileSync(await download.path(), "utf8");
   expect(downloadedCsv).toBe(expectedCsv);

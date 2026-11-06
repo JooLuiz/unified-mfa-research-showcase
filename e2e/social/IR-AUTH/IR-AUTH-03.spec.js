@@ -9,6 +9,12 @@ test.beforeEach(() => {
   restoreMockData();
 });
 
+function headerAccountButton(page, name) {
+  return page
+    .locator("#headerMount")
+    .getByRole("button", { name, exact: true });
+}
+
 test("reopening the account page shows the profile fetched from the server", async ({
   page,
 }) => {
@@ -34,7 +40,5 @@ test("reopening the account page shows the profile fetched from the server", asy
   await page.reload({ waitUntil: "domcontentloaded" });
   expect((await profileRequest).ok()).toBeTruthy();
   await expect(page.getByLabel("Full name")).toHaveValue("Bruno Navarro");
-  await expect(
-    page.getByRole("button", { name: "Bruno Navarro" }),
-  ).toBeVisible();
+  await expect(headerAccountButton(page, "Bruno Navarro")).toBeVisible();
 });
