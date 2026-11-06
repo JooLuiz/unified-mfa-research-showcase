@@ -1,6 +1,6 @@
 import "./styles.css";
 
-import { readStoredPLPFilters } from "./utils/PLPFilterActions";
+import { readStoredPLPFilters, applyPlpFiltersFromLocation } from "./utils/PLPFilterActions";
 import {
   readStoredAuth,
   clearAuthSession,
@@ -303,6 +303,7 @@ async function bootstrap() {
   }
 
   readStoredPLPFilters(appState);
+  applyPlpFiltersFromLocation(appState);
   readStoredAuth(appState);
   await loadMockData(appState);
   startCartTabSync(appState);
