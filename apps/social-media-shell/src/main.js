@@ -257,6 +257,18 @@ function reloadActivePageApp() {
   reloadMountedAppsByName(PAGE_APP_NAMES);
 }
 
+let lastRenderedUserId = null;
+
+/**
+ * Records the user id that the current page apps were mounted for.
+ *
+ * @returns {void}
+ * @sideEffects Updates lastRenderedUserId from appState.
+ */
+function rememberRenderedSession() {
+  lastRenderedUserId = appState.authToken ? appState.currentUser?.id ?? null : null;
+}
+
 function registerLayoutApplications(modules) {
   registerApplication({
     name: HEADER_APP_NAME,
@@ -472,6 +484,11 @@ const shellEventHandlers = {
         message: `Welcome back, ${welcomeName}.`,
       });
     }
+    // The header rewrites its own state from this event. Reloading would only
+    // tear down a mounted page's action buttons mid-click.
+    if (appState.authToken && appState.currentUser?.id === lastRenderedUserId) {
+      return;
+    }
     // Re-fetches posts so `likedByCurrentUser` reflects the session that is active now (a tab
     // that first loaded as a guest, or as a different user, must not keep a stale like flag).
     loadMockData(appState)
@@ -481,6 +498,7 @@ const shellEventHandlers = {
       })
       .finally(() => {
         reloadActivePageApp();
+        rememberRenderedSession();
       });
   },
   onLogoutRequested: () => {
@@ -563,6 +581,7 @@ async function bootstrap() {
   registerLayoutApplications(modules);
   registerPageApplications();
   start();
+  rememberRenderedSession();
 }
 
 bootstrap().catch((bootstrapError) => {

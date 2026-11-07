@@ -28,7 +28,7 @@ import {
   resetNotificationDisplayListeners,
 } from "./notifications/notificationCenter";
 import { publishLogoutRequested } from "./events/eventBus";
-import { mountHeaderAndFooter } from "./utils/mountActions";
+import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
 import { navigate } from "./utils/navigate";
 import { publishNotification } from "./notifications/notificationAdapter";
 import { MOCK_API_BASE_URL } from "./utils/constants";
@@ -81,6 +81,22 @@ const appState = {
 
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
+let activeHeaderElement = null;
+let lastRenderedUserId = null;
+
+/**
+ * Records the user id painted by a render that is still the latest one.
+ *
+ * @param {number} renderId - Id captured at the start of that renderApp call.
+ * @returns {void}
+ * @sideEffects Updates lastRenderedUserId. A superseded render leaves the marker unchanged.
+ */
+function rememberRenderedSession(renderId) {
+  if (renderId !== currentRenderId) {
+    return;
+  }
+  lastRenderedUserId = appState.authToken ? appState.currentUser?.id ?? null : null;
+}
 
 subscribeToNewInboxNotifications((notification) => {
   publishNotification({
@@ -228,6 +244,7 @@ function clearCurrentPage() {
     }
   });
   activeCleanupFunctions = [];
+  activeHeaderElement = null;
 }
 
 function baseLayout() {
@@ -288,81 +305,85 @@ async function renderApp() {
   }
 
   const layoutMounts = baseLayout();
-  mountHeaderAndFooter(appState, layoutMounts, modules, activeCleanupFunctions);
+  activeHeaderElement = mountHeaderAndFooter(appState, layoutMounts, modules, activeCleanupFunctions);
 
-  if (pathName === "/login") {
-    await renderLoginPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-    return;
-  }
-
-  if (pathName === "/") {
-    await renderDashboardPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
-    return;
-  }
-
-  if (pathName === "/orders") {
-    await renderOrdersPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
-    return;
-  }
-
-  if (pathName.startsWith("/order-details/")) {
-    await renderOrderDetailsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-    return;
-  }
-
-  if (pathName.startsWith("/posts/")) {
-    const postId = pathName.slice("/posts/".length);
-    if (modules.mountSinglePost) {
-      const cleanupSinglePost = modules.mountSinglePost(layoutMounts.pageMount, {
-        postId,
-        apiBaseUrl: MOCK_API_BASE_URL,
-        authToken: appState.authToken,
-        currentUserId: appState.currentUser?.id,
-        navigate,
-        canLike: false,
-      });
-      if (typeof cleanupSinglePost === "function") {
-        activeCleanupFunctions.push(cleanupSinglePost);
-      }
+  try {
+    if (pathName === "/login") {
+      await renderLoginPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
+      return;
     }
-    return;
-  }
 
-  if (pathName === "/notifications") {
-    if (modules.mountNotificationsPage) {
-      const cleanupNotifications = modules.mountNotificationsPage(layoutMounts.pageMount, {
-        navigate,
-      });
-      if (typeof cleanupNotifications === "function") {
-        activeCleanupFunctions.push(cleanupNotifications);
-      }
+    if (pathName === "/") {
+      await renderDashboardPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
+      return;
     }
-    return;
-  }
 
-  if (pathName === "/posts") {
-    await renderPostsPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
-    return;
-  }
+    if (pathName === "/orders") {
+      await renderOrdersPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
+      return;
+    }
 
-  if (pathName === "/account") {
-    await renderAccountPage(
-      appState,
-      layoutMounts.pageMount,
-      activeCleanupFunctions,
-    );
-    return;
-  }
+    if (pathName.startsWith("/order-details/")) {
+      await renderOrderDetailsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
+      return;
+    }
 
-  layoutMounts.pageMount.innerHTML = `
-    <section class="notice-box">
-      <h2>Page not found</h2>
-      <button id="goHomeButton">Go Home</button>
-    </section>
-  `;
-  layoutMounts.pageMount
-    .querySelector("#goHomeButton")
-    .addEventListener("click", () => navigate("/"));
+    if (pathName.startsWith("/posts/")) {
+      const postId = pathName.slice("/posts/".length);
+      if (modules.mountSinglePost) {
+        const cleanupSinglePost = modules.mountSinglePost(layoutMounts.pageMount, {
+          postId,
+          apiBaseUrl: MOCK_API_BASE_URL,
+          authToken: appState.authToken,
+          currentUserId: appState.currentUser?.id,
+          navigate,
+          canLike: false,
+        });
+        if (typeof cleanupSinglePost === "function") {
+          activeCleanupFunctions.push(cleanupSinglePost);
+        }
+      }
+      return;
+    }
+
+    if (pathName === "/notifications") {
+      if (modules.mountNotificationsPage) {
+        const cleanupNotifications = modules.mountNotificationsPage(layoutMounts.pageMount, {
+          navigate,
+        });
+        if (typeof cleanupNotifications === "function") {
+          activeCleanupFunctions.push(cleanupNotifications);
+        }
+      }
+      return;
+    }
+
+    if (pathName === "/posts") {
+      await renderPostsPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
+      return;
+    }
+
+    if (pathName === "/account") {
+      await renderAccountPage(
+        appState,
+        layoutMounts.pageMount,
+        activeCleanupFunctions,
+      );
+      return;
+    }
+
+    layoutMounts.pageMount.innerHTML = `
+      <section class="notice-box">
+        <h2>Page not found</h2>
+        <button id="goHomeButton">Go Home</button>
+      </section>
+    `;
+    layoutMounts.pageMount
+      .querySelector("#goHomeButton")
+      .addEventListener("click", () => navigate("/"));
+  } finally {
+    rememberRenderedSession(renderId);
+  }
 }
 
 const accountIntentHandlers = {
@@ -396,6 +417,14 @@ const shellEventHandlers = {
         title: "Signed in",
         message: `Welcome back, ${welcomeName}.`,
       });
+    }
+    // A same user who is still an admin is a profile refresh. A role change
+    // falls through so renderApp runs the admin gate again.
+    const sameSignedInUser =
+      appState.authToken && appState.currentUser?.id === lastRenderedUserId;
+    if (sameSignedInUser && isAdminAuthenticated(appState)) {
+      updateHeaderState(appState, activeHeaderElement);
+      return;
     }
     void renderApp();
   },
