@@ -1,0 +1,2 @@
+// IR-NAV-06 - Opening a product on the social feed goes to that product in the ecommerce shell.
+// These are social-media shell specific tests, so there's no e-commerce shell tests for this scenario.

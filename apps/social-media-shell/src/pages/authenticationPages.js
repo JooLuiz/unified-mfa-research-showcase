@@ -26,9 +26,14 @@ import {
  * @param {Array<() => void>} activeCleanupFunctions - Cleanup registry for the current route.
  * @returns {Promise<void>}
  */
-async function renderLoginPage(appState, pageMount, modules, activeCleanupFunctions) {
+async function renderLoginPage(
+  appState,
+  pageMount,
+  modules,
+  activeCleanupFunctions,
+) {
   if (isAuthenticated(appState)) {
-    const redirectPath = consumePostLoginRedirect() || "/account";
+    const redirectPath = consumePostLoginRedirect() || "/";
     navigate(redirectPath);
     return;
   }
@@ -42,7 +47,7 @@ async function renderLoginPage(appState, pageMount, modules, activeCleanupFuncti
       redirectAfterLogin: consumePostLoginRedirect(),
       authTokenStorageKey: AUTH_TOKEN_STORAGE_KEY,
       authUserStorageKey: AUTH_USER_STORAGE_KEY,
-      defaultRedirectPath: "/account",
+      defaultRedirectPath: "/",
     }),
   );
 }

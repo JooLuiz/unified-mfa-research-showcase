@@ -101,6 +101,14 @@ This starts every domain MFE, the mock data service and all three shells in para
 npm run build
 ```
 
+### Run unit tests
+
+```bash
+npm test
+```
+
+Runs the shared domain and package contract tests with Node's test runner and prints a coverage table. The report covers `apps/mock-data-service/src/domain` and `packages/*/src`. Transport adapters are outside that set, so the same command is the check on every comparison branch.
+
 ## Main Routes
 
 E-commerce shell (`http://localhost:4200`):

@@ -37,7 +37,10 @@
     "dev": "concurrently \"npm run dev --workspace apps/mock-data-service\" \"npm run dev --workspace apps/global-layout/header\" \"npm run dev --workspace apps/global-layout/footer\" \"npm run dev --workspace apps/product-card\" \"npm run dev --workspace apps/product-showcase\" \"npm run dev --workspace apps/product-list-page\" \"npm run dev --workspace apps/product-details-page\" \"npm run dev --workspace apps/banners\" \"npm run dev --workspace apps/formulary\" \"npm run dev --workspace apps/checkout\" \"npm run dev --workspace apps/account\" \"npm run dev --workspace apps/login\" \"npm run dev --workspace apps/social-media-posts\" \"npm run dev --workspace apps/order-details\" \"npm run dev --workspace apps/notifications\" \"npm run dev --workspace apps/single-post\" \"npm run dev --workspace apps/ecommerce-shell\" \"npm run dev --workspace apps/social-media-shell\" \"npm run dev --workspace apps/admin-shell\"",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "start": "npm run dev"
+    "test": "node --test --experimental-test-coverage --test-reporter=spec --test-coverage-exclude=**/*.test.js --test-coverage-include=apps/mock-data-service/src/domain/**/*.js --test-coverage-include=apps/mock-data-service/src/csv/**/*.js --test-coverage-include=packages/*/src/**/*.js apps/mock-data-service/src/domain/**/*.test.js apps/mock-data-service/src/csv/**/*.test.js apps/mock-data-service/src/infrastructure/**/*.test.js packages/*/src/**/*.test.js",
+    "start": "npm run dev",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui"
   },
   "keywords": [
     "micro-frontend",
@@ -50,6 +53,7 @@
   "license": "MIT",
   "description": "Unified micro frontend research showcase organized by business domains.",
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "concurrently": "^9.1.2"
   },
   "dependencies": {

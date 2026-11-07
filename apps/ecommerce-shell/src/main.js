@@ -1,6 +1,11 @@
 import "./styles.css";
 
-import { readStoredPLPFilters, storePLPFilters, normalizePlpFilters } from "./utils/PLPFilterActions";
+import {
+  readStoredPLPFilters,
+  storePLPFilters,
+  normalizePlpFilters,
+  applyPlpFiltersFromLocation,
+} from "./utils/PLPFilterActions";
 import {
   readStoredAuth,
   clearAuthSession,
@@ -653,6 +658,7 @@ async function bootstrap() {
   }
 
   readStoredPLPFilters(appState);
+  applyPlpFiltersFromLocation(appState);
   readStoredAuth(appState);
   startCartTabSync(appState);
   if (appState.authToken) {
