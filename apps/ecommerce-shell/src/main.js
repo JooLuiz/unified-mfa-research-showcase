@@ -75,6 +75,7 @@ const appState = {
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
 let activeHeaderElement = null;
+let lastRenderedUserId = null;
 const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
 
 startStockGating(appState);
@@ -108,6 +109,20 @@ function baseLayout() {
     pageMount: appRoot.querySelector("#pageMount"),
     footerMount: appRoot.querySelector("#footerMount"),
   };
+}
+
+/**
+ * Records the user id painted by a render that is still the latest one.
+ *
+ * @param {number} renderId - Id captured at the start of that renderApp call.
+ * @returns {void}
+ * @sideEffects Updates lastRenderedUserId. A superseded render leaves the marker unchanged.
+ */
+function rememberRenderedSession(renderId) {
+  if (renderId !== currentRenderId) {
+    return;
+  }
+  lastRenderedUserId = appState.authToken ? appState.currentUser?.id ?? null : null;
 }
 
 function isOrderDetailsPath(pathName) {
@@ -163,72 +178,76 @@ async function renderApp() {
     activeCleanupFunctions,
   );
 
-  if (pathName === "/") {
-    await renderHomePage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-    return;
-  }
-
-  if (pathName === "/products") {
-    await renderProductListPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-    return;
-  }
-
-  if (pathName === "/promotions") {
-    await renderPromotionsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-    return;
-  }
-
-  if (pathName === "/product") {
-    await renderProductDetailsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-    return;
-  }
-
-  if (pathName === "/checkout") {
-    await renderCheckoutPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-    return;
-  }
-
-  if (pathName === "/order-placed") {
-    await renderOrderPlacedPage(layoutMounts.pageMount);
-    return;
-  }
-
-  if (pathName === "/login") {
-    await renderLoginPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-    return;
-  }
-
-  if (pathName === "/account") {
-    await renderAccountPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
-    return;
-  }
-
-  if (isOrderDetailsPath(pathName)) {
-    await renderOrderDetailsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-    return;
-  }
-
-  if (pathName === "/notifications") {
-    if (modules.mountNotificationsPage) {
-      const cleanupNotifications = modules.mountNotificationsPage(layoutMounts.pageMount, {
-        navigate,
-      });
-      if (typeof cleanupNotifications === "function") {
-        activeCleanupFunctions.push(cleanupNotifications);
-      }
+  try {
+    if (pathName === "/") {
+      await renderHomePage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
+      return;
     }
-    return;
-  }
 
-  layoutMounts.pageMount.innerHTML = `
-    <section class="notice-box">
-      <h2>Page not found</h2>
-      <button id="goHomeButton">Go Home</button>
-    </section>
-  `;
-  layoutMounts.pageMount
-    .querySelector("#goHomeButton")
-    .addEventListener("click", () => navigate("/"));
+    if (pathName === "/products") {
+      await renderProductListPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
+      return;
+    }
+
+    if (pathName === "/promotions") {
+      await renderPromotionsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
+      return;
+    }
+
+    if (pathName === "/product") {
+      await renderProductDetailsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
+      return;
+    }
+
+    if (pathName === "/checkout") {
+      await renderCheckoutPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
+      return;
+    }
+
+    if (pathName === "/order-placed") {
+      await renderOrderPlacedPage(layoutMounts.pageMount);
+      return;
+    }
+
+    if (pathName === "/login") {
+      await renderLoginPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
+      return;
+    }
+
+    if (pathName === "/account") {
+      await renderAccountPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
+      return;
+    }
+
+    if (isOrderDetailsPath(pathName)) {
+      await renderOrderDetailsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
+      return;
+    }
+
+    if (pathName === "/notifications") {
+      if (modules.mountNotificationsPage) {
+        const cleanupNotifications = modules.mountNotificationsPage(layoutMounts.pageMount, {
+          navigate,
+        });
+        if (typeof cleanupNotifications === "function") {
+          activeCleanupFunctions.push(cleanupNotifications);
+        }
+      }
+      return;
+    }
+
+    layoutMounts.pageMount.innerHTML = `
+      <section class="notice-box">
+        <h2>Page not found</h2>
+        <button id="goHomeButton">Go Home</button>
+      </section>
+    `;
+    layoutMounts.pageMount
+      .querySelector("#goHomeButton")
+      .addEventListener("click", () => navigate("/"));
+  } finally {
+    rememberRenderedSession(renderId);
+  }
 }
 
 subscribeToCartChanges(() => {
@@ -286,6 +305,13 @@ subscribeToSessionRevoked(() => {
 });
 
 subscribeToAuthSessionChanges(() => {
+  // setAuthSession and refreshCurrentUserFromApi write appState before this event.
+  // A matching user id is a profile refresh: remounting would replace the account
+  // page's action buttons while a click is in flight.
+  if (appState.authToken && appState.currentUser?.id === lastRenderedUserId) {
+    updateHeaderState(appState, activeHeaderElement);
+    return;
+  }
   syncCartLiveEventsWithSession();
   renderApp();
 });
