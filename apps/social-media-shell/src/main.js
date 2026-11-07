@@ -100,6 +100,18 @@ function reloadActivePageApp() {
   reloadMountedAppsByName(PAGE_APP_NAMES);
 }
 
+let lastRenderedUserId = null;
+
+/**
+ * Records the user id that the current page apps were mounted for.
+ *
+ * @returns {void}
+ * @sideEffects Updates lastRenderedUserId from appState.
+ */
+function rememberRenderedSession() {
+  lastRenderedUserId = appState.authToken ? appState.currentUser?.id ?? null : null;
+}
+
 function registerLayoutApplications(modules) {
   registerApplication({
     name: HEADER_APP_NAME,
@@ -196,6 +208,12 @@ subscribeToNewInboxNotifications((notification) => {
 });
 
 subscribeToAuthSessionChanges(() => {
+  // setAuthSession and refreshCurrentUserFromApi write appState before this event.
+  // A matching user id is a profile refresh. The header updates itself from this same
+  // event, so reloading the page apps would only tear down buttons mid-click.
+  if (appState.authToken && appState.currentUser?.id === lastRenderedUserId) {
+    return;
+  }
   // Re-fetches posts so `likedByCurrentUser` reflects the session that is active now (a tab
   // that first loaded as a guest, or as a different user, must not keep a stale like flag).
   syncNotificationInboxWithSession();
@@ -206,6 +224,7 @@ subscribeToAuthSessionChanges(() => {
     })
     .finally(() => {
       reloadActivePageApp();
+      rememberRenderedSession();
     });
 });
 
@@ -279,6 +298,7 @@ async function bootstrap() {
   registerLayoutApplications(modules);
   registerPageApplications();
   start();
+  rememberRenderedSession();
 }
 
 bootstrap().catch((bootstrapError) => {

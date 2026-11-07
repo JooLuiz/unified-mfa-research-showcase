@@ -5,9 +5,8 @@ import {
 import { isAuthenticated } from "./authActions";
 import { navigate } from "./navigate";
 
-function mountHeaderAndFooter(appState, layoutMounts, modules, activeCleanupFunctions) {
-  const headerElement = document.createElement("react-header-mfe");
-  headerElement.state = {
+function buildHeaderState(appState) {
+  return {
     appType: "admin",
     totalPrice: 0,
     itemCount: 0,
@@ -15,6 +14,11 @@ function mountHeaderAndFooter(appState, layoutMounts, modules, activeCleanupFunc
     currentUserName:
       appState.currentUser?.fullName || appState.currentUser?.username || "",
   };
+}
+
+function mountHeaderAndFooter(appState, layoutMounts, modules, activeCleanupFunctions) {
+  const headerElement = document.createElement("react-header-mfe");
+  headerElement.state = buildHeaderState(appState);
   subscribeToHeaderEvents(headerElement, {
     onNavigate: (event) => {
       navigate(event.detail.path);
@@ -45,6 +49,23 @@ function mountHeaderAndFooter(appState, layoutMounts, modules, activeCleanupFunc
     "© 2026 Benchmark Micro Frontend Environment. All rights reserved.",
   );
   layoutMounts.footerMount.appendChild(footerElement);
+
+  return headerElement;
 }
 
-export { mountHeaderAndFooter };
+/**
+ * Refreshes the mounted header from the current session without remounting the page.
+ *
+ * @param {object} appState - Shell state holding the authenticated user.
+ * @param {HTMLElement | null} headerElement - Header custom element from the last render.
+ * @returns {void}
+ * @sideEffects Replaces headerElement.state when the element is still mounted.
+ */
+function updateHeaderState(appState, headerElement) {
+  if (!headerElement) {
+    return;
+  }
+  headerElement.state = buildHeaderState(appState);
+}
+
+export { mountHeaderAndFooter, updateHeaderState };
