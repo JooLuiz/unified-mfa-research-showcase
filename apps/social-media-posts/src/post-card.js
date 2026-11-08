@@ -36,6 +36,8 @@ function formatPostDate(isoDateString) {
 /**
  * Renders one post card.
  *
+ * The author control shows the full name and exposes the username as its accessible name.
+ *
  * @param {{ post: object, layoutMode?: string, onPostClick?: (post: object) => void, currentUserId?: string }} cardProps - Post data, an optional card click handler, and the viewer's id (absent for a guest).
  */
 function PostCardView({ post, layoutMode, onPostClick, currentUserId }) {
@@ -97,6 +99,7 @@ function PostCardView({ post, layoutMode, onPostClick, currentUserId }) {
           <button
             type="button"
             className="post-card-author-button"
+            aria-label={author.username || author.id || "author"}
             onClick={handleAuthorClick}
           >
             <strong>{authorDisplayName}</strong>
