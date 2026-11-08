@@ -1,22 +1,18 @@
 const { test, expect } = require("@playwright/test");
 const { restoreMockData } = require("../../support/reset-mock-data");
+const { seedLike } = require("../../support/seed-like");
+const { seedNotification } = require("../../support/seed-notification");
+const { seedOrder } = require("../../support/seed-order");
 
 // IR-NOTIFY-02 - The social bell and inbox load the notices already saved for this user.
 
 const API_BASE_URL = "http://localhost:4000/api";
+const SEEDED_ORDER_ID = "order-e2e-placed";
 const SAVED_MESSAGE = "Bruno Silva liked your post.";
 
 test.beforeEach(() => {
   restoreMockData();
 });
-
-async function login(request, username) {
-  const response = await request.post(`${API_BASE_URL}/auth/login`, {
-    data: { username, password: "password123" },
-  });
-  const payload = await response.json();
-  return payload.token;
-}
 
 async function signInThroughTheForm(page) {
   await page.getByLabel("Username or email").fill("carla.nguyen");
@@ -26,30 +22,37 @@ async function signInThroughTheForm(page) {
 }
 
 test("the bell and inbox load the saved social notice", async ({ page }) => {
-  const brunoToken = await login(page.request, "bruno.silva");
-  const likeResponse = await page.request.post(
-    `${API_BASE_URL}/posts/post-03/like`,
-    { headers: { Authorization: `Bearer ${brunoToken}` } },
-  );
-  expect(likeResponse.ok()).toBeTruthy();
-  const carlaToken = await login(page.request, "carla.nguyen");
-  const orderResponse = await page.request.post(`${API_BASE_URL}/orders`, {
-    headers: { Authorization: `Bearer ${carlaToken}` },
-    data: {
-      items: [
-        {
-          productId: "p-04",
-          name: "Precision Optical Mouse",
-          quantity: 1,
-          unitPrice: 55,
-        },
-      ],
-      subtotal: 55,
-      discountAmount: 0,
-      totalAmount: 55,
-    },
+  await seedLike("bruno.silva", "post-03");
+  await seedNotification({
+    username: "carla.nguyen",
+    shell: "social",
+    type: "Post liked",
+    title: "Post liked",
+    message: SAVED_MESSAGE,
+    link: "/posts/post-03",
   });
-  expect(orderResponse.status()).toBe(201);
+  await seedOrder("carla.nguyen", {
+    id: SEEDED_ORDER_ID,
+    items: [
+      {
+        productId: "p-04",
+        name: "Precision Optical Mouse",
+        quantity: 1,
+        unitPrice: 55,
+      },
+    ],
+    subtotal: 55,
+    discountAmount: 0,
+    totalAmount: 55,
+  });
+  await seedNotification({
+    username: "carla.nguyen",
+    shell: "ecommerce",
+    type: "Order placed",
+    title: "Order placed",
+    message: `Your order #${SEEDED_ORDER_ID} has been placed successfully.`,
+    link: `/order-details/${SEEDED_ORDER_ID}`,
+  });
   await page.goto("/login", { waitUntil: "domcontentloaded" });
   const inboxResponse = page.waitForResponse(
     (response) =>

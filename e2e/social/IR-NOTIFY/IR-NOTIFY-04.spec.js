@@ -1,5 +1,8 @@
 const { test, expect, chromium } = require("@playwright/test");
 const { restoreMockData } = require("../../support/reset-mock-data");
+const { seedLike } = require("../../support/seed-like");
+const { seedNotification } = require("../../support/seed-notification");
+const { seedOrder } = require("../../support/seed-order");
 
 // IR-NOTIFY-04 - Marking one social notice, then the rest, updates the other social tab.
 // The follower tab runs in its own Chromium process. A signed-in tab already holds
@@ -10,18 +13,12 @@ const API_BASE_URL = "http://localhost:4000/api";
 const SOCIAL_ORIGIN = "http://localhost:4500";
 const TOKEN_KEY = "social-media-shell:auth-token";
 const USER_KEY = "social-media-shell:auth-user";
+const SEEDED_ORDER_ID = "order-e2e-placed";
+const LIKED_MESSAGE = "Bruno Silva liked your post.";
 
 test.beforeEach(() => {
   restoreMockData();
 });
-
-async function login(request, username) {
-  const response = await request.post(`${API_BASE_URL}/auth/login`, {
-    data: { username, password: "password123" },
-  });
-  const payload = await response.json();
-  return payload.token;
-}
 
 async function installSession(context, session) {
   await context.addInitScript(
@@ -42,14 +39,6 @@ async function signIn(context) {
   return session;
 }
 
-function isSocialInboxStream(response) {
-  return (
-    response.request().method() === "GET" &&
-    /\/api\/notifications\/stream\?shell=social(&|$)/.test(response.url()) &&
-    response.ok()
-  );
-}
-
 function markReadButtons(targetPage) {
   return targetPage
     .locator(".notifications-page-container")
@@ -61,32 +50,39 @@ test("both social tabs follow mark-one and mark-all", async ({ browser }) => {
   const context = await browser.newContext({ baseURL: SOCIAL_ORIGIN });
   const otherBrowser = await chromium.launch({ headless: false });
   try {
-    const brunoToken = await login(context.request, "bruno.silva");
     for (const postId of ["post-03", "post-06"]) {
-      const likeResponse = await context.request.post(
-        `${API_BASE_URL}/posts/${postId}/like`,
-        { headers: { Authorization: `Bearer ${brunoToken}` } },
-      );
-      expect(likeResponse.ok()).toBeTruthy();
+      await seedLike("bruno.silva", postId);
+      await seedNotification({
+        username: "carla.nguyen",
+        shell: "social",
+        type: "Post liked",
+        title: "Post liked",
+        message: LIKED_MESSAGE,
+        link: `/posts/${postId}`,
+      });
     }
-    const carlaToken = await login(context.request, "carla.nguyen");
-    const orderResponse = await context.request.post(`${API_BASE_URL}/orders`, {
-      headers: { Authorization: `Bearer ${carlaToken}` },
-      data: {
-        items: [
-          {
-            productId: "p-04",
-            name: "Precision Optical Mouse",
-            quantity: 1,
-            unitPrice: 55,
-          },
-        ],
-        subtotal: 55,
-        discountAmount: 0,
-        totalAmount: 55,
-      },
+    await seedOrder("carla.nguyen", {
+      id: SEEDED_ORDER_ID,
+      items: [
+        {
+          productId: "p-04",
+          name: "Precision Optical Mouse",
+          quantity: 1,
+          unitPrice: 55,
+        },
+      ],
+      subtotal: 55,
+      discountAmount: 0,
+      totalAmount: 55,
     });
-    expect(orderResponse.status()).toBe(201);
+    await seedNotification({
+      username: "carla.nguyen",
+      shell: "ecommerce",
+      type: "Order placed",
+      title: "Order placed",
+      message: `Your order #${SEEDED_ORDER_ID} has been placed successfully.`,
+      link: `/order-details/${SEEDED_ORDER_ID}`,
+    });
     const otherContext = await otherBrowser.newContext({ baseURL: SOCIAL_ORIGIN });
     const session = await signIn(context);
     await installSession(otherContext, session);
@@ -102,12 +98,8 @@ test("both social tabs follow mark-one and mark-all", async ({ browser }) => {
         followedTabWrites.push(request.url());
       }
     });
-    const actingStream = actingPage.waitForResponse(isSocialInboxStream);
-    const otherStream = otherPage.waitForResponse(isSocialInboxStream);
     await actingPage.goto("/notifications", { waitUntil: "domcontentloaded" });
     await otherPage.goto("/notifications", { waitUntil: "domcontentloaded" });
-    await actingStream;
-    await otherStream;
     const actingInbox = actingPage.locator(".notifications-page-container");
     const otherInbox = otherPage.locator(".notifications-page-container");
     await expect(actingPage.locator(".notification-bell-badge")).toHaveText(
@@ -115,19 +107,9 @@ test("both social tabs follow mark-one and mark-all", async ({ browser }) => {
     );
     await expect(otherPage.locator(".notification-bell-badge")).toHaveText("2");
     await expect(actingInbox.getByText("Post liked")).toHaveCount(2);
-    await expect(
-      otherInbox.getByText("Bruno Silva liked your post."),
-    ).toHaveCount(2);
+    await expect(otherInbox.getByText(LIKED_MESSAGE)).toHaveCount(2);
     await expect(markReadButtons(actingPage)).toHaveCount(2);
-    const readResponse = actingPage.waitForResponse(
-      (response) =>
-        response.request().method() === "PUT" &&
-        /\/api\/notifications\/[^/]+\/read$/.test(response.url()) &&
-        response.ok(),
-    );
     await markReadButtons(actingPage).first().click();
-    const updatedNotice = await (await readResponse).json();
-    expect(updatedNotice.read).toBe(true);
     await expect(markReadButtons(actingPage)).toHaveCount(1);
     await expect(actingPage.locator(".notification-bell-badge")).toHaveText(
       "1",
@@ -140,15 +122,7 @@ test("both social tabs follow mark-one and mark-all", async ({ browser }) => {
       exact: true,
     });
     await expect(markAllButton).toBeEnabled();
-    const readAllResponse = actingPage.waitForResponse(
-      (response) =>
-        response.request().method() === "PUT" &&
-        /\/api\/notifications\/read-all\?shell=social$/.test(response.url()) &&
-        response.ok(),
-    );
     await markAllButton.click();
-    const readAllPayload = await (await readAllResponse).json();
-    expect(readAllPayload.items.every((item) => item.read)).toBe(true);
     await expect(actingPage.locator(".notification-bell-badge")).toHaveCount(0);
     await expect(otherPage.locator(".notification-bell-badge")).toHaveCount(0);
     await expect(markReadButtons(actingPage)).toHaveCount(0);

@@ -33,15 +33,18 @@ test("the bell and inbox load the saved admin notice", async ({ page }) => {
     data: { content: "A saved post for the admin inbox." },
   });
   expect(postResponse.status()).toBe(201);
-  const aliceToken = await login(page.request, "alice.parker");
-  const statusResponse = await page.request.put(
-    `${API_BASE_URL}/orders/order-mp4ve3gd-kb6od6/status`,
-    {
-      headers: { Authorization: `Bearer ${aliceToken}` },
-      data: { status: "shipped", actor: "admin" },
-    },
-  );
-  expect(statusResponse.ok()).toBeTruthy();
+  await page.goto("/login", { waitUntil: "domcontentloaded" });
+  await signInThroughTheForm(page);
+  await page.goto("/order-details/order-mp4ve3gd-kb6od6", {
+    waitUntil: "domcontentloaded",
+  });
+  await page
+    .locator(".order-details-shell")
+    .getByRole("button", { name: "Ship" })
+    .click();
+  await expect(page.locator(".order-details-status")).toHaveText("Shipped");
+  await page.getByRole("button", { name: "Log out" }).click();
+  await expect(page.getByRole("button", { name: "Log in" })).toBeVisible();
   await page.goto("/login", { waitUntil: "domcontentloaded" });
   const inboxResponse = page.waitForResponse(
     (response) =>

@@ -1,5 +1,6 @@
 const { test, expect } = require("@playwright/test");
 const { restoreMockData } = require("../../support/reset-mock-data");
+const { seedCart } = require("../../support/seed-cart");
 
 // IR-CART-05 - Cart items reach the checkout module so it can draw the list.
 
@@ -14,18 +15,10 @@ async function openStoreWithSeededCart(page) {
     data: { username: "bruno.silva", password: "password123" },
   });
   const loginPayload = await loginResponse.json();
-  const saveResponse = await page.request.put(`${API_BASE_URL}/cart`, {
-    headers: { Authorization: `Bearer ${loginPayload.token}` },
-    data: {
-      items: [
-        { productId: "p-03", quantity: 2 },
-        { productId: "p-04", quantity: 1 },
-      ],
-      appliedCoupon: null,
-    },
-  });
-
-  expect(saveResponse.ok()).toBeTruthy();
+  await seedCart("bruno.silva", [
+    { productId: "p-03", quantity: 2 },
+    { productId: "p-04", quantity: 1 },
+  ]);
 
   await page.addInitScript(
     ([token, user]) => {

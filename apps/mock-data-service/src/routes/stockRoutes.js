@@ -15,6 +15,7 @@ const { resolveAuthenticatedUserId } = require("../domain/auth");
 const { generateIdentifier } = require("../domain/identifiers");
 const {
   STOCK_INSUFFICIENT_CODE,
+  getAvailableStockForProduct,
   reserveAdditiveStock,
   setAbsoluteStock,
   releaseGuestSession,
@@ -69,7 +70,7 @@ function respondWithStockResult(response, productId, stockResult, stockEventStre
  * Creates the stock router.
  *
  * @param {object} jsonStore - JSON file store bound to the data directory.
- * @param {{ registerStream: Function, removeStream: Function, setWatchedProductIds: Function, writeStreamReady: Function, broadcastStockChanged: Function }} stockEventStream - Per-tab stock SSE broadcaster.
+ * @param {{ registerStream: Function, removeStream: Function, setWatchedProductIds: (streamId: string, productIds: unknown) => string[], writeStreamReady: Function, writeStockChanged: (streamId: string, productId: string, available: number) => void, broadcastStockChanged: Function }} stockEventStream - Per-tab stock SSE broadcaster.
  * @returns {import("express").Router} Router with the stock HTTP routes and the live stock stream.
  */
 function createStockRouter(jsonStore, stockEventStream) {
@@ -165,17 +166,46 @@ function createStockRouter(jsonStore, stockEventStream) {
   });
 
   /**
-   * PUT /stock/watching. Replaces the set of product ids one open stream cares about.
-   * No-ops silently when the streamId is unknown (the connection may have just closed).
+   * Writes the current available count to the stream that just registered each product.
+   * broadcastStockChanged only reaches streams already in the watch index, so a reservation
+   * that landed before this PUT would otherwise be lost.
+   *
+   * @param {string} streamId - Stream that just registered these product ids.
+   * @param {string[]} productIds - Product ids now watched by that stream.
+   * @returns {Promise<void>}
+   * @sideEffects Writes one stock_changed frame per product whose availability could be read.
    */
-  router.put("/stock/watching", (request, response) => {
-    const { streamId, productIds } = request.body || {};
-    if (typeof streamId !== "string" || !streamId) {
-      response.status(400).json({ message: "Missing streamId" });
-      return;
+  async function writeAvailabilitySnapshots(streamId, productIds) {
+    for (const productId of productIds) {
+      const availability = await getAvailableStockForProduct({ jsonStore, productId });
+      if (!availability.ok) {
+        continue;
+      }
+      stockEventStream.writeStockChanged(streamId, productId, availability.available);
     }
-    stockEventStream.setWatchedProductIds(streamId, productIds);
-    response.json({ ok: true });
+  }
+
+  /**
+   * PUT /stock/watching. Replaces the set of product ids one open stream cares about, then
+   * pushes each product's current available count to that stream. No-ops silently when the
+   * streamId is unknown (the connection may have just closed).
+   */
+  router.put("/stock/watching", async (request, response) => {
+    try {
+      const { streamId, productIds } = request.body || {};
+      if (typeof streamId !== "string" || !streamId) {
+        response.status(400).json({ message: "Missing streamId" });
+        return;
+      }
+      const watchedProductIds = stockEventStream.setWatchedProductIds(streamId, productIds);
+      await writeAvailabilitySnapshots(streamId, watchedProductIds);
+      response.json({ ok: true });
+    } catch (error) {
+      response.status(500).json({
+        message: "Unable to update watched products",
+        details: error.message,
+      });
+    }
   });
 
   return router;

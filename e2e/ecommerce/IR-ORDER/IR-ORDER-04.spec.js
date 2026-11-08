@@ -35,8 +35,27 @@ async function signIn(context) {
   return session;
 }
 
-function isCustomerStatusStream(response) {
-  return /\/api\/orders\/stream(\?|$)/.test(response.url()) && response.ok();
+async function shipFromAdmin(browser, orderId) {
+  const adminContext = await browser.newContext({
+    baseURL: "http://localhost:4600",
+  });
+  const adminPage = await adminContext.newPage();
+  await adminPage.goto("/login", { waitUntil: "domcontentloaded" });
+  await adminPage.getByLabel("Username or email").fill("alice.parker");
+  await adminPage.getByLabel("Password").fill("password123");
+  await adminPage.getByRole("button", { name: "Sign in" }).click();
+  await expect(adminPage.getByRole("button", { name: "Log out" })).toBeVisible();
+  await adminPage.goto(`/order-details/${orderId}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await adminPage
+    .locator(".order-details-shell")
+    .getByRole("button", { name: "Ship" })
+    .click();
+  await expect(adminPage.locator(".order-details-status")).toHaveText(
+    "Shipped",
+  );
+  await adminContext.close();
 }
 
 test("open customer screens follow a status change", async ({ browser }) => {
@@ -49,17 +68,12 @@ test("open customer screens follow a status change", async ({ browser }) => {
     });
     const session = await signIn(context);
     await installSession(detailsContext, session);
-    const token = session.token;
     const accountPage = await context.newPage();
     const detailsPage = await detailsContext.newPage();
-    const accountStream = accountPage.waitForResponse(isCustomerStatusStream);
-    const detailsStream = detailsPage.waitForResponse(isCustomerStatusStream);
     await accountPage.goto("/account", { waitUntil: "domcontentloaded" });
     await detailsPage.goto(`/order-details/${ORDER_ID}`, {
       waitUntil: "domcontentloaded",
     });
-    await accountStream;
-    await detailsStream;
     const accountRow = accountPage.locator("button.my-orders-row").filter({
       hasText: ORDER_ID,
     });
@@ -69,14 +83,7 @@ test("open customer screens follow a status change", async ({ browser }) => {
     await expect(detailsPage.locator(".order-details-status")).toHaveText(
       "Placed",
     );
-    const statusResponse = await context.request.put(
-      `${API_BASE_URL}/orders/${ORDER_ID}/status`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        data: { status: "shipped", actor: "admin" },
-      },
-    );
-    expect(statusResponse.ok()).toBeTruthy();
+    await shipFromAdmin(browser, ORDER_ID);
     await expect(accountRow.locator(".my-orders-row-status")).toHaveText(
       "Shipped",
     );
