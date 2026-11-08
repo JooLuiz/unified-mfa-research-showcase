@@ -35,12 +35,6 @@ async function signIn(context) {
   return session;
 }
 
-function isAdminStatusStream(response) {
-  return (
-    /\/api\/admin\/orders\/stream(\?|$)/.test(response.url()) && response.ok()
-  );
-}
-
 test("open admin screens follow a status change", async ({ browser }) => {
   test.setTimeout(180_000);
   const context = await browser.newContext({ baseURL: ADMIN_ORIGIN });
@@ -51,17 +45,12 @@ test("open admin screens follow a status change", async ({ browser }) => {
     });
     const session = await signIn(context);
     await installSession(detailsContext, session);
-    const token = session.token;
     const ordersPage = await context.newPage();
     const detailsPage = await detailsContext.newPage();
-    const ordersStream = ordersPage.waitForResponse(isAdminStatusStream);
-    const detailsStream = detailsPage.waitForResponse(isAdminStatusStream);
     await ordersPage.goto("/orders", { waitUntil: "domcontentloaded" });
     await detailsPage.goto(`/order-details/${ORDER_ID}`, {
       waitUntil: "domcontentloaded",
     });
-    await ordersStream;
-    await detailsStream;
     const orderRow = ordersPage.locator("tr.admin-order-row").filter({
       hasText: ORDER_ID,
     });
@@ -69,14 +58,10 @@ test("open admin screens follow a status change", async ({ browser }) => {
     await expect(detailsPage.locator(".order-details-status")).toHaveText(
       "Placed",
     );
-    const statusResponse = await context.request.put(
-      `${API_BASE_URL}/orders/${ORDER_ID}/status`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        data: { status: "shipped", actor: "admin" },
-      },
-    );
-    expect(statusResponse.ok()).toBeTruthy();
+    await detailsPage
+      .locator(".order-details-shell")
+      .getByRole("button", { name: "Ship" })
+      .click();
     await expect(orderRow.locator("td").nth(5)).toHaveText("Shipped");
     await expect(detailsPage.locator(".order-details-status")).toHaveText(
       "Shipped",

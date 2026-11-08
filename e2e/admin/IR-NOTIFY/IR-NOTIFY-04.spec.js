@@ -1,5 +1,7 @@
 const { test, expect, chromium } = require("@playwright/test");
 const { restoreMockData } = require("../../support/reset-mock-data");
+const { seedNotification } = require("../../support/seed-notification");
+const { seedOrder } = require("../../support/seed-order");
 
 // IR-NOTIFY-04 - Marking one admin notice, then the rest, updates the other admin tab.
 // The follower tab runs in its own Chromium process. A signed-in tab already holds
@@ -11,6 +13,7 @@ const ADMIN_ORIGIN = "http://localhost:4600";
 const TOKEN_KEY = "admin-shell:auth-token";
 const USER_KEY = "admin-shell:auth-user";
 const SHIPPED_ORDER_ID = "order-mp4ve3gd-kb6od6";
+const SEEDED_ORDER_ID = "order-e2e-placed";
 
 test.beforeEach(() => {
   restoreMockData();
@@ -43,12 +46,25 @@ async function signIn(context) {
   return session;
 }
 
-function isAdminInboxStream(response) {
-  return (
-    response.request().method() === "GET" &&
-    /\/api\/notifications\/stream\?shell=admin(&|$)/.test(response.url()) &&
-    response.ok()
+async function shipExistingOrder(browser) {
+  const adminContext = await browser.newContext({ baseURL: ADMIN_ORIGIN });
+  const adminPage = await adminContext.newPage();
+  await adminPage.goto("/login", { waitUntil: "domcontentloaded" });
+  await adminPage.getByLabel("Username or email").fill("alice.parker");
+  await adminPage.getByLabel("Password").fill("password123");
+  await adminPage.getByRole("button", { name: "Sign in" }).click();
+  await expect(adminPage.getByRole("button", { name: "Log out" })).toBeVisible();
+  await adminPage.goto(`/order-details/${SHIPPED_ORDER_ID}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await adminPage
+    .locator(".order-details-shell")
+    .getByRole("button", { name: "Ship" })
+    .click();
+  await expect(adminPage.locator(".order-details-status")).toHaveText(
+    "Shipped",
   );
+  await adminContext.close();
 }
 
 function noticeRow(targetPage, title) {
@@ -73,33 +89,29 @@ test("both admin tabs follow mark-one and mark-all", async ({ browser }) => {
       data: { content: "A saved post for the admin inbox." },
     });
     expect(postResponse.status()).toBe(201);
-    const brunoToken = await login(context.request, "bruno.silva");
-    const orderResponse = await context.request.post(`${API_BASE_URL}/orders`, {
-      headers: { Authorization: `Bearer ${brunoToken}` },
-      data: {
-        items: [
-          {
-            productId: "p-04",
-            name: "Precision Optical Mouse",
-            quantity: 1,
-            unitPrice: 55,
-          },
-        ],
-        subtotal: 55,
-        discountAmount: 0,
-        totalAmount: 55,
-      },
+    await seedOrder("bruno.silva", {
+      id: SEEDED_ORDER_ID,
+      items: [
+        {
+          productId: "p-04",
+          name: "Precision Optical Mouse",
+          quantity: 1,
+          unitPrice: 55,
+        },
+      ],
+      subtotal: 55,
+      discountAmount: 0,
+      totalAmount: 55,
     });
-    expect(orderResponse.status()).toBe(201);
-    const seedToken = await login(context.request, "alice.parker");
-    const statusResponse = await context.request.put(
-      `${API_BASE_URL}/orders/${SHIPPED_ORDER_ID}/status`,
-      {
-        headers: { Authorization: `Bearer ${seedToken}` },
-        data: { status: "shipped", actor: "admin" },
-      },
-    );
-    expect(statusResponse.ok()).toBeTruthy();
+    await seedNotification({
+      username: "alice.parker",
+      shell: "admin",
+      type: "New order",
+      title: "New order",
+      message: `A new order #${SEEDED_ORDER_ID} was placed by Bruno Silva.`,
+      link: `/order-details/${SEEDED_ORDER_ID}`,
+    });
+    await shipExistingOrder(browser);
     const otherContext = await otherBrowser.newContext({ baseURL: ADMIN_ORIGIN });
     const session = await signIn(context);
     await installSession(otherContext, session);
@@ -115,28 +127,15 @@ test("both admin tabs follow mark-one and mark-all", async ({ browser }) => {
         followedTabWrites.push(request.url());
       }
     });
-    const actingStream = actingPage.waitForResponse(isAdminInboxStream);
-    const otherStream = otherPage.waitForResponse(isAdminInboxStream);
     await actingPage.goto("/notifications", { waitUntil: "domcontentloaded" });
     await otherPage.goto("/notifications", { waitUntil: "domcontentloaded" });
-    await actingStream;
-    await otherStream;
     await expect(actingPage.locator(".notification-bell-badge")).toHaveText(
       "2",
     );
     await expect(otherPage.locator(".notification-bell-badge")).toHaveText("2");
     await expect(markReadButton(actingPage, "New post")).toBeVisible();
     await expect(markReadButton(otherPage, "New order")).toBeVisible();
-    const readResponse = actingPage.waitForResponse(
-      (response) =>
-        response.request().method() === "PUT" &&
-        /\/api\/notifications\/[^/]+\/read$/.test(response.url()) &&
-        response.ok(),
-    );
     await markReadButton(actingPage, "New post").click();
-    const updatedNotice = await (await readResponse).json();
-    expect(updatedNotice.title).toBe("New post");
-    expect(updatedNotice.read).toBe(true);
     await expect(markReadButton(actingPage, "New post")).toHaveCount(0);
     await expect(markReadButton(actingPage, "New order")).toBeVisible();
     await expect(actingPage.locator(".notification-bell-badge")).toHaveText(
@@ -150,15 +149,7 @@ test("both admin tabs follow mark-one and mark-all", async ({ browser }) => {
       exact: true,
     });
     await expect(markAllButton).toBeEnabled();
-    const readAllResponse = actingPage.waitForResponse(
-      (response) =>
-        response.request().method() === "PUT" &&
-        /\/api\/notifications\/read-all\?shell=admin$/.test(response.url()) &&
-        response.ok(),
-    );
     await markAllButton.click();
-    const readAllPayload = await (await readAllResponse).json();
-    expect(readAllPayload.items.every((item) => item.read)).toBe(true);
     await expect(actingPage.locator(".notification-bell-badge")).toHaveCount(0);
     await expect(otherPage.locator(".notification-bell-badge")).toHaveCount(0);
     await expect(

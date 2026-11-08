@@ -1,16 +1,15 @@
 /**
  * Renders editable checkout cart items supplied by the ecommerce shell.
  * Role: Displays cart snapshots and publishes cart update/remove intents on the host mesh.
- * Not in this file: Cart persistence, Event Mesh configuration, or shell-owned cart mutations.
- * Key dependencies: Host-provided cart snapshot and cart-change subscription; event-mesh/mesh; @shared/catalog-events.
- * See also: apps/ecommerce-shell/src/pages/checkoutPage.js; MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Not in this file: Angular bootstrap (src/checkout-items-bootstrap.ts), cart persistence, or shell-owned cart mutations.
+ * Key dependencies: src/checkout-availability-watcher.ts.
+ * See also: src/checkout-items-bootstrap.ts; apps/ecommerce-shell/src/pages/checkoutPage.js.
  */
 
 import "@angular/compiler";
 import {
-  ApplicationRef,
+  ChangeDetectorRef,
   Component,
-  ComponentRef,
   EventEmitter,
   Input,
   OnChanges,
@@ -19,14 +18,8 @@ import {
   SimpleChanges,
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { createApplication } from "@angular/platform-browser";
-import mesh from "event-mesh/mesh";
-import { createCatalogEvents } from "@shared/catalog-events";
 import "./styles.css";
 import { CheckoutAvailabilityWatcher } from "./checkout-availability-watcher";
-
-const { publishCartItemUpdateRequested, publishCartItemRemoveRequested } =
-  createCatalogEvents({ mesh });
 
 type Product = {
   id: string;
@@ -35,7 +28,7 @@ type Product = {
   image: string;
 };
 
-type CartItem = {
+export type CartItem = {
   productId: string;
   quantity: number;
 };
@@ -46,7 +39,7 @@ type SubscribeToCartChanges = (
   listener: (cartItems: CartItem[]) => void,
 ) => () => void;
 
-type CheckoutItemsProps = {
+export type CheckoutItemsProps = {
   cartItems: CartItem[];
   productsById: ProductsById;
   subscribeToCartChanges: SubscribeToCartChanges;
@@ -74,7 +67,7 @@ function isCartItem(value: unknown): value is CartItem {
   return Number.isFinite(parsedQuantity) && parsedQuantity >= 1;
 }
 
-function normalizeCartItems(cartItems: unknown): CartItem[] {
+export function normalizeCartItems(cartItems: unknown): CartItem[] {
   if (!Array.isArray(cartItems)) {
     return [];
   }
@@ -145,7 +138,7 @@ function normalizeCartItems(cartItems: unknown): CartItem[] {
     </section>
   `,
 })
-class CheckoutItemsComponent implements OnChanges, OnDestroy {
+export class CheckoutItemsComponent implements OnChanges, OnDestroy {
   @Input() cartItems: CartItem[] = [];
 
   @Input() productsById: ProductsById = {};
@@ -161,9 +154,22 @@ class CheckoutItemsComponent implements OnChanges, OnDestroy {
 
   private readonly availabilityWatcher = new CheckoutAvailabilityWatcher(
     (productId, nextAvailable) => {
-      this.availableByProductId = { ...this.availableByProductId, [productId]: nextAvailable };
+      this.applyAvailable(productId, nextAvailable);
     },
   );
+
+  constructor(private readonly changeDetectorRef: ChangeDetectorRef) {}
+
+  /**
+   * Records one product's available count and repaints the line.
+   * @param productId - Catalog product id.
+   * @param available - Units still free to reserve.
+   * @sideEffects Updates the "No more available" label.
+   */
+  applyAvailable(productId: string, available: number): void {
+    this.availableByProductId = { ...this.availableByProductId, [productId]: available };
+    this.changeDetectorRef.detectChanges();
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["cartItems"]) {
@@ -241,52 +247,4 @@ class CheckoutItemsComponent implements OnChanges, OnDestroy {
   }
 }
 
-export function mountCheckoutItems(
-  containerElement: HTMLElement,
-  props: CheckoutItemsProps,
-): () => void {
-  let applicationRef: ApplicationRef | null = null;
-  let componentRef: ComponentRef<CheckoutItemsComponent> | null = null;
-  let isUnmounted = false;
-
-  const syncCartItems = (cartItems: CartItem[]): void => {
-    if (!componentRef) {
-      return;
-    }
-    componentRef.setInput("cartItems", normalizeCartItems(cartItems));
-  };
-
-  const unsubscribeFromCartChanges = props.subscribeToCartChanges(syncCartItems);
-
-  const bootstrapPromise = createApplication().then((nextApplicationRef) => {
-    if (isUnmounted) {
-      nextApplicationRef.destroy();
-      return;
-    }
-
-    applicationRef = nextApplicationRef;
-    componentRef = applicationRef.bootstrap(CheckoutItemsComponent, containerElement);
-    syncCartItems(props.cartItems);
-    componentRef.setInput("productsById", props.productsById ?? {});
-
-    componentRef.instance.quantityChange.subscribe((payload) => {
-      publishCartItemUpdateRequested({
-        productId: payload.productId,
-        quantity: payload.quantity,
-      });
-    });
-    componentRef.instance.removeItem.subscribe((productId) => {
-      publishCartItemRemoveRequested(productId);
-    });
-  });
-
-  return () => {
-    isUnmounted = true;
-    unsubscribeFromCartChanges();
-    void bootstrapPromise.then(() => {
-      componentRef?.destroy();
-      applicationRef?.destroy();
-      containerElement.innerHTML = "";
-    });
-  };
-}
+export { mountCheckoutItems } from "./checkout-items-bootstrap";

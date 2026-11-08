@@ -1,5 +1,6 @@
 const { test, expect } = require("@playwright/test");
 const { restoreMockData } = require("../../support/reset-mock-data");
+const { seedCart } = require("../../support/seed-cart");
 
 // IR-CART-09 - The shopper confirms the purchase. The order is saved, the saved cart is gone, and the store shows the confirmation.
 
@@ -25,14 +26,7 @@ test("confirming checkout saves the order and clears the saved cart", async ({
     data: { username: "bruno.silva", password: "password123" },
   });
   const bruno = await loginResponse.json();
-  const saveResponse = await page.request.put(`${API_BASE_URL}/cart`, {
-    headers: { Authorization: `Bearer ${bruno.token}` },
-    data: {
-      items: [{ productId: "p-03", quantity: 1 }],
-      appliedCoupon: null,
-    },
-  });
-  expect(saveResponse.ok()).toBeTruthy();
+  await seedCart("bruno.silva", [{ productId: "p-03", quantity: 1 }]);
   await context.addInitScript(
     ([token, user]) => {
       localStorage.setItem("ecommerce-shell:auth-token", token);

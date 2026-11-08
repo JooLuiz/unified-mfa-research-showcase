@@ -5,10 +5,12 @@
  *   released when that client disconnects.
  * Not in this file: Availability math (src/domain/stock.js) or the reserve/release subscriber
  *   (src/event-mesh/stockHandler.js).
- * Key dependencies: event-mesh/gateway.
+ * Key dependencies: event-mesh/gateway; src/domain/stock.js for the count pushed when a watcher registers.
  * See also: src/event-mesh/stockHandler.js; src/server.js.
  *   On main this module writes Server-Sent Events; this branch publishes through the gateway.
  */
+
+const { getAvailableStockForProduct } = require("../domain/stock");
 
 const STOCK_TOPIC = "stock";
 const STOCK_WATCHING_EVENT = "watching";
@@ -18,7 +20,7 @@ const STOCK_CHANGED_EVENT = "changed";
  * Creates the stock watcher registry and guest-session tracker used by the mesh handlers.
  *
  * @returns {{
- *   registerWithGateway: () => Promise<void>,
+ *   registerWithGateway: (jsonStore: object) => Promise<void>,
  *   broadcastStockChanged: (productId: string, available: number) => void,
  *   rememberGuestSession: (clientId: string, sessionId: string) => void,
  *   takeGuestSessionForClient: (clientId: string) => string | null,
@@ -58,12 +60,44 @@ function createStockEventStream() {
   }
 
   /**
+   * Publishes the product's current available count to the client that just started watching.
+   * broadcastStockChanged only reaches clients already in the watch index, so a reservation
+   * that landed before stock/watching was recorded would otherwise be lost.
+   *
+   * @param {object} jsonStore - JSON file store bound to the data directory.
+   * @param {string} productId - Product the client announced watching.
+   * @param {string} clientId - Gateway client id that published stock/watching.
+   * @returns {Promise<void>}
+   * @sideEffects Publishes one targeted stock/changed. Logs and swallows a read or publish failure.
+   */
+  async function publishAvailabilitySnapshot(jsonStore, productId, clientId) {
+    try {
+      const availability = await getAvailableStockForProduct({ jsonStore, productId });
+      if (!availability.ok) {
+        return;
+      }
+      const gatewayModule = await import("event-mesh/gateway");
+      gatewayModule.default.publish({
+        topic: STOCK_TOPIC,
+        event: STOCK_CHANGED_EVENT,
+        payload: { productId, available: availability.available },
+        targetClientId: clientId,
+      });
+    } catch (error) {
+      console.error("publishAvailabilitySnapshot - error");
+      console.error(error);
+    }
+  }
+
+  /**
    * Subscribes to stock/watching and records the sender against the product id it announced.
    *
+   * @param {object} jsonStore - JSON file store used to read the current available count.
    * @returns {Promise<void>}
-   * @sideEffects Registers a gateway subscriber. Call after gateway.start().
+   * @sideEffects Registers a gateway subscriber. Call after gateway.start(). Each accepted
+   *   stock/watching also publishes that product's current available count to the sender.
    */
-  async function registerWithGateway() {
+  async function registerWithGateway(jsonStore) {
     const gatewayModule = await import("event-mesh/gateway");
     const gateway = gatewayModule.default;
 
@@ -74,6 +108,7 @@ function createStockEventStream() {
         return;
       }
       rememberWatcher(productId, clientId);
+      void publishAvailabilitySnapshot(jsonStore, productId, clientId);
     });
   }
 

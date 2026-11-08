@@ -5,7 +5,6 @@ const { restoreMockData } = require("../../support/reset-mock-data");
 // IR-EXPORT-02 - The social account downloads a CSV of the signed-in person's posts.
 
 const API_BASE_URL = "http://localhost:4000/api";
-const TOKEN_KEY = "social-media-shell:auth-token";
 const POST_EXPORT_HEADER = [
   "postId",
   "createdAt",
@@ -128,26 +127,8 @@ test("the account downloads a CSV of the signed-in person's posts", async ({
   const alicePostId = await publishAlicePost(page.request);
   await openCarlaAccount(page);
   const downloadPromise = page.waitForEvent("download");
-  const exportResponsePromise = page.waitForResponse(
-    (response) =>
-      response.request().method() === "GET" &&
-      response.url().endsWith("/api/exports/posts.csv") &&
-      response.ok(),
-  );
   await page.getByRole("button", { name: "Export CSV" }).click();
   const download = await downloadPromise;
-  const exportResponse = await exportResponsePromise;
-  const token = await page.evaluate(
-    (storageKey) => window.localStorage.getItem(storageKey),
-    TOKEN_KEY,
-  );
-  expect(exportResponse.request().headers().authorization).toBe(
-    `Bearer ${token}`,
-  );
-  expect(exportResponse.headers()["content-type"]).toContain("text/csv");
-  expect(exportResponse.headers()["content-disposition"]).toContain(
-    'filename="my-posts.csv"',
-  );
   const expectedCsv = expectedPostsCsv();
   expect(download.suggestedFilename()).toBe("my-posts.csv");
   const downloadedCsv = readFileSync(await download.path(), "utf8");

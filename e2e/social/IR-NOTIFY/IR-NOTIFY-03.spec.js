@@ -3,7 +3,7 @@ const { restoreMockData } = require("../../support/reset-mock-data");
 
 // IR-NOTIFY-03 - A like arrives in the open social inbox and raises a toast.
 
-const API_BASE_URL = "http://localhost:4000/api";
+const SOCIAL_ORIGIN = "http://localhost:4500";
 const NOTICE_TITLE = "Post liked";
 const NOTICE_MESSAGE = "Bruno Silva liked your post.";
 
@@ -11,33 +11,35 @@ test.beforeEach(() => {
   restoreMockData();
 });
 
-async function login(request, username) {
-  const response = await request.post(`${API_BASE_URL}/auth/login`, {
-    data: { username, password: "password123" },
-  });
-  const payload = await response.json();
-  return payload.token;
-}
-
-async function signInThroughTheForm(page) {
-  await page.getByLabel("Username or email").fill("carla.nguyen");
+async function signInThroughTheForm(page, username) {
+  await page.getByLabel("Username or email").fill(username);
   await page.getByLabel("Password").fill("password123");
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
 }
 
+async function likeCarlasPost(browser) {
+  const likerContext = await browser.newContext({ baseURL: SOCIAL_ORIGIN });
+  const likerPage = await likerContext.newPage();
+  await likerPage.goto("/login", { waitUntil: "domcontentloaded" });
+  await signInThroughTheForm(likerPage, "bruno.silva");
+  await likerPage.goto("/posts/post-03", { waitUntil: "domcontentloaded" });
+  await likerPage
+    .locator(".single-post-card")
+    .getByRole("button", { name: /^Like \(/ })
+    .click();
+  await expect(
+    likerPage.locator(".single-post-card").getByRole("button", { name: /^Liked \(/ }),
+  ).toBeVisible();
+  await likerContext.close();
+}
+
 test("a like arrives in the open inbox and raises a toast", async ({
   page,
+  browser,
 }) => {
   await page.goto("/login", { waitUntil: "domcontentloaded" });
-  const streamResponse = page.waitForResponse(
-    (response) =>
-      response.request().method() === "GET" &&
-      /\/api\/notifications\/stream\?shell=social(&|$)/.test(response.url()) &&
-      response.ok(),
-  );
-  await signInThroughTheForm(page);
-  await streamResponse;
+  await signInThroughTheForm(page, "carla.nguyen");
   const bell = page.getByRole("button", { name: "Notifications" });
   await expect(bell).toBeVisible();
   await expect(page.locator(".notification-bell-badge")).toHaveCount(0);
@@ -51,12 +53,7 @@ test("a like arrives in the open inbox and raises a toast", async ({
   await expect(
     inbox.getByText("No notifications in your inbox."),
   ).toBeVisible();
-  const brunoToken = await login(page.request, "bruno.silva");
-  const likeResponse = await page.request.post(
-    `${API_BASE_URL}/posts/post-03/like`,
-    { headers: { Authorization: `Bearer ${brunoToken}` } },
-  );
-  expect(likeResponse.ok()).toBeTruthy();
+  await likeCarlasPost(browser);
   const toast = page
     .locator(".notification-toast")
     .filter({ hasText: NOTICE_TITLE });

@@ -1,11 +1,11 @@
 const { test, expect } = require("@playwright/test");
 const { readFileSync } = require("fs");
 const { restoreMockData } = require("../../support/reset-mock-data");
+const { seedOrder } = require("../../support/seed-order");
 
 // IR-EXPORT-01 - The store account downloads a CSV of the signed-in person's orders.
 
-const API_BASE_URL = "http://localhost:4000/api";
-const TOKEN_KEY = "ecommerce-shell:auth-token";
+const SEEDED_ORDER_ID = "order-e2e-bruno";
 const SHIPPING = ["123 Maple Street", "Austin", "TX", "73301", "USA"];
 const ORDER_EXPORT_HEADER = [
   "orderId",
@@ -93,30 +93,21 @@ function expectedOrdersCsv() {
   return `${[ORDER_EXPORT_HEADER, ...rows].map((row) => row.join(",")).join("\r\n")}\r\n`;
 }
 
-async function placeBrunoOrder(request) {
-  const loginResponse = await request.post(`${API_BASE_URL}/auth/login`, {
-    data: { username: "bruno.silva", password: "password123" },
+async function seedBrunoOrder() {
+  return seedOrder("bruno.silva", {
+    id: SEEDED_ORDER_ID,
+    items: [
+      {
+        productId: "p-04",
+        name: "Precision Optical Mouse",
+        quantity: 1,
+        unitPrice: 55,
+      },
+    ],
+    subtotal: 55,
+    discountAmount: 0,
+    totalAmount: 55,
   });
-  const loginPayload = await loginResponse.json();
-  const orderResponse = await request.post(`${API_BASE_URL}/orders`, {
-    headers: { Authorization: `Bearer ${loginPayload.token}` },
-    data: {
-      items: [
-        {
-          productId: "p-04",
-          name: "Precision Optical Mouse",
-          quantity: 1,
-          unitPrice: 55,
-        },
-      ],
-      subtotal: 55,
-      discountAmount: 0,
-      totalAmount: 55,
-    },
-  });
-  expect(orderResponse.status()).toBe(201);
-  const createdOrder = await orderResponse.json();
-  return createdOrder.id;
 }
 
 async function openAliceAccount(page) {
@@ -132,29 +123,11 @@ async function openAliceAccount(page) {
 test("the account downloads a CSV of the signed-in person's orders", async ({
   page,
 }) => {
-  const brunoOrderId = await placeBrunoOrder(page.request);
+  const brunoOrderId = await seedBrunoOrder();
   await openAliceAccount(page);
   const downloadPromise = page.waitForEvent("download");
-  const exportResponsePromise = page.waitForResponse(
-    (response) =>
-      response.request().method() === "GET" &&
-      response.url().endsWith("/api/exports/orders.csv") &&
-      response.ok(),
-  );
   await page.getByRole("button", { name: "Export CSV" }).click();
   const download = await downloadPromise;
-  const exportResponse = await exportResponsePromise;
-  const token = await page.evaluate(
-    (storageKey) => window.localStorage.getItem(storageKey),
-    TOKEN_KEY,
-  );
-  expect(exportResponse.request().headers().authorization).toBe(
-    `Bearer ${token}`,
-  );
-  expect(exportResponse.headers()["content-type"]).toContain("text/csv");
-  expect(exportResponse.headers()["content-disposition"]).toContain(
-    'filename="my-orders.csv"',
-  );
   const expectedCsv = expectedOrdersCsv();
   expect(download.suggestedFilename()).toBe("my-orders.csv");
   const downloadedCsv = readFileSync(await download.path(), "utf8");

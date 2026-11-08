@@ -100,7 +100,7 @@ async function configureAndStartEventGateway() {
   await gateway.start();
   await adminEventStream.registerWithGateway();
   await cartEventStream.registerWithGateway();
-  await stockEventStream.registerWithGateway();
+  await stockEventStream.registerWithGateway(jsonStore);
   await orderEventStream.registerWithGateway();
   await postLikeEventStream.registerWithGateway();
   await communityPostEventStream.registerWithGateway();

@@ -16,6 +16,7 @@ test("reopening the account page shows the profile fetched from the server", asy
   await page.getByLabel("Username or email").fill("bruno.silva");
   await page.getByLabel("Password").fill("password123");
   await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.getByRole("button", { name: "Bruno Silva" })).toBeVisible();
   await page.goto("/account", { waitUntil: "domcontentloaded" });
   await expect(page.getByLabel("Full name")).toHaveValue("Bruno Silva");
   const storedToken = await page.evaluate(() =>

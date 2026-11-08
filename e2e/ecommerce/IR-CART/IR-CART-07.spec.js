@@ -1,5 +1,6 @@
 const { test, expect, chromium } = require("@playwright/test");
 const { restoreMockData } = require("../../support/reset-mock-data");
+const { seedCart } = require("../../support/seed-cart");
 
 // IR-CART-07 - Cart changes sync across tabs and browsers. An order empties that cart.
 // Logout clears the open screens. Items added before login join the saved cart.
@@ -19,14 +20,6 @@ async function loginAs(page, username) {
     data: { username, password: "password123" },
   });
   return loginResponse.json();
-}
-
-async function saveCart(page, token, items) {
-  const saveResponse = await page.request.put(`${API_BASE_URL}/cart`, {
-    headers: { Authorization: `Bearer ${token}` },
-    data: { items, appliedCoupon: null },
-  });
-  expect(saveResponse.ok()).toBeTruthy();
 }
 
 async function installSession(context, session) {
@@ -66,7 +59,7 @@ async function raiseKeyboardQuantity(page) {
 test("a checkout change shows on another tab", async ({ page, context }) => {
   test.setTimeout(180_000);
   const bruno = await loginAs(page, "bruno.silva");
-  await saveCart(page, bruno.token, [{ productId: "p-03", quantity: 1 }]);
+  await seedCart("bruno.silva", [{ productId: "p-03", quantity: 1 }]);
   await installSession(context, bruno);
   const otherBrowser = await chromium.launch({ headless: false });
   try {
@@ -89,7 +82,7 @@ test("a checkout change shows in another browser", async ({
 }) => {
   test.setTimeout(180_000);
   const bruno = await loginAs(page, "bruno.silva");
-  await saveCart(page, bruno.token, [{ productId: "p-03", quantity: 1 }]);
+  await seedCart("bruno.silva", [{ productId: "p-03", quantity: 1 }]);
   await installSession(context, bruno);
   const otherBrowser = await chromium.launch({ headless: false });
   try {
@@ -112,7 +105,7 @@ test("placing an order empties the cart on the other screens", async ({
 }) => {
   test.setTimeout(180_000);
   const bruno = await loginAs(page, "bruno.silva");
-  await saveCart(page, bruno.token, [{ productId: "p-03", quantity: 1 }]);
+  await seedCart("bruno.silva", [{ productId: "p-03", quantity: 1 }]);
   await installSession(context, bruno);
   const tabBrowser = await chromium.launch({ headless: false });
   const otherBrowser = await chromium.launch({ headless: false });
@@ -143,7 +136,7 @@ test("placing an order empties the cart on the other screens", async ({
 test("logging out clears the other open tab", async ({ page, context }) => {
   test.setTimeout(180_000);
   const bruno = await loginAs(page, "bruno.silva");
-  await saveCart(page, bruno.token, [{ productId: "p-03", quantity: 1 }]);
+  await seedCart("bruno.silva", [{ productId: "p-03", quantity: 1 }]);
   await installSession(context, bruno);
   // Logout reaches the other tab through a localStorage event, so both tabs share
   // this browser. A signed-in tab holds 5 SSE connections and Chrome allows 6 to the
@@ -176,7 +169,7 @@ test("logging out clears the other open tab", async ({ page, context }) => {
 test("items added before login join the saved cart", async ({ page }) => {
   test.setTimeout(180_000);
   const bruno = await loginAs(page, "bruno.silva");
-  await saveCart(page, bruno.token, [{ productId: "p-04", quantity: 1 }]);
+  await seedCart("bruno.silva", [{ productId: "p-04", quantity: 1 }]);
   const otherBrowser = await chromium.launch({ headless: false });
   try {
     const otherContext = await otherBrowser.newContext();
