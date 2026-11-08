@@ -471,9 +471,19 @@ const shellEventHandlers = {
     const wasAuthenticated = Boolean(appState.authToken);
     readStoredAuth(appState);
     const isNowAuthenticated = Boolean(appState.authToken);
-    handleAuthMeshLifecycle();
-    syncNotificationInboxWithSession();
-    if (!wasAuthenticated && isNowAuthenticated) {
+    const signedInThisTurn = !wasAuthenticated && isNowAuthenticated;
+    if (signedInThisTurn) {
+      // The login form publishes path-requested immediately after this handler.
+      // Closing the mesh here drops that navigation, so reconnect after this turn.
+      queueMicrotask(() => {
+        handleAuthMeshLifecycle();
+        syncNotificationInboxWithSession();
+      });
+    } else {
+      handleAuthMeshLifecycle();
+      syncNotificationInboxWithSession();
+    }
+    if (signedInThisTurn) {
       const welcomeName =
         appState.currentUser?.fullName ||
         appState.currentUser?.username ||

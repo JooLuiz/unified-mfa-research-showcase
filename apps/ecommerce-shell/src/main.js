@@ -683,14 +683,16 @@ async function bootstrap() {
   }
 
   readStoredPLPFilters(appState);
-  applyPlpFiltersFromLocation(appState);
   readStoredAuth(appState);
-  startCartTabSync(appState);
   if (appState.authToken) {
     startAuthenticatedMeshSession();
   } else {
     startLocalMeshSession();
   }
+  // Promotional query params publish catalog.filters-changed. That publish has to
+  // follow configureMesh, or the first use initializes EventMesh and configureMesh throws.
+  applyPlpFiltersFromLocation(appState);
+  startCartTabSync(appState);
   publishPlpFiltersChanged(appState.plpFilters);
   await loadMockData(appState);
   if (appState.authToken) {

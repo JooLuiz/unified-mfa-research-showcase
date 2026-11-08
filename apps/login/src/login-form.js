@@ -1,8 +1,8 @@
 /**
  * Login form remote for shell-owned auth session handoff.
- * Role: POSTs credentials, writes host-injected auth storage keys, then publishes auth.session-changed and navigation.path-requested.
+ * Role: POSTs credentials, writes host-injected auth storage keys, then publishes auth.session-changed and navigation.path-requested. A required-role mismatch raises a local access-denied toast and leaves storage unchanged.
  * Not in this file: Mesh configuration (host owns configureMesh) or welcome toasts (shell onAuthSessionChanged).
- * Key dependencies: event-mesh/mesh singleton; @shared/shell-events.
+ * Key dependencies: event-mesh/mesh singleton; @shared/shell-events; @shared/notifications.
  * See also: MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
@@ -10,11 +10,13 @@ import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import mesh from "event-mesh/mesh";
 import { createShellEvents } from "@shared/shell-events";
+import { createMeshNotificationAdapter } from "@shared/notifications";
 import "./styles.css";
 
 const { publishAuthSessionChanged, publishPathRequested } = createShellEvents({
   mesh,
 });
+const { publishNotification } = createMeshNotificationAdapter({ mesh });
 
 function LoginFormView({
   apiBaseUrl,
@@ -76,7 +78,11 @@ function LoginFormView({
         requiredRole.trim() !== "" &&
         authenticatedUser?.role !== requiredRole
       ) {
-        setErrorMessage("This account does not have the required access.");
+        publishNotification({
+          type: "error",
+          title: "Access denied",
+          message: "This account does not have admin access.",
+        });
         return;
       }
 

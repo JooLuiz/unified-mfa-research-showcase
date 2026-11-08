@@ -16,6 +16,7 @@ import {
 } from "@shared/iframe-bridge";
 
 const FAQ_FRAME_ID = "faq-formulary";
+const FAQ_IFRAME_FALLBACK_HEIGHT_PX = 220;
 
 /**
  * Renders the home page with banner, showcase, FAQ form, and iframe notice sections.
@@ -25,7 +26,7 @@ const FAQ_FRAME_ID = "faq-formulary";
  * @param {object} modules - Loaded remote module mount functions.
  * @param {Array<() => void>} activeCleanupFunctions - Cleanup registry for the current route.
  * @returns {Promise<void>}
- * @sideEffects Subscribes to window "message" events until the route cleanup runs.
+ * @sideEffects Subscribes to the mesh iframe bridge until the route cleanup runs. A submitted FAQ replaces the iframe with the sent state.
  */
 async function renderHomePage(appState, pageMount, modules, activeCleanupFunctions) {
   pageMount.innerHTML = `
@@ -56,7 +57,9 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
     }),
   );
 
-  if (faqMount) {
+  if (faqMount && appState.isFormularySubmitted) {
+    activeCleanupFunctions.push(modules.mountFormularySent(faqMount));
+  } else if (faqMount) {
     const iframeBridge = createIframeBridge({ mesh });
     const channelId = createIframeChannel();
     const faqIframeSourceUrl = new URL(
@@ -83,7 +86,7 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
 
     const faqIframeElement = faqMount.querySelector("iframe");
     if (faqIframeElement) {
-      faqIframeElement.style.height = "0px";
+      faqIframeElement.style.height = `${FAQ_IFRAME_FALLBACK_HEIGHT_PX}px`;
     }
 
     iframeBridge.registerIframeChannel({ channelId, frameId: FAQ_FRAME_ID });
@@ -122,7 +125,7 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
     const noticeSection = document.createElement("section");
     noticeSection.className = "notice-box";
     const noticeParagraph = document.createElement("p");
-    noticeParagraph.textContent = String(appState.lastIframeMessage);
+    noticeParagraph.textContent = `Latest iframe message: ${appState.lastIframeMessage}`;
     noticeSection.appendChild(noticeParagraph);
     noticeMount.appendChild(noticeSection);
   }

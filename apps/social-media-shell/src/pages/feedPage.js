@@ -5,17 +5,22 @@
  *   whenever anyone publishes a new post.
  * Not in this file: Post creation (src/pages/postsPage.js), post persistence
  *   (src/commands/postCommands.js), or the toggle write itself (src/commands/postLikeCommands.js).
- * Key dependencies: angular-product-showcase custom element; catalog intents handled by social
- *   mesh listeners; src/events/communityLikesLiveEvents.js; src/events/communityPostLiveEvents.js.
+ * Key dependencies: angular-product-showcase custom element; @shared/community-events
+ *   publishPostLikesWatching; src/events/communityLikesLiveEvents.js;
+ *   src/events/communityPostLiveEvents.js.
  * See also: src/utils/renderActions.js (public barrel); MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
+import mesh from "event-mesh/mesh";
+import { createCommunityEvents } from "@shared/community-events";
 import {
   subscribeToCommunityLikesChanged,
   applyLikesChangeToPosts,
 } from "../events/communityLikesLiveEvents";
 import { subscribeToPostCreated } from "../events/communityPostLiveEvents";
 import { navigate } from "../utils/navigate";
+
+const { publishPostLikesWatching } = createCommunityEvents({ mesh });
 
 const TRENDING_LIKES_THRESHOLD = 1;
 const EMPTY_TRENDING_MESSAGE = "No trending posts yet.";
@@ -82,8 +87,14 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
   );
 
   // appState.posts was already prepended by the global subscription in main.js; this one only
-  // re-renders. New posts start at 0 likes, so they typically will not surface here until liked.
-  activeCleanupFunctions.push(subscribeToPostCreated(renderTrendingFeed));
+  // re-renders. A new post starts below the trending threshold, so this tab must watch it
+  // before the like arrives or the gateway will not deliver the count that promotes it.
+  activeCleanupFunctions.push(
+    subscribeToPostCreated((newPost) => {
+      publishPostLikesWatching(newPost?.id);
+      renderTrendingFeed();
+    }),
+  );
 
   const firstShowcase = appState.showcases[0];
   const showcaseProducts = (firstShowcase?.productIds || [])

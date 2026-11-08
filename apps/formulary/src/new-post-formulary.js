@@ -15,6 +15,7 @@ import { createCommunityEvents } from "@shared/community-events";
 
 const NEW_POST_FORMULARY_HTML_PATH = "faq-formulary.html";
 const NEW_POST_FRAME_ID = "new-post-formulary";
+const NEW_POST_IFRAME_FALLBACK_HEIGHT_PX = 220;
 
 const { publishPostSubmitted } = createCommunityEvents({ mesh });
 
@@ -40,6 +41,14 @@ function buildNewPostFormularyUrl(props, channelId) {
   return baseUrl.toString();
 }
 
+/**
+ * Mounts the create-post iframe and relays post-submitted to the host mesh.
+ *
+ * @param {HTMLElement} containerElement - Host element that receives the iframe.
+ * @param {object} [props] - Optional name, email, and authorId query values.
+ * @returns {() => void} Removes the bridge subscription and the iframe.
+ * @sideEffects Registers an iframe-bridge channel. The iframe starts at a fallback height until resized arrives.
+ */
 export function mountNewPostFormulary(containerElement, props = {}) {
   const iframeBridge = createIframeBridge({ mesh });
   const channelId = createIframeChannel();
@@ -58,7 +67,7 @@ export function mountNewPostFormulary(containerElement, props = {}) {
 
   const iframeElement = containerElement.querySelector("iframe");
   if (iframeElement) {
-    iframeElement.style.height = "0px";
+    iframeElement.style.height = `${NEW_POST_IFRAME_FALLBACK_HEIGHT_PX}px`;
   }
 
   iframeBridge.registerIframeChannel({ channelId, frameId: NEW_POST_FRAME_ID });
