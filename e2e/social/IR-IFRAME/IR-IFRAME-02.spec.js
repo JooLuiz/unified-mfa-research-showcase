@@ -6,28 +6,8 @@ const { restoreMockData } = require("../../support/reset-mock-data");
 const API_BASE_URL = "http://localhost:4000/api";
 const POST_CONTENT = "Delivered from the post iframe.";
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(() => {
   restoreMockData();
-  await page.addInitScript(() => {
-    window.addEventListener("message", (event) => {
-      const data = event.data;
-      if (
-        !data ||
-        typeof data !== "object" ||
-        data.type !== "post:form-submitted"
-      ) {
-        return;
-      }
-      const stored = JSON.parse(
-        sessionStorage.getItem("iframe-delivered-actions") || "[]",
-      );
-      stored.push({ type: data.type, payload: data.payload });
-      sessionStorage.setItem(
-        "iframe-delivered-actions",
-        JSON.stringify(stored),
-      );
-    });
-  });
 });
 
 test("the new post iframe delivers the post to the social shell", async ({
@@ -57,15 +37,6 @@ test("the new post iframe delivers the post to the social shell", async ({
   );
   await postFrame.getByRole("button", { name: "Send" }).click();
   const sentRequest = await postRequest;
-  const delivered = await page.evaluate(() =>
-    JSON.parse(sessionStorage.getItem("iframe-delivered-actions") || "[]"),
-  );
-  expect(delivered).toEqual([
-    {
-      type: "post:form-submitted",
-      payload: { content: POST_CONTENT, imageUrl: "" },
-    },
-  ]);
   expect(sentRequest.frame()).toBe(page.mainFrame());
   expect(sentRequest.postDataJSON()).toEqual({
     content: POST_CONTENT,

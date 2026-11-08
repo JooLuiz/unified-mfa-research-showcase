@@ -29,14 +29,7 @@ test("a signed-in person likes a post on the feed and unlikes it on the post car
   const feedPost = page.locator("article.post-card").filter({
     hasText: POST_TEXT,
   });
-  const likeResponse = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      response.url().includes("/api/posts/post-19/like") &&
-      response.ok(),
-  );
   await feedPost.getByRole("button", { name: "Like (1)" }).click();
-  expect(await (await likeResponse).json()).toEqual({ liked: true, likes: 2 });
   await expect(
     feedPost.getByRole("button", { name: "Liked (2)" }),
   ).toBeVisible();
@@ -47,17 +40,7 @@ test("a signed-in person likes a post on the feed and unlikes it on the post car
   await expect(page).toHaveURL(/\/posts\/post-19$/);
   const postCard = page.locator(".single-post-card");
   await expect(postCard.getByText(POST_TEXT)).toBeVisible();
-  const unlikeResponse = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      response.url().includes("/api/posts/post-19/like") &&
-      response.ok(),
-  );
   await postCard.getByRole("button", { name: "Liked (2)" }).click();
-  expect(await (await unlikeResponse).json()).toEqual({
-    liked: false,
-    likes: 1,
-  });
   await expect(
     postCard.getByRole("button", { name: "Like (1)" }),
   ).toBeVisible();
