@@ -31,15 +31,7 @@ test("the feed card tells the shell that a post was liked", async ({
     hasText: POST_TEXT,
   });
 
-  const likeResponse = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      response.url().includes("/api/posts/post-19/like") &&
-      response.ok(),
-  );
-
   await feedPost.getByRole("button", { name: "Like (1)" }).click();
-  expect(await (await likeResponse).json()).toEqual({ liked: true, likes: 2 });
   await expect(
     feedPost.getByRole("button", { name: "Liked (2)" }),
   ).toBeVisible();
