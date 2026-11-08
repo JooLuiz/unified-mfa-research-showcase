@@ -1,5 +1,6 @@
 const { test, expect } = require("@playwright/test");
 const { restoreMockData } = require("../../support/reset-mock-data");
+const { seedCart } = require("../../support/seed-cart");
 
 // IR-CART-06 - On entry, the store loads that user's already saved cart.
 
@@ -14,19 +15,10 @@ async function login(page, username) {
   return loginResponse.json();
 }
 
-async function saveCart(page, token, items) {
-  const saveResponse = await page.request.put(`${API_BASE_URL}/cart`, {
-    headers: { Authorization: `Bearer ${token}` },
-    data: { items, appliedCoupon: null },
-  });
-  expect(saveResponse.ok()).toBeTruthy();
-}
-
 async function seedBothCarts(page) {
   const bruno = await login(page, "bruno.silva");
-  const alice = await login(page, "alice.parker");
-  await saveCart(page, bruno.token, [{ productId: "p-03", quantity: 2 }]);
-  await saveCart(page, alice.token, [{ productId: "p-04", quantity: 1 }]);
+  await seedCart("bruno.silva", [{ productId: "p-03", quantity: 2 }]);
+  await seedCart("alice.parker", [{ productId: "p-04", quantity: 1 }]);
   return bruno;
 }
 

@@ -39,8 +39,9 @@ function serializeStockChanged(productId, available) {
  * @returns {{
  *   registerStream: (streamId: string, response: import("express").Response) => void,
  *   removeStream: (streamId: string) => void,
- *   setWatchedProductIds: (streamId: string, productIds: unknown) => void,
+ *   setWatchedProductIds: (streamId: string, productIds: unknown) => string[],
  *   writeStreamReady: (response: import("express").Response, streamId: string) => void,
+ *   writeStockChanged: (streamId: string, productId: string, available: number) => void,
  *   broadcastStockChanged: (productId: string, available: number) => void,
  * }} Stream bound to in-memory maps.
  */
@@ -99,12 +100,12 @@ function createStockEventStream() {
    *
    * @param {string} streamId - Id from the stream's stock_stream_ready frame.
    * @param {unknown} productIds - Candidate product id list from PUT /stock/watching.
-   * @returns {void}
+   * @returns {string[]} Product ids now watched by that stream, or an empty list when the stream is unknown.
    * @sideEffects No-ops when the stream is unknown (it may have just closed).
    */
   function setWatchedProductIds(streamId, productIds) {
     if (!responseByStreamId.has(streamId)) {
-      return;
+      return [];
     }
     forgetWatchedProductIds(streamId);
     const nextProductIds = new Set(
@@ -116,6 +117,7 @@ function createStockEventStream() {
       streamIds.add(streamId);
       streamIdsByProductId.set(productId, streamIds);
     });
+    return Array.from(nextProductIds);
   }
 
   /**
@@ -128,6 +130,23 @@ function createStockEventStream() {
    */
   function writeStreamReady(response, streamId) {
     response.write(serializeStreamReady(streamId));
+  }
+
+  /**
+   * Writes one stock_changed frame to a single open stream.
+   *
+   * @param {string} streamId - Stream that just registered interest in the product.
+   * @param {string} productId - Product whose current availability should be delivered.
+   * @param {number} available - Available count at the moment the stream registered.
+   * @returns {void}
+   * @sideEffects No-ops when the stream has already closed. Does not write to other watchers.
+   */
+  function writeStockChanged(streamId, productId, available) {
+    const response = responseByStreamId.get(streamId);
+    if (!response) {
+      return;
+    }
+    response.write(serializeStockChanged(productId, available));
   }
 
   /**
@@ -157,6 +176,7 @@ function createStockEventStream() {
     removeStream,
     setWatchedProductIds,
     writeStreamReady,
+    writeStockChanged,
     broadcastStockChanged,
   };
 }

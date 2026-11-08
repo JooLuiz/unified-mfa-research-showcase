@@ -1,8 +1,16 @@
+/**
+ * Checkout line list: quantities, the live available count, and the "No more available" label.
+ * Role: Renders one row per cart line and caps that row at the units still free to reserve.
+ * Not in this file: Angular bootstrap and teardown (src/checkout-items-mount.ts) or the stock
+ *   subscription (src/checkout-availability-watcher.ts).
+ * Key dependencies: @angular/core; src/checkout-availability-watcher.ts.
+ * See also: src/checkout-items-mount.ts; apps/ecommerce-shell/src/pages/checkoutPage.js.
+ */
+
 import "@angular/compiler";
 import {
-  ApplicationRef,
+  ChangeDetectorRef,
   Component,
-  ComponentRef,
   EventEmitter,
   Input,
   OnChanges,
@@ -11,7 +19,6 @@ import {
   SimpleChanges,
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { createApplication } from "@angular/platform-browser";
 import "./styles.css";
 import { CheckoutAvailabilityWatcher } from "./checkout-availability-watcher";
 
@@ -29,7 +36,7 @@ type CartItem = {
 
 type ProductsById = Record<string, Product>;
 
-type CheckoutItemsProps = {
+export type CheckoutItemsProps = {
   productsById: ProductsById;
   apiBaseUrl?: string | null;
   onQuantityChange?: (productId: string, quantity: number) => void;
@@ -64,7 +71,7 @@ function isCartItem(value: unknown): value is CartItem {
   return Number.isFinite(parsedQuantity) && parsedQuantity >= 1;
 }
 
-function readCartItemsFromGlobalState(): CartItem[] {
+export function readCartItemsFromGlobalState(): CartItem[] {
   const globalCart = window.__APP_SHELL_CART__;
   if (!Array.isArray(globalCart)) {
     return [];
@@ -136,7 +143,7 @@ function readCartItemsFromGlobalState(): CartItem[] {
     </section>
   `,
 })
-class CheckoutItemsComponent implements OnChanges, OnDestroy {
+export class CheckoutItemsComponent implements OnChanges, OnDestroy {
   @Input() cartItems: CartItem[] = [];
 
   @Input() productsById: ProductsById = {};
@@ -154,9 +161,24 @@ class CheckoutItemsComponent implements OnChanges, OnDestroy {
 
   private readonly availabilityWatcher = new CheckoutAvailabilityWatcher(
     (productId, nextAvailable) => {
-      this.availableByProductId = { ...this.availableByProductId, [productId]: nextAvailable };
+      this.applyAvailable(productId, nextAvailable);
     },
   );
+
+  constructor(private readonly changeDetectorRef: ChangeDetectorRef) {}
+
+  /**
+   * Records one product's current available count and repaints the line.
+   *
+   * @param productId - Catalog product id.
+   * @param available - Units still free to reserve.
+   * @returns Nothing.
+   * @sideEffects Updates the line's max quantity and "No more available" label.
+   */
+  applyAvailable(productId: string, available: number): void {
+    this.availableByProductId = { ...this.availableByProductId, [productId]: available };
+    this.changeDetectorRef.detectChanges();
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["apiBaseUrl"]) {
@@ -237,54 +259,4 @@ class CheckoutItemsComponent implements OnChanges, OnDestroy {
   }
 }
 
-export function mountCheckoutItems(
-  containerElement: HTMLElement,
-  props: CheckoutItemsProps,
-): () => void {
-  let applicationRef: ApplicationRef | null = null;
-  let componentRef: ComponentRef<CheckoutItemsComponent> | null = null;
-  let isUnmounted = false;
-
-  const syncCartItemsFromGlobalState = (): void => {
-    if (!componentRef) {
-      return;
-    }
-    componentRef.setInput("cartItems", readCartItemsFromGlobalState());
-  };
-
-  const handleGlobalCartUpdated = (): void => {
-    syncCartItemsFromGlobalState();
-  };
-
-  window.addEventListener("cart:updateGlobalCart", handleGlobalCartUpdated);
-
-  const bootstrapPromise = createApplication().then((nextApplicationRef) => {
-    if (isUnmounted) {
-      nextApplicationRef.destroy();
-      return;
-    }
-
-    applicationRef = nextApplicationRef;
-    componentRef = applicationRef.bootstrap(CheckoutItemsComponent, containerElement);
-    syncCartItemsFromGlobalState();
-    componentRef.setInput("productsById", props.productsById ?? {});
-    componentRef.setInput("apiBaseUrl", props.apiBaseUrl ?? null);
-
-    componentRef.instance.quantityChange.subscribe((payload) => {
-      props.onQuantityChange?.(payload.productId, payload.quantity);
-    });
-    componentRef.instance.removeItem.subscribe((productId) => {
-      props.onRemoveItem?.(productId);
-    });
-  });
-
-  return () => {
-    isUnmounted = true;
-    window.removeEventListener("cart:updateGlobalCart", handleGlobalCartUpdated);
-    void bootstrapPromise.then(() => {
-      componentRef?.destroy();
-      applicationRef?.destroy();
-      containerElement.innerHTML = "";
-    });
-  };
-}
+export { mountCheckoutItems } from "./checkout-items-mount";

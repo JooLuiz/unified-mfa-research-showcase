@@ -87,48 +87,49 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
   const checkoutSummaryMount = pageMount.querySelector("#checkoutSummaryMount");
   const applyCouponMount = pageMount.querySelector("#applyCouponMount");
 
-  activeCleanupFunctions.push(
-    modules.mountCheckoutItems(checkoutItemsMount, {
-      productsById: appState.productsById,
-      apiBaseUrl: MOCK_API_BASE_URL,
-      onQuantityChange: async (productId, quantity) => {
-        const stockCheckResult = await setCartItemQuantityWithStockCheck(
-          appState,
-          productId,
-          quantity,
-        );
-        if (!stockCheckResult.ok) {
-          publishNotification({
-            type: "error",
-            title: "Stock issue",
-            message: STOCK_ISSUE_NOTIFICATION_MESSAGE,
-          });
-          return;
-        }
-        refreshCheckoutSummary();
-      },
-      onRemoveItem: async (productId) => {
-        const productName = appState.productsById[productId]?.name || "Item";
-        const stockCheckResult = await setCartItemQuantityWithStockCheck(appState, productId, 0);
-        if (!stockCheckResult.ok) {
-          publishNotification({
-            type: "error",
-            title: "Stock issue",
-            message: STOCK_ISSUE_NOTIFICATION_MESSAGE,
-          });
-          return;
-        }
+  const checkoutItemsHandle = modules.mountCheckoutItems(checkoutItemsMount, {
+    productsById: appState.productsById,
+    apiBaseUrl: MOCK_API_BASE_URL,
+    onQuantityChange: async (productId, quantity) => {
+      const stockCheckResult = await setCartItemQuantityWithStockCheck(
+        appState,
+        productId,
+        quantity,
+      );
+      if (!stockCheckResult.ok) {
         publishNotification({
-          type: "success",
-          title: "Item removed",
-          message: `${productName} was removed from your cart.`,
+          type: "error",
+          title: "Stock issue",
+          message: STOCK_ISSUE_NOTIFICATION_MESSAGE,
         });
-        if (appState.cartItems.length > 0) {
-          refreshCheckoutSummary();
-        }
-      },
-    }),
-  );
+        return;
+      }
+      checkoutItemsHandle.applyAvailable(productId, stockCheckResult.available);
+      refreshCheckoutSummary();
+    },
+    onRemoveItem: async (productId) => {
+      const productName = appState.productsById[productId]?.name || "Item";
+      const stockCheckResult = await setCartItemQuantityWithStockCheck(appState, productId, 0);
+      if (!stockCheckResult.ok) {
+        publishNotification({
+          type: "error",
+          title: "Stock issue",
+          message: STOCK_ISSUE_NOTIFICATION_MESSAGE,
+        });
+        return;
+      }
+      checkoutItemsHandle.applyAvailable(productId, stockCheckResult.available);
+      publishNotification({
+        type: "success",
+        title: "Item removed",
+        message: `${productName} was removed from your cart.`,
+      });
+      if (appState.cartItems.length > 0) {
+        refreshCheckoutSummary();
+      }
+    },
+  });
+  activeCleanupFunctions.push(() => checkoutItemsHandle.unmount());
 
   const initialTotals = calculateCheckoutTotals(appState);
   checkoutSummaryHandle = modules.mountCheckoutSummary(checkoutSummaryMount, {

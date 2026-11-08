@@ -1,5 +1,6 @@
 const { test, expect } = require("@playwright/test");
 const { restoreMockData } = require("../../support/reset-mock-data");
+const { seedCart } = require("../../support/seed-cart");
 
 // IR-CART-03 - On checkout, the shopper removes an item.
 
@@ -15,15 +16,7 @@ async function openCheckoutWithOneKeyboard(page) {
     data: { username: "bruno.silva", password: "password123" },
   });
   const loginPayload = await loginResponse.json();
-  const saveResponse = await page.request.put(`${API_BASE_URL}/cart`, {
-    headers: { Authorization: `Bearer ${loginPayload.token}` },
-    data: {
-      items: [{ productId: "p-03", quantity: 1 }],
-      appliedCoupon: null,
-    },
-  });
-
-  expect(saveResponse.ok()).toBeTruthy();
+  await seedCart("bruno.silva", [{ productId: "p-03", quantity: 1 }]);
 
   await page.addInitScript(
     ([token, user]) => {

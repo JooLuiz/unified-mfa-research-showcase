@@ -1,21 +1,17 @@
 const { test, expect } = require("@playwright/test");
 const { restoreMockData } = require("../../support/reset-mock-data");
+const { seedNotification } = require("../../support/seed-notification");
+const { seedOrder } = require("../../support/seed-order");
 
 // IR-NOTIFY-02 - The store bell and inbox load the notices already saved for this user.
 
 const API_BASE_URL = "http://localhost:4000/api";
+const SEEDED_ORDER_ID = "order-e2e-placed";
+const SAVED_MESSAGE = `Your order #${SEEDED_ORDER_ID} has been placed successfully.`;
 
 test.beforeEach(() => {
   restoreMockData();
 });
-
-async function login(request, username) {
-  const response = await request.post(`${API_BASE_URL}/auth/login`, {
-    data: { username, password: "password123" },
-  });
-  const payload = await response.json();
-  return payload.token;
-}
 
 async function signInThroughTheForm(page) {
   await page.getByLabel("Username or email").fill("alice.parker");
@@ -25,26 +21,28 @@ async function signInThroughTheForm(page) {
 }
 
 test("the bell and inbox load the saved store notice", async ({ page }) => {
-  const token = await login(page.request, "alice.parker");
-  const orderResponse = await page.request.post(`${API_BASE_URL}/orders`, {
-    headers: { Authorization: `Bearer ${token}` },
-    data: {
-      items: [
-        {
-          productId: "p-04",
-          name: "Precision Optical Mouse",
-          quantity: 1,
-          unitPrice: 55,
-        },
-      ],
-      subtotal: 55,
-      discountAmount: 0,
-      totalAmount: 55,
-    },
+  await seedOrder("alice.parker", {
+    id: SEEDED_ORDER_ID,
+    items: [
+      {
+        productId: "p-04",
+        name: "Precision Optical Mouse",
+        quantity: 1,
+        unitPrice: 55,
+      },
+    ],
+    subtotal: 55,
+    discountAmount: 0,
+    totalAmount: 55,
   });
-  expect(orderResponse.status()).toBe(201);
-  const createdOrder = await orderResponse.json();
-  const savedMessage = `Your order #${createdOrder.id} has been placed successfully.`;
+  await seedNotification({
+    username: "alice.parker",
+    shell: "ecommerce",
+    type: "Order placed",
+    title: "Order placed",
+    message: SAVED_MESSAGE,
+    link: `/order-details/${SEEDED_ORDER_ID}`,
+  });
   await page.goto("/login", { waitUntil: "domcontentloaded" });
   const inboxResponse = page.waitForResponse(
     (response) =>
@@ -62,7 +60,7 @@ test("the bell and inbox load the saved store notice", async ({ page }) => {
   await bell.click();
   const dropdown = page.locator(".notification-dropdown");
   await expect(dropdown.getByText("Order placed")).toBeVisible();
-  await expect(dropdown.getByText(savedMessage)).toBeVisible();
+  await expect(dropdown.getByText(SAVED_MESSAGE)).toBeVisible();
   await expect(dropdown.getByText("New order")).toHaveCount(0);
   await dropdown.getByRole("button", { name: "See all" }).click();
   await expect(page).toHaveURL(/\/notifications$/);
@@ -71,6 +69,6 @@ test("the bell and inbox load the saved store notice", async ({ page }) => {
     inbox.getByRole("heading", { name: "Notification Inbox" }),
   ).toBeVisible();
   await expect(inbox.getByText("Order placed")).toBeVisible();
-  await expect(inbox.getByText(savedMessage)).toBeVisible();
+  await expect(inbox.getByText(SAVED_MESSAGE)).toBeVisible();
   await expect(inbox.getByText("New order")).toHaveCount(0);
 });

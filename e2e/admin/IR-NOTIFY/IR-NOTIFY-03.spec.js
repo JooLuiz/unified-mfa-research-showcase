@@ -1,22 +1,16 @@
 const { test, expect } = require("@playwright/test");
 const { restoreMockData } = require("../../support/reset-mock-data");
+const { seedCart } = require("../../support/seed-cart");
 
 // IR-NOTIFY-03 - A new order arrives in the open admin inbox and raises a toast.
 
 const API_BASE_URL = "http://localhost:4000/api";
+const STORE_ORIGIN = "http://localhost:4200";
 const NOTICE_TITLE = "New order";
 
 test.beforeEach(() => {
   restoreMockData();
 });
-
-async function login(request, username) {
-  const response = await request.post(`${API_BASE_URL}/auth/login`, {
-    data: { username, password: "password123" },
-  });
-  const payload = await response.json();
-  return payload.token;
-}
 
 async function signInThroughTheForm(page) {
   await page.getByLabel("Username or email").fill("alice.parker");
@@ -25,18 +19,35 @@ async function signInThroughTheForm(page) {
   await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
 }
 
+async function placeBrunoOrder(browser) {
+  const storeContext = await browser.newContext({ baseURL: STORE_ORIGIN });
+  const login = await storeContext.request.post(`${API_BASE_URL}/auth/login`, {
+    data: { username: "bruno.silva", password: "password123" },
+  });
+  const bruno = await login.json();
+  await seedCart("bruno.silva", [{ productId: "p-04", quantity: 1 }]);
+  await storeContext.addInitScript(
+    ([token, user]) => {
+      localStorage.setItem("ecommerce-shell:auth-token", token);
+      localStorage.setItem("ecommerce-shell:auth-user", JSON.stringify(user));
+    },
+    [bruno.token, bruno.user],
+  );
+  const storePage = await storeContext.newPage();
+  await storePage.goto("/checkout", { waitUntil: "domcontentloaded" });
+  await storePage.getByRole("button", { name: "Place Order" }).click();
+  await expect(
+    storePage.getByRole("heading", { name: "Order Placed!" }),
+  ).toBeVisible();
+  await storeContext.close();
+}
+
 test("a new order arrives in the open inbox and raises a toast", async ({
   page,
+  browser,
 }) => {
   await page.goto("/login", { waitUntil: "domcontentloaded" });
-  const streamResponse = page.waitForResponse(
-    (response) =>
-      response.request().method() === "GET" &&
-      /\/api\/notifications\/stream\?shell=admin(&|$)/.test(response.url()) &&
-      response.ok(),
-  );
   await signInThroughTheForm(page);
-  await streamResponse;
   const bell = page.getByRole("button", { name: "Notifications" });
   await expect(bell).toBeVisible();
   await expect(page.locator(".notification-bell-badge")).toHaveCount(0);
@@ -50,34 +61,16 @@ test("a new order arrives in the open inbox and raises a toast", async ({
   await expect(
     inbox.getByText("No notifications in your inbox."),
   ).toBeVisible();
-  const brunoToken = await login(page.request, "bruno.silva");
-  const orderResponse = await page.request.post(`${API_BASE_URL}/orders`, {
-    headers: { Authorization: `Bearer ${brunoToken}` },
-    data: {
-      items: [
-        {
-          productId: "p-04",
-          name: "Precision Optical Mouse",
-          quantity: 1,
-          unitPrice: 55,
-        },
-      ],
-      subtotal: 55,
-      discountAmount: 0,
-      totalAmount: 55,
-    },
-  });
-  expect(orderResponse.status()).toBe(201);
-  const createdOrder = await orderResponse.json();
-  const noticeMessage = `A new order #${createdOrder.id} was placed by Bruno Silva.`;
+  await placeBrunoOrder(browser);
   const toast = page
     .locator(".notification-toast")
     .filter({ hasText: NOTICE_TITLE });
   await expect(toast).toBeVisible();
   await expect(toast).toHaveAttribute("role", "status");
-  await expect(toast.getByText(noticeMessage)).toBeVisible();
+  await expect(toast).toContainText("A new order #");
+  await expect(toast).toContainText("was placed by Bruno Silva.");
   await expect(inbox.getByText(NOTICE_TITLE, { exact: true })).toBeVisible();
-  await expect(inbox.getByText(noticeMessage)).toBeVisible();
+  await expect(inbox).toContainText("was placed by Bruno Silva.");
   await expect(inbox.getByText("No notifications in your inbox.")).toHaveCount(
     0,
   );

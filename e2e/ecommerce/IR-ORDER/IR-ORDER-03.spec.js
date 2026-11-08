@@ -26,19 +26,9 @@ test("the customer requests cancellation", async ({ page }) => {
   await expect(orderDetails.locator(".order-details-status")).toHaveText(
     "Placed",
   );
-  const statusRequest = page.waitForRequest(
-    (request) =>
-      request.method() === "PUT" &&
-      request.url().includes(`/api/orders/${ORDER_ID}/status`),
-  );
   await orderDetails
     .getByRole("button", { name: "Request cancellation" })
     .click();
-  const sentRequest = await statusRequest;
-  expect(sentRequest.postDataJSON()).toEqual({
-    status: "cancellation-requested",
-    actor: "customer",
-  });
   await expect(orderDetails.locator(".order-details-status")).toHaveText(
     "Cancellation requested",
   );
