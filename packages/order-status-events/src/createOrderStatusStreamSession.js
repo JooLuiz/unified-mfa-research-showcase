@@ -4,10 +4,11 @@
  *   and fans events out to listeners that may have registered before the socket opened.
  * Not in this file: Which ticket URL to use (the customer and admin clients pass that in) or
  *   the status write (src/requestOrderStatusChange.js).
- * Key dependencies: fetch; EventSource; src/orderStatusContracts.js.
+ * Key dependencies: fetch; EventSource; src/createOrderStatusEvents.js; src/orderStatusContracts.js.
  * See also: src/customerOrderStatusClient.js; src/adminOrderStatusClient.js.
  */
 
+import { createOrderStatusEvents } from "./createOrderStatusEvents.js";
 import { ORDER_STATUS_CHANGED_EVENT_NAME } from "./orderStatusContracts.js";
 
 const INITIAL_RECONNECT_DELAY_MS = 2000;
@@ -20,8 +21,16 @@ const MAX_RECONNECT_DELAY_MS = 30_000;
  * @returns {{ start: (input: { apiBaseUrl: string, authToken: string }) => Promise<void>, stop: () => void, subscribe: (listener: (event: { orderId: string, status: string }) => void) => () => void }} Stream controls.
  */
 function createOrderStatusStreamSession({ ticketPath, streamPath, logName }) {
-  /** @type {Set<(event: { orderId: string, status: string }) => void>} */
-  const listeners = new Set();
+  /** @type {Set<(message: { payload?: { orderId: string, status: string } }) => void>} */
+  const inboundCallbacks = new Set();
+  const orderStatusEvents = createOrderStatusEvents({
+    subscribe(_topic, _event, callback) {
+      inboundCallbacks.add(callback);
+      return function unsubscribeFromOrderStatus() {
+        inboundCallbacks.delete(callback);
+      };
+    },
+  });
   let activeEventSource = null;
   let reconnectTimeoutId = null;
   let reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
@@ -45,7 +54,7 @@ function createOrderStatusStreamSession({ ticketPath, streamPath, logName }) {
 
   function dispatchStatusChanged(messageEvent) {
     const statusEvent = JSON.parse(messageEvent.data);
-    listeners.forEach((listener) => listener(statusEvent));
+    inboundCallbacks.forEach((callback) => callback({ payload: statusEvent }));
   }
 
   function scheduleReconnect() {
@@ -123,13 +132,10 @@ function createOrderStatusStreamSession({ ticketPath, streamPath, logName }) {
    *
    * @param {(event: { orderId: string, status: string }) => void} listener - Called with each pushed status.
    * @returns {() => void} Unsubscribe function.
-   * @sideEffects Adds the listener to this tab's set.
+   * @sideEffects Registers the listener on the shared order-status module.
    */
   function subscribe(listener) {
-    listeners.add(listener);
-    return function unsubscribe() {
-      listeners.delete(listener);
-    };
+    return orderStatusEvents.subscribeToOrderStatusChanged(listener);
   }
 
   return { start, stop, subscribe };

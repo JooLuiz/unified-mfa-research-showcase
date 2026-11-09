@@ -8,8 +8,8 @@
 
 import { createNotificationPayload } from "./notificationPayload.js";
 
-const NOTIFICATIONS_TOPIC = "notifications";
-const NOTIFICATION_REQUESTED_EVENT = "requested";
+const NOTIFICATION_TOPIC = "notifications";
+const NOTIFICATION_RAISED_EVENT = "raised";
 
 /**
  * Creates the notify and subscribe pair shells pass to the toast center.
@@ -24,12 +24,12 @@ function createNotificationAdapter({ publish, subscribe }) {
    *
    * @param {{ type: "success" | "error", title: string, message: string, durationMs?: number, link?: string, notificationId?: string }} notification - Toast content, display behavior, optional detail path, and optional id of the persisted inbox row this toast was raised from.
    * @returns {void}
-   * @sideEffects Publishes a notifications.requested message.
+   * @sideEffects Publishes a notifications.raised message.
    */
   function notify(notification) {
     publish({
-      topic: NOTIFICATIONS_TOPIC,
-      event: NOTIFICATION_REQUESTED_EVENT,
+      topic: NOTIFICATION_TOPIC,
+      event: NOTIFICATION_RAISED_EVENT,
       payload: createNotificationPayload(notification),
       scope: "local",
     });
@@ -43,7 +43,7 @@ function createNotificationAdapter({ publish, subscribe }) {
    * @sideEffects Registers a transport subscription.
    */
   function subscribeToNotifications(listener) {
-    return subscribe(NOTIFICATIONS_TOPIC, NOTIFICATION_REQUESTED_EVENT, (message) => {
+    return subscribe(NOTIFICATION_TOPIC, NOTIFICATION_RAISED_EVENT, (message) => {
       listener(message.payload);
     });
   }
@@ -51,4 +51,4 @@ function createNotificationAdapter({ publish, subscribe }) {
   return { notify, subscribeToNotifications };
 }
 
-export { createNotificationAdapter, NOTIFICATIONS_TOPIC, NOTIFICATION_REQUESTED_EVENT };
+export { createNotificationAdapter, NOTIFICATION_TOPIC, NOTIFICATION_RAISED_EVENT };

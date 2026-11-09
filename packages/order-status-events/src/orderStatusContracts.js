@@ -1,11 +1,13 @@
 /**
  * Shared names for the order-status HTTP and SSE contract.
- * Role: Keeps the customer and admin clients on the same paths and event name as the mock API.
+ * Role: Keeps the customer and admin clients on the same paths, shared topic, and SSE event name as the mock API.
  * Not in this file: The EventSource lifecycle or the status write.
  * Key dependencies: None.
  * See also: apps/mock-data-service/src/routes/orderStatusRoutes.js.
  */
 
+const ORDERS_TOPIC = "orders";
+const ORDERS_STATUS_CHANGED_EVENT = "status-changed";
 const ORDER_STATUS_CHANGED_EVENT_NAME = "orders.status-changed";
 const CUSTOMER_ORDER_STATUS_TICKET_PATH = "/orders/connection-tickets";
 const CUSTOMER_ORDER_STATUS_STREAM_PATH = "/orders/stream";
@@ -34,6 +36,8 @@ function formatOrderStatus(status) {
 }
 
 export {
+  ORDERS_TOPIC,
+  ORDERS_STATUS_CHANGED_EVENT,
   ORDER_STATUS_CHANGED_EVENT_NAME,
   CUSTOMER_ORDER_STATUS_TICKET_PATH,
   CUSTOMER_ORDER_STATUS_STREAM_PATH,

@@ -11,6 +11,10 @@
  *   apps/mock-data-service/src/routes/postRoutes.js.
  */
 
+const COMMUNITY_LIKES_TOPIC = "community-likes";
+const COMMUNITY_LIKES_CHANGED_EVENT = "changed";
+const COMMUNITY_POSTS_TOPIC = "community-posts";
+const COMMUNITY_POSTS_CREATED_EVENT = "created";
 const POST_LIKES_CHANGED_EVENT_NAME = "community.post-likes-changed";
 const POST_CREATED_EVENT_NAME = "community.post-created";
 const POST_LIKES_STREAM_PATH = "/posts/stream";
@@ -26,6 +30,10 @@ function buildPostLikeTogglePath(postId) {
 }
 
 export {
+  COMMUNITY_LIKES_CHANGED_EVENT,
+  COMMUNITY_LIKES_TOPIC,
+  COMMUNITY_POSTS_CREATED_EVENT,
+  COMMUNITY_POSTS_TOPIC,
   POST_LIKES_CHANGED_EVENT_NAME,
   POST_CREATED_EVENT_NAME,
   POST_LIKES_STREAM_PATH,

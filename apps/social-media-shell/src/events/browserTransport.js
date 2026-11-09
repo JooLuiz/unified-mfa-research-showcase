@@ -11,7 +11,7 @@ import {
   AUTH_SESSION_CHANGED_EVENT,
   AUTH_TOPIC,
   RENDER_REQUESTED_EVENT,
-  SHELL_TOPIC,
+  NAVIGATION_TOPIC,
 } from "@shared/shell-events";
 
 const HOST_NAVIGATE_EVENT = "host:navigate";
@@ -20,7 +20,7 @@ const HOST_LOGOUT_EVENT = "host:logout";
 const WINDOW_EVENT_BY_CONTRACT = {
   [`${AUTH_TOPIC}.${AUTH_SESSION_CHANGED_EVENT}`]: "auth:changed",
   [`${AUTH_TOPIC}.${AUTH_LOGOUT_REQUESTED_EVENT}`]: "auth:logout-request",
-  [`${SHELL_TOPIC}.${RENDER_REQUESTED_EVENT}`]: "global:renderApp",
+  [`${NAVIGATION_TOPIC}.${RENDER_REQUESTED_EVENT}`]: "global:renderApp",
 };
 
 /**

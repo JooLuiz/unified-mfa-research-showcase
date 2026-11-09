@@ -11,5 +11,5 @@ export {
   AUTH_SESSION_CHANGED_EVENT,
   AUTH_TOPIC,
   RENDER_REQUESTED_EVENT,
-  SHELL_TOPIC,
+  NAVIGATION_TOPIC,
 } from "@shared/shell-events";

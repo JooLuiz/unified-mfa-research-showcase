@@ -1,5 +1,5 @@
 export const ACCOUNT_TOPIC: string;
-export const PROFILE_UPDATED_EVENT: string;
+export const ACCOUNT_PROFILE_SAVE_REQUESTED_EVENT: string;
 
 export interface AccountTransport {
   publish(message: { topic: string; event: string; payload?: object; scope: string }): void;

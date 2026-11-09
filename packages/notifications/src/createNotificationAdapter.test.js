@@ -1,6 +1,6 @@
 /**
  * Verifies toast messages on an injected transport.
- * Role: Locks the notifications.requested payload and the required-field guard.
+ * Role: Locks the notifications.raised payload and the required-field guard.
  * Not in this file: Toast DOM or the shell window event name.
  * Key dependencies: node:test; src/createNotificationAdapter.js; test/support/createRecordingTransport.js.
  * See also: src/createNotificationAdapter.js.
@@ -11,7 +11,7 @@ import test from "node:test";
 import { createNotificationAdapter } from "./createNotificationAdapter.js";
 import { createRecordingTransport } from "../../../test/support/createRecordingTransport.js";
 
-test("notify publishes a local notifications.requested payload and omits an empty link", () => {
+test("notify publishes a local notifications.raised payload and omits an empty link", () => {
   const transport = createRecordingTransport();
   const notifications = createNotificationAdapter(transport);
 
@@ -26,7 +26,7 @@ test("notify publishes a local notifications.requested payload and omits an empt
   assert.deepEqual(transport.published, [
     {
       topic: "notifications",
-      event: "requested",
+      event: "raised",
       payload: {
         type: "success",
         title: "Posts exported",

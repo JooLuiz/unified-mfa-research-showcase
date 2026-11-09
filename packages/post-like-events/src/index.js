@@ -4,4 +4,5 @@ export {
   POST_LIKES_STREAM_PATH,
 } from "./postLikeEventsContracts.js";
 export { subscribeToPostLikesChanged, subscribeToPostCreated } from "./postLikeEventsClient.js";
+export { createPostLikeEvents } from "./createPostLikeEvents.js";
 export { togglePostLike } from "./togglePostLike.js";

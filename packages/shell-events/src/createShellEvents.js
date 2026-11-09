@@ -11,7 +11,7 @@ import {
   AUTH_SESSION_CHANGED_EVENT,
   AUTH_TOPIC,
   RENDER_REQUESTED_EVENT,
-  SHELL_TOPIC,
+  NAVIGATION_TOPIC,
 } from "./shellEventsContracts.js";
 
 /**
@@ -23,14 +23,14 @@ import {
 function createShellEvents({ publish, subscribe }) {
   function publishRenderRequested() {
     publish({
-      topic: SHELL_TOPIC,
+      topic: NAVIGATION_TOPIC,
       event: RENDER_REQUESTED_EVENT,
       scope: "local",
     });
   }
 
   function subscribeToRenderRequests(listener) {
-    return subscribe(SHELL_TOPIC, RENDER_REQUESTED_EVENT, () => {
+    return subscribe(NAVIGATION_TOPIC, RENDER_REQUESTED_EVENT, () => {
       listener();
     });
   }

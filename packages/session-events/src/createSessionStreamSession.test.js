@@ -1,43 +1,31 @@
 /**
- * Verifies the session stream delivers session.revoked and honors a local sign-out.
- * Role: Locks the SSE event name and suppression behavior of createSessionStreamSession.
- * Not in this file: Shell navigation or the sign-out HTTP command.
- * Key dependencies: node:test; src/createSessionStreamSession.js; test/support/installBrowserTestDoubles.js.
- * See also: src/createSessionStreamSession.js.
+ * Verifies session revocation delivery on an injected transport.
+ * Role: Locks that a subscriber receives one revocation and nothing after unsubscribe.
+ * Not in this file: EventSource, HTTP paths, or local sign-out suppression.
+ * Key dependencies: node:test; src/createSessionEvents.js; test/support/createRecordingTransport.js.
+ * See also: src/createSessionEvents.js.
  */
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createSessionStreamSession } from "./createSessionStreamSession.js";
 import {
-  FakeEventSource,
-  installBrowserTestDoubles,
-} from "../../../test/support/installBrowserTestDoubles.js";
+  createSessionEvents,
+  SESSION_REVOKED_EVENT,
+  SESSION_TOPIC,
+} from "./createSessionEvents.js";
+import { createRecordingTransport } from "../../../test/support/createRecordingTransport.js";
 
-test("subscribe delivers session.revoked once, and markLocalSignOut suppresses the next one", () => {
-  installBrowserTestDoubles();
-  const session = createSessionStreamSession();
+test("subscribeToSessionRevoked delivers one revocation until unsubscribe", () => {
+  const transport = createRecordingTransport();
+  const sessionEvents = createSessionEvents(transport);
   const deliveries = [];
-  const unsubscribe = session.subscribe(() => {
+  const unsubscribe = sessionEvents.subscribeToSessionRevoked(() => {
     deliveries.push("revoked");
   });
 
-  session.start({ apiBaseUrl: "http://localhost:4000/api", authToken: "token-01" });
-  const eventSource = FakeEventSource.latestMatching("/auth/session-stream?token=");
-  eventSource.emit("session.revoked", {});
-  assert.deepEqual(deliveries, ["revoked"]);
-  assert.equal(eventSource.closed, true);
+  transport.publish({ topic: SESSION_TOPIC, event: SESSION_REVOKED_EVENT, payload: {} });
   unsubscribe();
+  transport.publish({ topic: SESSION_TOPIC, event: SESSION_REVOKED_EVENT, payload: {} });
 
-  session.start({ apiBaseUrl: "http://localhost:4000/api", authToken: "token-02" });
-  const nextSource = FakeEventSource.latestMatching("token-02");
-  const suppressed = [];
-  session.subscribe(() => {
-    suppressed.push("revoked");
-  });
-  session.markLocalSignOut();
-  nextSource.emit("session.revoked", {});
-
-  assert.deepEqual(suppressed, []);
-  assert.equal(nextSource.closed, true);
+  assert.deepEqual(deliveries, ["revoked"]);
 });
