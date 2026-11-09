@@ -19,12 +19,14 @@ import {
  *
  * @param {{ publish: (message: { topic: string, event: string, payload?: object, scope: string }) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void }} transport - Branch transport.
  * @returns {{ publishRenderRequested: () => void, subscribeToRenderRequests: (listener: () => void) => () => void, publishAuthSessionChanged: () => void, subscribeToAuthSessionChanges: (listener: () => void) => () => void, publishLogoutRequested: () => void, subscribeToLogoutRequests: (listener: () => void) => () => void }} Shell event operations.
+ * @note Signal publishes (render, session-changed, logout) always include payload: {} so every transport receives a record.
  */
 function createShellEvents({ publish, subscribe }) {
   function publishRenderRequested() {
     publish({
       topic: NAVIGATION_TOPIC,
       event: RENDER_REQUESTED_EVENT,
+      payload: {},
       scope: "local",
     });
   }
@@ -39,6 +41,7 @@ function createShellEvents({ publish, subscribe }) {
     publish({
       topic: AUTH_TOPIC,
       event: AUTH_SESSION_CHANGED_EVENT,
+      payload: {},
       scope: "local",
     });
   }
@@ -53,6 +56,7 @@ function createShellEvents({ publish, subscribe }) {
     publish({
       topic: AUTH_TOPIC,
       event: AUTH_LOGOUT_REQUESTED_EVENT,
+      payload: {},
       scope: "local",
     });
   }
