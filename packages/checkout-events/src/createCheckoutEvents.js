@@ -19,6 +19,7 @@ import {
  *
  * @param {{ publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void }} transport - Mesh client or recording transport. Both expose publish and subscribe.
  * @returns {object} Checkout event adapter with publish helpers and intent listeners.
+ * @note publishPlaceOrderRequested always includes payload: {} so every transport receives a record.
  */
 function createCheckoutEvents(transport) {
   let checkoutIntentListenersStarted = false;
@@ -51,14 +52,10 @@ function createCheckoutEvents(transport) {
    * Publishes a request for the host shell to place the current order.
    *
    * @returns {void}
-   * @sideEffects Publishes a local checkout.place-order-requested message with no payload.
+   * @sideEffects Publishes a local checkout.place-order-requested message with payload: {}.
    */
   function publishPlaceOrderRequested() {
-    transport.publish({
-      topic: CHECKOUT_TOPIC,
-      event: CHECKOUT_PLACE_ORDER_REQUESTED_EVENT,
-      scope: "local",
-    });
+    publishLocalEvent(CHECKOUT_TOPIC, CHECKOUT_PLACE_ORDER_REQUESTED_EVENT);
   }
 
   /**

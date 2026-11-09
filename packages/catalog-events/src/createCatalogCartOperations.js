@@ -21,17 +21,18 @@ import {
  */
 function createCatalogCartOperations(transport) {
   /**
-   * Publishes a local cart/changed message. No argument omits the payload. An array is sent as items.
+   * Publishes a local cart/changed message. No argument sends payload: {}. An array is sent as items.
    *
    * @param {object[] | undefined} cartItems - Cart snapshot, or omitted when the caller only signals a change.
    * @returns {void}
-   * @sideEffects Publishes a local cart.changed message.
+   * @sideEffects Publishes a local cart.changed message. A missing snapshot uses an empty payload record.
    */
   function publishCartChanged(cartItems) {
     if (!Array.isArray(cartItems)) {
       transport.publish({
         topic: CART_TOPIC,
         event: CART_CHANGED_EVENT,
+        payload: {},
         scope: "local",
       });
       return;

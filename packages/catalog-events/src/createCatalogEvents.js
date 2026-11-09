@@ -31,6 +31,7 @@ import { createCatalogCartOperations } from "./createCatalogCartOperations.js";
  *
  * @param {{ publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void }} transport - Mesh client or recording transport. Both expose publish and subscribe.
  * @returns {object} Catalog event adapter with publish helpers and optional intent listeners.
+ * @note publishCartChanged always includes payload: {} when the caller does not pass cart items, so every transport receives a record.
  */
 function createCatalogEvents(transport) {
   const cartOperations = createCatalogCartOperations(transport);

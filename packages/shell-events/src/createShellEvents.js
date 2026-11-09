@@ -25,16 +25,13 @@ function isValidNavigationPath(path) {
  *
  * @param {{ publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void }} transport - Mesh client or recording transport. Both expose publish and subscribe.
  * @returns {{ publishRenderRequested: () => void, publishPathRequested: (path: string) => void, publishPostLoginRedirectChanged: (path: string | null) => void, publishAuthSessionChanged: () => void, publishLogoutRequested: () => void, ensureShellEventListeners: (handlers: object) => void, resetShellEventListeners: () => void, subscribeToAuthSessionChanges: (listener: () => void) => () => void, subscribeToRenderRequests: (listener: () => void) => () => void }} Shell event adapter.
+ * @note Signal publishes (render, session-changed, logout) always include payload: {} so every transport receives a record.
  */
 function createShellEvents(transport) {
   let shellEventListenersStarted = false;
   const authSessionListeners = new Set();
 
-  function publishLocalEvent(topic, event, payload) {
-    if (payload === undefined) {
-      transport.publish({ topic, event, scope: "local" });
-      return;
-    }
+  function publishLocalEvent(topic, event, payload = {}) {
     transport.publish({ topic, event, payload, scope: "local" });
   }
 
@@ -42,7 +39,7 @@ function createShellEvents(transport) {
    * Publishes a request to rerender the shell at its current route.
    *
    * @returns {void}
-   * @sideEffects Publishes a local navigation.render-requested message with no payload.
+   * @sideEffects Publishes a local navigation.render-requested message with payload: {}.
    */
   function publishRenderRequested() {
     publishLocalEvent(NAVIGATION_TOPIC, NAVIGATION_RENDER_REQUESTED_EVENT);
@@ -111,7 +108,7 @@ function createShellEvents(transport) {
    * Publishes that the stored authentication session has changed.
    *
    * @returns {void}
-   * @sideEffects Publishes a local auth.session-changed message with no payload.
+   * @sideEffects Publishes a local auth.session-changed message with payload: {}.
    */
   function publishAuthSessionChanged() {
     publishLocalEvent(AUTH_TOPIC, AUTH_SESSION_CHANGED_EVENT);
@@ -121,7 +118,7 @@ function createShellEvents(transport) {
    * Publishes a request to clear the current authentication session.
    *
    * @returns {void}
-   * @sideEffects Publishes a local auth.logout-requested message with no payload.
+   * @sideEffects Publishes a local auth.logout-requested message with payload: {}.
    */
   function publishLogoutRequested() {
     publishLocalEvent(AUTH_TOPIC, AUTH_LOGOUT_REQUESTED_EVENT);

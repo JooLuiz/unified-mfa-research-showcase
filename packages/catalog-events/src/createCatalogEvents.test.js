@@ -68,6 +68,8 @@ test("publishCartChanged notifies a subscriber once and publishProductOpenReques
   );
   assert.equal(cartChangedMessages.length, 2);
   assert.equal(cartChangedMessages[0].scope, "local");
+  assert.deepEqual(cartChangedMessages[0].payload, {});
+  assert.deepEqual(cartChangedMessages[1].payload, {});
   assert.deepEqual(cartChanges, ["changed"]);
   assert.deepEqual(
     transport.published.find((message) => message.topic === "catalog"),

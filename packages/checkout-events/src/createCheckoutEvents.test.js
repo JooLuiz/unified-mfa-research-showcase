@@ -63,8 +63,8 @@ test("publishPlaceOrderRequested emits a local checkout message until unsubscrib
   checkoutEvents.publishPlaceOrderRequested();
 
   assert.deepEqual(transport.published, [
-    { topic: "checkout", event: "place-order-requested", scope: "local" },
-    { topic: "checkout", event: "place-order-requested", scope: "local" },
+    { topic: "checkout", event: "place-order-requested", payload: {}, scope: "local" },
+    { topic: "checkout", event: "place-order-requested", payload: {}, scope: "local" },
   ]);
   assert.deepEqual(deliveries, ["place"]);
 });
