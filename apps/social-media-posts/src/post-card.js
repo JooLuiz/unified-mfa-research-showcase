@@ -20,7 +20,7 @@ import mesh from "event-mesh/mesh";
 import { createCommunityEvents } from "@shared/community-events";
 
 const { publishPostLiked, publishPostLikesWatching, publishAuthorSelected } =
-  createCommunityEvents({ mesh });
+  createCommunityEvents(mesh);
 
 function formatPostDate(isoDateString) {
   if (!isoDateString) {

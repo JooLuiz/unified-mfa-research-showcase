@@ -2,8 +2,8 @@
  * Publishes and subscribes to shared shell-local Event Mesh messages.
  * Role: Hides mesh transport details behind named auth/navigation operations and lifecycle-safe subscriptions.
  * Not in this file: Mesh configuration, authentication state, cart state, routing, or UI rendering.
- * Key dependencies: An Event Mesh client supplied by the owning shell.
- * See also: src/shellEventContracts.js.
+ * Key dependencies: An Event Mesh client supplied by the owning shell, or a recording transport in tests.
+ * See also: src/shellEventContracts.js; src/createShellEvents.test.js.
  */
 
 import {
@@ -23,25 +23,42 @@ function isValidNavigationPath(path) {
 /**
  * Creates a shell-scoped local event adapter for auth and navigation messages.
  *
- * @param {{ mesh: { publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void } }} adapterInput - Configured mesh client for the owning shell.
- * @returns {{ publishRenderRequested: () => void, publishPathRequested: (path: string) => void, publishPostLoginRedirectChanged: (path: string | null) => void, publishAuthSessionChanged: () => void, publishLogoutRequested: () => void, ensureShellEventListeners: (handlers: object) => void, resetShellEventListeners: () => void, subscribeToAuthSessionChanges: (listener: () => void) => () => void }} Shell event adapter.
+ * @param {{ publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void }} transport - Mesh client or recording transport. Both expose publish and subscribe.
+ * @returns {{ publishRenderRequested: () => void, publishPathRequested: (path: string) => void, publishPostLoginRedirectChanged: (path: string | null) => void, publishAuthSessionChanged: () => void, publishLogoutRequested: () => void, ensureShellEventListeners: (handlers: object) => void, resetShellEventListeners: () => void, subscribeToAuthSessionChanges: (listener: () => void) => () => void, subscribeToRenderRequests: (listener: () => void) => () => void }} Shell event adapter.
  */
-function createShellEvents({ mesh }) {
+function createShellEvents(transport) {
   let shellEventListenersStarted = false;
   const authSessionListeners = new Set();
 
-  function publishLocalEvent(topic, event, payload = {}) {
-    mesh.publish({ topic, event, payload, scope: "local" });
+  function publishLocalEvent(topic, event, payload) {
+    if (payload === undefined) {
+      transport.publish({ topic, event, scope: "local" });
+      return;
+    }
+    transport.publish({ topic, event, payload, scope: "local" });
   }
 
   /**
    * Publishes a request to rerender the shell at its current route.
    *
    * @returns {void}
-   * @sideEffects Publishes a local navigation.render-requested message.
+   * @sideEffects Publishes a local navigation.render-requested message with no payload.
    */
   function publishRenderRequested() {
     publishLocalEvent(NAVIGATION_TOPIC, NAVIGATION_RENDER_REQUESTED_EVENT);
+  }
+
+  /**
+   * Subscribes to render requests until the returned function runs.
+   *
+   * @param {() => void} listener - Called for each render request.
+   * @returns {() => void} Removes the subscription.
+   * @sideEffects Registers a local navigation subscription.
+   */
+  function subscribeToRenderRequests(listener) {
+    return transport.subscribe(NAVIGATION_TOPIC, NAVIGATION_RENDER_REQUESTED_EVENT, () => {
+      listener();
+    });
   }
 
   /**
@@ -94,7 +111,7 @@ function createShellEvents({ mesh }) {
    * Publishes that the stored authentication session has changed.
    *
    * @returns {void}
-   * @sideEffects Publishes a local auth.session-changed message.
+   * @sideEffects Publishes a local auth.session-changed message with no payload.
    */
   function publishAuthSessionChanged() {
     publishLocalEvent(AUTH_TOPIC, AUTH_SESSION_CHANGED_EVENT);
@@ -104,7 +121,7 @@ function createShellEvents({ mesh }) {
    * Publishes a request to clear the current authentication session.
    *
    * @returns {void}
-   * @sideEffects Publishes a local auth.logout-requested message.
+   * @sideEffects Publishes a local auth.logout-requested message with no payload.
    */
   function publishLogoutRequested() {
     publishLocalEvent(AUTH_TOPIC, AUTH_LOGOUT_REQUESTED_EVENT);
@@ -124,20 +141,20 @@ function createShellEvents({ mesh }) {
     }
 
     shellEventListenersStarted = true;
-    mesh.subscribe(NAVIGATION_TOPIC, NAVIGATION_RENDER_REQUESTED_EVENT, () => {
+    subscribeToRenderRequests(() => {
       handlers.onRenderRequested();
     });
-    mesh.subscribe(NAVIGATION_TOPIC, NAVIGATION_PATH_REQUESTED_EVENT, (message) => {
+    transport.subscribe(NAVIGATION_TOPIC, NAVIGATION_PATH_REQUESTED_EVENT, (message) => {
       const requestedPath = message.payload?.path;
       if (isValidNavigationPath(requestedPath)) {
         handlers.onPathRequested({ path: requestedPath });
       }
     });
-    mesh.subscribe(AUTH_TOPIC, AUTH_SESSION_CHANGED_EVENT, () => {
+    transport.subscribe(AUTH_TOPIC, AUTH_SESSION_CHANGED_EVENT, () => {
       handlers.onAuthSessionChanged();
       authSessionListeners.forEach((listener) => listener());
     });
-    mesh.subscribe(AUTH_TOPIC, AUTH_LOGOUT_REQUESTED_EVENT, () => {
+    transport.subscribe(AUTH_TOPIC, AUTH_LOGOUT_REQUESTED_EVENT, () => {
       handlers.onLogoutRequested();
     });
   }
@@ -175,6 +192,7 @@ function createShellEvents({ mesh }) {
     ensureShellEventListeners,
     resetShellEventListeners,
     subscribeToAuthSessionChanges,
+    subscribeToRenderRequests,
   };
 }
 

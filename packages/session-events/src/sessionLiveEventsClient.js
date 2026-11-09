@@ -4,7 +4,7 @@
  *   without exposing mesh timing constraints to callers.
  * Not in this file: The sign-out-everywhere HTTP write (src/sessionRevocationCommands.js) or
  *   the toast and logout orchestration, which is each shell's main.js.
- * Key dependencies: event-mesh/mesh; src/sessionEventsContracts.js.
+ * Key dependencies: event-mesh/mesh; src/createSessionEvents.js; src/sessionEventsContracts.js.
  * See also: apps/admin-shell/src/main.js; apps/ecommerce-shell/src/main.js;
  *   apps/social-media-shell/src/main.js.
  *   On main this concern is served over Server-Sent Events; this branch subscribes through the
@@ -13,14 +13,23 @@
  */
 
 import mesh from "event-mesh/mesh";
+import { createSessionEvents } from "./createSessionEvents.js";
 import { SESSION_TOPIC, SESSION_REVOKED_EVENT } from "./sessionEventsContracts.js";
 
 let liveEventsGeneration = 0;
 let unsubscribeFromMeshRevocation = null;
 let watchedUserId = null;
 
-/** @type {Set<() => void>} */
-const listeners = new Set();
+/** @type {Set<(message: { payload?: object }) => void>} */
+const inboundCallbacks = new Set();
+const sessionEvents = createSessionEvents({
+  subscribe(_topic, _event, callback) {
+    inboundCallbacks.add(callback);
+    return function unsubscribeFromSessionInbound() {
+      inboundCallbacks.delete(callback);
+    };
+  },
+});
 
 /**
  * Calls every registered listener once for a pushed session/revoked that matches this tab.
@@ -28,7 +37,9 @@ const listeners = new Set();
  * @returns {void}
  */
 function notifyListeners() {
-  listeners.forEach((listener) => listener());
+  inboundCallbacks.forEach((callback) => {
+    callback({ payload: {} });
+  });
 }
 
 /**
@@ -91,13 +102,10 @@ function stopSessionLiveEvents() {
  *
  * @param {() => void} listener - Called once per matching session/revoked push.
  * @returns {() => void} Removes this listener from the registry.
- * @sideEffects Mutates the module-local listener registry.
+ * @sideEffects Registers the listener on createSessionEvents. Mesh subscribe stays in start.
  */
 function subscribeToSessionRevoked(listener) {
-  listeners.add(listener);
-  return function unsubscribeFromSessionRevoked() {
-    listeners.delete(listener);
-  };
+  return sessionEvents.subscribeToSessionRevoked(listener);
 }
 
 export { startSessionLiveEvents, stopSessionLiveEvents, subscribeToSessionRevoked };

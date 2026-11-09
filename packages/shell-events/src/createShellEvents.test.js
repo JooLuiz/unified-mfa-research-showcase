@@ -20,7 +20,7 @@ test("shell publishes render, session-changed, and logout-requested locally", ()
   shellEvents.publishLogoutRequested();
 
   assert.deepEqual(transport.published, [
-    { topic: "shell", event: "render-requested", scope: "local" },
+    { topic: "navigation", event: "render-requested", scope: "local" },
     { topic: "auth", event: "session-changed", scope: "local" },
     { topic: "auth", event: "logout-requested", scope: "local" },
   ]);

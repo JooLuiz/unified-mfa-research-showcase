@@ -19,7 +19,7 @@ const CHECKOUT_EMPTY_HTML_PATH = "checkout-empty.html";
 const CHECKOUT_EMPTY_FRAME_ID = "checkout-empty";
 const CHECKOUT_EMPTY_FALLBACK_HEIGHT_PX = 220;
 
-const { publishPathRequested } = createShellEvents({ mesh });
+const { publishPathRequested } = createShellEvents(mesh);
 
 function buildCheckoutEmptyUrl(channelId: string): string {
   const baseUrl = new URL(CHECKOUT_EMPTY_HTML_PATH, __webpack_public_path__);
@@ -63,7 +63,7 @@ function updateIframeHeight(
  * @sideEffects Creates an iframe and registers a targeted mesh bridge channel.
  */
 export function mountCheckoutEmpty(containerElement: HTMLElement): () => void {
-  const iframeBridge = createIframeBridge({ mesh });
+  const iframeBridge = createIframeBridge(mesh);
   const channelId = createIframeChannel();
   const iframeSource = buildCheckoutEmptyUrl(channelId);
 

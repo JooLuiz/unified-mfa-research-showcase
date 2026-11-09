@@ -26,6 +26,8 @@ export type AccountIntentHandlers = {
 };
 
 export type AccountEvents = {
+  publishProfileUpdated(payload: object): void;
+  subscribeToProfileUpdates(listener: (payload: object) => void): () => void;
   publishProfileSaveRequested(profile: ProfileSaveRequest): void;
   publishAddressSaveRequested(address: AddressSaveRequest): void;
   ensureAccountIntentListeners(handlers: AccountIntentHandlers): void;
@@ -49,6 +51,4 @@ export function createAddressSaveRequest(
   value: unknown,
 ): AddressSaveRequest | null;
 
-export function createAccountEvents(input: {
-  mesh: AccountMeshClient;
-}): AccountEvents;
+export function createAccountEvents(input: AccountMeshClient): AccountEvents;

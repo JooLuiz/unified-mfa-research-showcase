@@ -19,7 +19,7 @@ import { ProductListToolbar } from "./components/ProductListToolbar";
 import { ActiveFilterTags } from "./components/ActiveFilterTags";
 import { ProductGrid } from "./components/ProductGrid";
 
-const { publishFiltersApplyRequested } = createCatalogEvents({ mesh });
+const { publishFiltersApplyRequested } = createCatalogEvents(mesh);
 
 /**
  * Renders the product list page.

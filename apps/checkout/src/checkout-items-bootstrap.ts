@@ -18,7 +18,7 @@ import {
 } from "./checkout-items";
 
 const { publishCartItemUpdateRequested, publishCartItemRemoveRequested } =
-  createCatalogEvents({ mesh });
+  createCatalogEvents(mesh);
 
 /**
  * Mounts the checkout line list and publishes update or remove intents.

@@ -18,10 +18,10 @@ import {
 /**
  * Creates a mesh-backed notification publisher for a shell.
  *
- * @param {{ mesh: { publish: (input: object) => void } }} adapterInput - Mesh client for publishing notifications.
+ * @param {{ publish: (input: object) => void }} transport - Mesh client or recording transport. This adapter only publishes.
  * @returns {{ publishNotification: (notification: ShellNotification, options?: { scope?: "local" | "distributed" }) => void }} Mesh notification publisher API.
  */
-function createMeshNotificationAdapter({ mesh }) {
+function createMeshNotificationAdapter(transport) {
   /**
    * Publishes a notification through event mesh for the display subscriber to render.
    *
@@ -31,7 +31,7 @@ function createMeshNotificationAdapter({ mesh }) {
    * @sideEffects Publishes a mesh notification event.
    */
   function publishNotification(notification, { scope = "local" } = {}) {
-    mesh.publish({
+    transport.publish({
       topic: NOTIFICATION_TOPIC,
       event: NOTIFICATION_RAISED_EVENT,
       payload: notification,

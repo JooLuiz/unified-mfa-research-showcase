@@ -15,7 +15,7 @@ import { createCatalogEvents } from "@shared/catalog-events";
 import { ProductDetailsComponent } from "./product-details.component";
 import type { ProductDetailsProps } from "./product-details.types";
 
-const { publishCartItemAddRequested } = createCatalogEvents({ mesh });
+const { publishCartItemAddRequested } = createCatalogEvents(mesh);
 
 /**
  * Mounts the product details page into a host container.

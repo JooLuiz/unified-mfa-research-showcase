@@ -13,10 +13,8 @@ import { createShellEvents } from "@shared/shell-events";
 import { createMeshNotificationAdapter } from "@shared/notifications";
 import "./styles.css";
 
-const { publishAuthSessionChanged, publishPathRequested } = createShellEvents({
-  mesh,
-});
-const { publishNotification } = createMeshNotificationAdapter({ mesh });
+const { publishAuthSessionChanged, publishPathRequested } = createShellEvents(mesh);
+const { publishNotification } = createMeshNotificationAdapter(mesh);
 
 function LoginFormView({
   apiBaseUrl,

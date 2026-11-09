@@ -16,7 +16,7 @@ import { createCommunityEvents } from "@shared/community-events";
 const FAQ_FORMULARY_HTML_PATH = "faq-formulary.html";
 const FAQ_FRAME_ID = "faq-formulary";
 
-const { publishFaqSubmitted } = createCommunityEvents({ mesh });
+const { publishFaqSubmitted } = createCommunityEvents(mesh);
 
 function buildFaqFormularyUrl(props, channelId) {
   const baseUrl = new URL(FAQ_FORMULARY_HTML_PATH, __webpack_public_path__);
@@ -38,7 +38,7 @@ function buildFaqFormularyUrl(props, channelId) {
 }
 
 export function mountFaqFormulary(containerElement, props = {}) {
-  const iframeBridge = createIframeBridge({ mesh });
+  const iframeBridge = createIframeBridge(mesh);
   const channelId = createIframeChannel();
   const iframeSource = buildFaqFormularyUrl(props, channelId);
 

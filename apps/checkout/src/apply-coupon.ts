@@ -17,7 +17,7 @@ import mesh from "event-mesh/mesh";
 import { createCheckoutEvents } from "@shared/checkout-events";
 import "./styles.css";
 
-const { publishCouponApplied } = createCheckoutEvents({ mesh });
+const { publishCouponApplied } = createCheckoutEvents(mesh);
 
 type ApplyCouponProps = Record<string, never>;
 

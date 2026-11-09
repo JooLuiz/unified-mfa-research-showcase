@@ -15,6 +15,19 @@ const {
   issueConnectionTicket,
 } = require("./connectionTickets");
 
+// Node prints this when mock.timers.enable runs, and it stops its own printer once any
+// warning listener exists. Keep every other warning on stderr.
+process.on("warning", (warning) => {
+  if (
+    warning.name === "ExperimentalWarning" &&
+    typeof warning.message === "string" &&
+    warning.message.includes("MockTimers API")
+  ) {
+    return;
+  }
+  process.stderr.write(`${warning.stack || warning.message || warning}\n`);
+});
+
 test("buildConnectionRolesFromUserRole maps admin and every other role", () => {
   assert.deepEqual(buildConnectionRolesFromUserRole("admin"), ["admin"]);
   assert.deepEqual(buildConnectionRolesFromUserRole("customer"), ["customer"]);

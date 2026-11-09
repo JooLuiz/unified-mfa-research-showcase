@@ -12,7 +12,7 @@ import { createCatalogEvents } from "@shared/catalog-events";
 import { useProductAvailability } from "./useProductAvailability";
 
 const { publishProductOpenRequested, publishCartItemAddRequested } =
-  createCatalogEvents({ mesh });
+  createCatalogEvents(mesh);
 
 const normalizeQuantity = (nextQuantity) => {
   const parsedQuantity = Number(nextQuantity);

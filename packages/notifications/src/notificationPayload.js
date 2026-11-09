@@ -34,8 +34,44 @@ function isValidNotificationPayload(notificationPayload) {
   );
 }
 
+/**
+ * Builds a toast payload from a caller-supplied notification.
+ *
+ * @param {{ type: "success" | "error", title: string, message: string, durationMs?: number, link?: string, notificationId?: string }} notification - Toast content, optional display duration, optional detail path, and optional id of the persisted inbox row this toast was raised from.
+ * @returns {{ type: "success" | "error", title: string, message: string, durationMs?: number, link?: string, notificationId?: string }} Payload safe to publish.
+ * @throws {Error} When type, title, or message is missing.
+ */
+function createNotificationPayload(notification) {
+  if (!notification || typeof notification !== "object") {
+    throw new Error("createNotificationPayload requires a notification object");
+  }
+  if (notification.type !== "success" && notification.type !== "error") {
+    throw new Error("createNotificationPayload requires type success or error");
+  }
+  if (typeof notification.title !== "string" || typeof notification.message !== "string") {
+    throw new Error("createNotificationPayload requires title and message strings");
+  }
+
+  const payload = {
+    type: notification.type,
+    title: notification.title,
+    message: notification.message,
+  };
+  if (notification.durationMs !== undefined) {
+    payload.durationMs = notification.durationMs;
+  }
+  if (typeof notification.link === "string" && notification.link.length > 0) {
+    payload.link = notification.link;
+  }
+  if (typeof notification.notificationId === "string" && notification.notificationId.length > 0) {
+    payload.notificationId = notification.notificationId;
+  }
+  return payload;
+}
+
 export {
   NOTIFICATION_TOPIC,
   NOTIFICATION_RAISED_EVENT,
+  createNotificationPayload,
   isValidNotificationPayload,
 };

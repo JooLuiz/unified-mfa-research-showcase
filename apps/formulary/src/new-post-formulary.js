@@ -11,13 +11,13 @@ import {
   createIframeBridge,
   createIframeChannel,
 } from "@shared/iframe-bridge";
-import { createCommunityEvents } from "@shared/community-events";
+import { createCommunityEvents, createPostSubmittedRequest } from "@shared/community-events";
 
 const NEW_POST_FORMULARY_HTML_PATH = "faq-formulary.html";
 const NEW_POST_FRAME_ID = "new-post-formulary";
 const NEW_POST_IFRAME_FALLBACK_HEIGHT_PX = 220;
 
-const { publishPostSubmitted } = createCommunityEvents({ mesh });
+const { publishPostSubmitted } = createCommunityEvents(mesh);
 
 function buildNewPostFormularyUrl(props, channelId) {
   const baseUrl = new URL(NEW_POST_FORMULARY_HTML_PATH, __webpack_public_path__);
@@ -50,7 +50,7 @@ function buildNewPostFormularyUrl(props, channelId) {
  * @sideEffects Registers an iframe-bridge channel. The iframe starts at a fallback height until resized arrives.
  */
 export function mountNewPostFormulary(containerElement, props = {}) {
-  const iframeBridge = createIframeBridge({ mesh });
+  const iframeBridge = createIframeBridge(mesh);
   const channelId = createIframeChannel();
   const iframeSource = buildNewPostFormularyUrl(props, channelId);
 
@@ -86,7 +86,11 @@ export function mountNewPostFormulary(containerElement, props = {}) {
       }
 
       if (event === "post-submitted") {
-        publishPostSubmitted(payload);
+        const postRequest = createPostSubmittedRequest(payload);
+        if (!postRequest) {
+          return;
+        }
+        publishPostSubmitted(postRequest);
       }
     },
   });

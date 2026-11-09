@@ -22,7 +22,7 @@ configureMesh({
   enableWebSocket: true,
 });
 
-const iframeBridge = createIframeBridge({ mesh });
+const iframeBridge = createIframeBridge(mesh);
 
 /**
  * Publishes an iframe event through the mesh bridge.

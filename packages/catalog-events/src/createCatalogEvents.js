@@ -18,35 +18,39 @@ import {
   createCartAddRequest,
   createCartUpdateRequest,
   createPlpFiltersSnapshot,
-  isValidCartAddRequest,
   isValidCartRemoveRequest,
   isValidCartUpdateRequest,
   isValidPlpFiltersPayload,
   isValidProductOpenRequest,
   isValidPromotionAppliedRequest,
 } from "./catalogEventContracts.js";
+import { createCatalogCartOperations } from "./createCatalogCartOperations.js";
 
 /**
  * Creates a catalog-scoped local event adapter for product remotes and host shells.
  *
- * @param {{ mesh: { publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void } }} adapterInput - Configured mesh client for the owning shell.
+ * @param {{ publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void }} transport - Mesh client or recording transport. Both expose publish and subscribe.
  * @returns {object} Catalog event adapter with publish helpers and optional intent listeners.
  */
-function createCatalogEvents({ mesh }) {
+function createCatalogEvents(transport) {
+  const cartOperations = createCatalogCartOperations(transport);
   let catalogIntentListenersStarted = false;
 
   function publishLocalEvent(topic, event, payload = {}) {
-    mesh.publish({ topic, event, payload, scope: "local" });
+    transport.publish({ topic, event, payload, scope: "local" });
   }
 
   /**
    * Publishes a request to open product details for a product id.
    *
-   * @param {string} productId - Catalog product identifier.
+   * @param {string | { productId: string }} productOpenRequest - Catalog product id, or an object carrying productId.
    * @returns {void}
    * @sideEffects Publishes a local catalog.product-open-requested message.
    */
-  function publishProductOpenRequested(productId) {
+  function publishProductOpenRequested(productOpenRequest) {
+    const productId = typeof productOpenRequest === "string"
+      ? productOpenRequest
+      : productOpenRequest?.productId;
     if (typeof productId !== "string" || productId.trim() === "") {
       return;
     }
@@ -172,7 +176,7 @@ function createCatalogEvents({ mesh }) {
     catalogIntentListenersStarted = true;
 
     if (typeof handlers.onProductOpenRequested === "function") {
-      mesh.subscribe(
+      transport.subscribe(
         CATALOG_TOPIC,
         CATALOG_PRODUCT_OPEN_REQUESTED_EVENT,
         (message) => {
@@ -184,15 +188,11 @@ function createCatalogEvents({ mesh }) {
     }
 
     if (typeof handlers.onCartItemAddRequested === "function") {
-      mesh.subscribe(CART_TOPIC, CART_ITEM_ADD_REQUESTED_EVENT, (message) => {
-        if (isValidCartAddRequest(message.payload)) {
-          handlers.onCartItemAddRequested(message.payload);
-        }
-      });
+      cartOperations.subscribeToCartItemAddRequests(handlers.onCartItemAddRequested);
     }
 
     if (typeof handlers.onFiltersApplyRequested === "function") {
-      mesh.subscribe(
+      transport.subscribe(
         CATALOG_TOPIC,
         CATALOG_FILTERS_APPLY_REQUESTED_EVENT,
         (message) => {
@@ -206,7 +206,7 @@ function createCatalogEvents({ mesh }) {
     }
 
     if (typeof handlers.onPromotionApplied === "function") {
-      mesh.subscribe(
+      transport.subscribe(
         CATALOG_TOPIC,
         CATALOG_PROMOTION_APPLIED_EVENT,
         (message) => {
@@ -220,7 +220,7 @@ function createCatalogEvents({ mesh }) {
     }
 
     if (typeof handlers.onCartItemUpdateRequested === "function") {
-      mesh.subscribe(
+      transport.subscribe(
         CART_TOPIC,
         CART_ITEM_UPDATE_REQUESTED_EVENT,
         (message) => {
@@ -232,7 +232,7 @@ function createCatalogEvents({ mesh }) {
     }
 
     if (typeof handlers.onCartItemRemoveRequested === "function") {
-      mesh.subscribe(
+      transport.subscribe(
         CART_TOPIC,
         CART_ITEM_REMOVE_REQUESTED_EVENT,
         (message) => {
@@ -262,6 +262,7 @@ function createCatalogEvents({ mesh }) {
     publishCartItemRemoveRequested,
     ensureCatalogIntentListeners,
     resetCatalogIntentListeners,
+    ...cartOperations,
   };
 }
 

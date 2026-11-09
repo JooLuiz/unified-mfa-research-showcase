@@ -17,7 +17,7 @@ import {
 import { createIframeBridge } from "./createIframeBridge.js";
 import { createRecordingTransport } from "../../../test/support/createRecordingTransport.js";
 
-test("publishIframeMessage emits each bridge event on the distributed topic", () => {
+test("publishIframeMessage emits each bridge action as a distributed message event", () => {
   const transport = createRecordingTransport();
   const iframeBridge = createIframeBridge(transport);
   const resize = { height: 240 };
@@ -30,10 +30,30 @@ test("publishIframeMessage emits each bridge event on the distributed topic", ()
   iframeBridge.publishIframeMessage(GO_SHOPPING_EVENT);
 
   assert.deepEqual(transport.published, [
-    { topic: "iframe-bridge", event: "resized", payload: resize, scope: "distributed" },
-    { topic: "iframe-bridge", event: "faq-submitted", payload: faq, scope: "distributed" },
-    { topic: "iframe-bridge", event: "post-submitted", payload: post, scope: "distributed" },
-    { topic: "iframe-bridge", event: "go-shopping", payload: undefined, scope: "distributed" },
+    {
+      topic: "iframe-bridge",
+      event: "message",
+      payload: { event: "resized", payload: resize },
+      scope: "distributed",
+    },
+    {
+      topic: "iframe-bridge",
+      event: "message",
+      payload: { event: "faq-submitted", payload: faq },
+      scope: "distributed",
+    },
+    {
+      topic: "iframe-bridge",
+      event: "message",
+      payload: { event: "post-submitted", payload: post },
+      scope: "distributed",
+    },
+    {
+      topic: "iframe-bridge",
+      event: "message",
+      payload: { event: "go-shopping", payload: undefined },
+      scope: "distributed",
+    },
   ]);
 });
 
@@ -45,6 +65,7 @@ test("subscribeToIframeEvent delivers the payload until unsubscribe", () => {
     received.push(payload);
   });
 
+  iframeBridge.publishIframeMessage(RESIZED_EVENT, { height: 80 });
   iframeBridge.publishIframeMessage(FAQ_SUBMITTED_EVENT, { question: "Shipping?" });
   unsubscribe();
   iframeBridge.publishIframeMessage(FAQ_SUBMITTED_EVENT, { question: "Later" });

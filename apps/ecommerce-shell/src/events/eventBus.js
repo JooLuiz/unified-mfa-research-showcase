@@ -25,10 +25,10 @@ import {
   isValidCouponAppliedRequest,
 } from "@shared/checkout-events";
 
-const sharedShellEvents = createShellEvents({ mesh });
-const sharedCatalogEvents = createCatalogEvents({ mesh });
-const sharedCheckoutEvents = createCheckoutEvents({ mesh });
-const sharedAccountEvents = createAccountEvents({ mesh });
+const sharedShellEvents = createShellEvents(mesh);
+const sharedCatalogEvents = createCatalogEvents(mesh);
+const sharedCheckoutEvents = createCheckoutEvents(mesh);
+const sharedAccountEvents = createAccountEvents(mesh);
 let cartChangedListenersStarted = false;
 
 /**
@@ -39,12 +39,7 @@ let cartChangedListenersStarted = false;
  * @sideEffects Publishes a local cart.changed message.
  */
 function publishCartChanged(cartItems = []) {
-  mesh.publish({
-    topic: CART_TOPIC,
-    event: CART_CHANGED_EVENT,
-    payload: { items: createCartSnapshot(cartItems) },
-    scope: "local",
-  });
+  sharedCatalogEvents.publishCartChanged(createCartSnapshot(cartItems));
 }
 
 /**

@@ -12,7 +12,7 @@ import mesh from "event-mesh/mesh";
 import { createCatalogEvents } from "@shared/catalog-events";
 import "./styles.css";
 
-const { publishPromotionApplied } = createCatalogEvents({ mesh });
+const { publishPromotionApplied } = createCatalogEvents(mesh);
 
 async function fetchBannerById(apiBaseUrl, bannerId, signal) {
   const response = await fetch(`${apiBaseUrl}/banners/${bannerId}`, { signal });

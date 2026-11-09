@@ -20,7 +20,7 @@ import {
 import { subscribeToPostCreated } from "../events/communityPostLiveEvents";
 import { navigate } from "../utils/navigate";
 
-const { publishPostLikesWatching } = createCommunityEvents({ mesh });
+const { publishPostLikesWatching } = createCommunityEvents(mesh);
 
 const TRENDING_LIKES_THRESHOLD = 1;
 const EMPTY_TRENDING_MESSAGE = "No trending posts yet.";

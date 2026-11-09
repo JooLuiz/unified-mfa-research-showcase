@@ -20,7 +20,6 @@ import {
   COMMUNITY_POST_SUBMITTED_EVENT,
   COMMUNITY_TOPIC,
   createFaqSubmittedRequest,
-  createPostSubmittedRequest,
   isValidAuthorSelectedRequest,
   isValidFaqSubmittedRequest,
   isValidPostLikedRequest,
@@ -32,14 +31,14 @@ const MESH_CONNECT_TIMEOUT_MS = 5000;
 /**
  * Creates a community-scoped local event adapter for social remotes and host shells.
  *
- * @param {{ mesh: { publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void } }} adapterInput - Configured mesh client for the owning shell.
+ * @param {{ publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void, whenConnected: (input: { timeoutMs: number }) => Promise<void> }} transport - Mesh client. publishPostLikesWatching uses whenConnected; the other operations use publish and subscribe.
  * @returns {object} Community event adapter with publish helpers and intent listeners.
  */
-function createCommunityEvents({ mesh }) {
+function createCommunityEvents(transport) {
   let communityIntentListenersStarted = false;
 
   function publishLocalEvent(topic, event, payload = {}) {
-    mesh.publish({ topic, event, payload, scope: "local" });
+    transport.publish({ topic, event, payload, scope: "local" });
   }
 
   /**
@@ -74,10 +73,9 @@ function createCommunityEvents({ mesh }) {
       return;
     }
 
-    mesh
-      .whenConnected({ timeoutMs: MESH_CONNECT_TIMEOUT_MS })
+    transport.whenConnected({ timeoutMs: MESH_CONNECT_TIMEOUT_MS })
       .then(() => {
-        mesh.publish({
+        transport.publish({
           topic: COMMUNITY_LIKES_TOPIC,
           event: COMMUNITY_LIKES_WATCHING_EVENT,
           payload: { postId },
@@ -107,23 +105,32 @@ function createCommunityEvents({ mesh }) {
   }
 
   /**
-   * Publishes that a new post formulary was submitted.
+   * Publishes a community post-submitted payload as given.
    *
-   * @param {{ content: string, imageUrl: string }} post - Post body from the formulary iframe.
+   * @param {object} [payload] - Post fields from the caller. The formulary validates content and imageUrl before calling this.
    * @returns {void}
-   * @sideEffects Publishes a local community.post-submitted message when valid.
+   * @sideEffects Publishes a local community.post-submitted message.
    */
-  function publishPostSubmitted(post) {
-    const normalizedRequest = createPostSubmittedRequest(post);
-    if (!normalizedRequest) {
-      return;
-    }
+  function publishPostSubmitted(payload) {
+    transport.publish({
+      topic: COMMUNITY_TOPIC,
+      event: COMMUNITY_POST_SUBMITTED_EVENT,
+      payload,
+      scope: "local",
+    });
+  }
 
-    publishLocalEvent(
-      COMMUNITY_TOPIC,
-      COMMUNITY_POST_SUBMITTED_EVENT,
-      normalizedRequest,
-    );
+  /**
+   * Subscribes to post-submitted payloads until the returned function runs.
+   *
+   * @param {(payload: object) => void} listener - Called with each post-submitted payload.
+   * @returns {() => void} Removes the subscription.
+   * @sideEffects Registers a local community subscription. Does not drop a payload that lacks imageUrl.
+   */
+  function subscribeToPostSubmitted(listener) {
+    return transport.subscribe(COMMUNITY_TOPIC, COMMUNITY_POST_SUBMITTED_EVENT, (message) => {
+      listener(message.payload);
+    });
   }
 
   /**
@@ -166,7 +173,7 @@ function createCommunityEvents({ mesh }) {
     communityIntentListenersStarted = true;
 
     if (typeof handlers.onPostLiked === "function") {
-      mesh.subscribe(COMMUNITY_TOPIC, COMMUNITY_POST_LIKED_EVENT, (message) => {
+      transport.subscribe(COMMUNITY_TOPIC, COMMUNITY_POST_LIKED_EVENT, (message) => {
         if (isValidPostLikedRequest(message.payload)) {
           handlers.onPostLiked(message.payload);
         }
@@ -174,7 +181,7 @@ function createCommunityEvents({ mesh }) {
     }
 
     if (typeof handlers.onAuthorSelected === "function") {
-      mesh.subscribe(
+      transport.subscribe(
         COMMUNITY_TOPIC,
         COMMUNITY_AUTHOR_SELECTED_EVENT,
         (message) => {
@@ -186,19 +193,15 @@ function createCommunityEvents({ mesh }) {
     }
 
     if (typeof handlers.onPostSubmitted === "function") {
-      mesh.subscribe(
-        COMMUNITY_TOPIC,
-        COMMUNITY_POST_SUBMITTED_EVENT,
-        (message) => {
-          if (isValidPostSubmittedRequest(message.payload)) {
-            handlers.onPostSubmitted(message.payload);
-          }
-        },
-      );
+      subscribeToPostSubmitted((payload) => {
+        if (isValidPostSubmittedRequest(payload)) {
+          handlers.onPostSubmitted(payload);
+        }
+      });
     }
 
     if (typeof handlers.onFaqSubmitted === "function") {
-      mesh.subscribe(
+      transport.subscribe(
         COMMUNITY_TOPIC,
         COMMUNITY_FAQ_SUBMITTED_EVENT,
         (message) => {
@@ -224,6 +227,7 @@ function createCommunityEvents({ mesh }) {
     publishPostLikesWatching,
     publishAuthorSelected,
     publishPostSubmitted,
+    subscribeToPostSubmitted,
     publishFaqSubmitted,
     ensureCommunityIntentListeners,
     resetCommunityIntentListeners,

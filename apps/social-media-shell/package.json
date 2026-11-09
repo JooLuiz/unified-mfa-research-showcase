@@ -23,6 +23,7 @@
     "@shared/catalog-events": "*",
     "@shared/account-events": "*",
     "@shared/community-events": "*",
+    "@shared/post-like-events": "*",
     "@shared/session-events": "*",
     "@shared/notification-inbox-events": "*",
     "event-mesh": "*"

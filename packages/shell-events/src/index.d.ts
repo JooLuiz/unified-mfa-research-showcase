@@ -23,6 +23,7 @@ export type ShellEvents = {
   ensureShellEventListeners(handlers: ShellIntentHandlers): void;
   resetShellEventListeners(): void;
   subscribeToAuthSessionChanges(listener: () => void): () => void;
+  subscribeToRenderRequests(listener: () => void): () => void;
 };
 
 export declare const AUTH_TOPIC: "auth";
@@ -33,6 +34,4 @@ export declare const NAVIGATION_RENDER_REQUESTED_EVENT: "render-requested";
 export declare const NAVIGATION_PATH_REQUESTED_EVENT: "path-requested";
 export declare const NAVIGATION_POST_LOGIN_REDIRECT_CHANGED_EVENT: "post-login-redirect-changed";
 
-export function createShellEvents(input: {
-  mesh: ShellMeshClient;
-}): ShellEvents;
+export function createShellEvents(input: ShellMeshClient): ShellEvents;

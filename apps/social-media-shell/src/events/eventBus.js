@@ -12,10 +12,10 @@ import { createCatalogEvents } from "@shared/catalog-events";
 import { createAccountEvents } from "@shared/account-events";
 import { createCommunityEvents } from "@shared/community-events";
 
-const shellEvents = createShellEvents({ mesh });
-const catalogEvents = createCatalogEvents({ mesh });
-const accountEvents = createAccountEvents({ mesh });
-const communityEvents = createCommunityEvents({ mesh });
+const shellEvents = createShellEvents(mesh);
+const catalogEvents = createCatalogEvents(mesh);
+const accountEvents = createAccountEvents(mesh);
+const communityEvents = createCommunityEvents(mesh);
 
 /**
  * Parity no-op for header subscription on mesh branch.

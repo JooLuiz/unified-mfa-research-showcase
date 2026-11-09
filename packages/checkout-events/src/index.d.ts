@@ -20,6 +20,10 @@ export type CheckoutIntentHandlers = {
 export type CheckoutEvents = {
   publishCouponApplied(coupon: CouponAppliedRequest): void;
   publishPlaceOrderRequested(): void;
+  subscribeToCouponApplied(
+    listener: (payload: CouponAppliedRequest) => void,
+  ): () => void;
+  subscribeToPlaceOrderRequests(listener: () => void): () => void;
   ensureCheckoutIntentListeners(handlers: CheckoutIntentHandlers): void;
   resetCheckoutIntentListeners(): void;
 };
@@ -35,6 +39,4 @@ export function createCouponAppliedRequest(
   value: unknown,
 ): CouponAppliedRequest | null;
 
-export function createCheckoutEvents(input: {
-  mesh: CheckoutMeshClient;
-}): CheckoutEvents;
+export function createCheckoutEvents(input: CheckoutMeshClient): CheckoutEvents;

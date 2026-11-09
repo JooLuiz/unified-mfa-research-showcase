@@ -60,7 +60,7 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
   if (faqMount && appState.isFormularySubmitted) {
     activeCleanupFunctions.push(modules.mountFormularySent(faqMount));
   } else if (faqMount) {
-    const iframeBridge = createIframeBridge({ mesh });
+    const iframeBridge = createIframeBridge(mesh);
     const channelId = createIframeChannel();
     const faqIframeSourceUrl = new URL(
       "faq-formulary.html",

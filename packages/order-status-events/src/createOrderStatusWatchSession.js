@@ -5,12 +5,13 @@
  *   registered before the socket opened.
  * Not in this file: Which topic/event names to use (the customer and admin clients pass that in)
  *   or the status write (src/requestOrderStatusChange.js).
- * Key dependencies: event-mesh/mesh.
+ * Key dependencies: event-mesh/mesh; src/createOrderStatusEvents.js.
  * See also: src/customerOrderStatusClient.js; src/adminOrderStatusClient.js;
  *   apps/admin-shell/src/events/adminLiveEvents.js (same ensure/reset shape).
  */
 
 import mesh from "event-mesh/mesh";
+import { createOrderStatusEvents } from "./createOrderStatusEvents.js";
 
 const WATCHING_ANNOUNCE_INTERVAL_MS = 10_000;
 const MESH_CONNECT_TIMEOUT_MS = 5000;
@@ -26,8 +27,16 @@ const MESH_CONNECT_TIMEOUT_MS = 5000;
  * @returns {{ start: () => Promise<void>, stop: () => void, subscribe: (listener: (event: { orderId: string, status: string }) => void) => () => void }} Session controls.
  */
 function createOrderStatusWatchSession({ topic, watchingEvent, statusChangedEvent, logName }) {
-  /** @type {Set<(event: { orderId: string, status: string }) => void>} */
-  const listeners = new Set();
+  /** @type {Set<(message: { payload?: { orderId: string, status: string } }) => void>} */
+  const inboundCallbacks = new Set();
+  const orderStatusEvents = createOrderStatusEvents({
+    subscribe(_topic, _event, callback) {
+      inboundCallbacks.add(callback);
+      return function unsubscribeFromOrderStatus() {
+        inboundCallbacks.delete(callback);
+      };
+    },
+  });
   let sessionGeneration = 0;
   let unsubscribeFromMeshStatus = null;
   let watchingIntervalId = null;
@@ -41,7 +50,9 @@ function createOrderStatusWatchSession({ topic, watchingEvent, statusChangedEven
    * @returns {void}
    */
   function notifyListeners(event) {
-    listeners.forEach((listener) => listener(event));
+    inboundCallbacks.forEach((callback) => {
+      callback({ payload: event });
+    });
   }
 
   /**
@@ -132,13 +143,10 @@ function createOrderStatusWatchSession({ topic, watchingEvent, statusChangedEven
    *
    * @param {(event: { orderId: string, status: string }) => void} listener - Called with each pushed status.
    * @returns {() => void} Unsubscribe function.
-   * @sideEffects Mutates the module-local listener registry.
+   * @sideEffects Registers the listener on createOrderStatusEvents. Mesh subscribe stays in start.
    */
   function subscribe(listener) {
-    listeners.add(listener);
-    return function unsubscribe() {
-      listeners.delete(listener);
-    };
+    return orderStatusEvents.subscribeToOrderStatusChanged(listener);
   }
 
   return { start, stop, subscribe };

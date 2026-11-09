@@ -39,7 +39,8 @@ export type CommunityEvents = {
   publishPostLiked(postId: string): void;
   publishPostLikesWatching(postId: string): void;
   publishAuthorSelected(author: object): void;
-  publishPostSubmitted(post: PostSubmittedRequest): void;
+  publishPostSubmitted(payload?: object): void;
+  subscribeToPostSubmitted(listener: (payload: unknown) => void): () => void;
   publishFaqSubmitted(faq: FaqSubmittedRequest): void;
   ensureCommunityIntentListeners(handlers: CommunityIntentHandlers): void;
   resetCommunityIntentListeners(): void;
@@ -76,6 +77,4 @@ export function createFaqSubmittedRequest(
   value: unknown,
 ): FaqSubmittedRequest | null;
 
-export function createCommunityEvents(input: {
-  mesh: CommunityMeshClient;
-}): CommunityEvents;
+export function createCommunityEvents(input: CommunityMeshClient): CommunityEvents;

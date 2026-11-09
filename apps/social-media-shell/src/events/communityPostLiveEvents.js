@@ -8,12 +8,13 @@
  *   cartLiveEvents.js/adminLiveEvents.js do.
  * Not in this file: Inserting the pushed post into appState.posts (src/main.js,
  *   src/utils/postsState.js) or mesh session open/close (src/main.js).
- * Key dependencies: event-mesh/mesh.
+ * Key dependencies: event-mesh/mesh; @shared/post-like-events.
  * See also: src/main.js (start from every mesh session, stop on downgrade);
  *   apps/ecommerce-shell/src/events/cartLiveEvents.js (same ensure/reset shape).
  */
 
 import mesh from "event-mesh/mesh";
+import { createPostLikeEvents } from "@shared/post-like-events";
 
 const COMMUNITY_POSTS_TOPIC = "community-posts";
 const COMMUNITY_POSTS_WATCHING_EVENT = "watching";
@@ -26,8 +27,16 @@ let unsubscribeFromMeshPostCreated = null;
 let watchingIntervalId = null;
 let isStartInFlight = false;
 
-/** @type {Set<(post: object) => void>} */
-const listeners = new Set();
+/** @type {Set<(message: { payload?: object }) => void>} */
+const inboundCallbacks = new Set();
+const postLikeEvents = createPostLikeEvents({
+  subscribe(_topic, _event, callback) {
+    inboundCallbacks.add(callback);
+    return function unsubscribeFromPostCreatedInbound() {
+      inboundCallbacks.delete(callback);
+    };
+  },
+});
 
 /**
  * Calls every registered listener with one pushed post.
@@ -36,7 +45,9 @@ const listeners = new Set();
  * @returns {void}
  */
 function notifyListeners(post) {
-  listeners.forEach((listener) => listener(post));
+  inboundCallbacks.forEach((callback) => {
+    callback({ payload: post });
+  });
 }
 
 /**
@@ -127,13 +138,10 @@ function stopCommunityPostLiveEvents() {
  *
  * @param {(post: object) => void} listener - Called with each community-posts/created payload.
  * @returns {() => void} Removes this listener from the registry.
- * @sideEffects Mutates the module-local listener registry.
+ * @sideEffects Registers the listener on createPostLikeEvents. Mesh subscribe stays in start.
  */
 function subscribeToPostCreated(listener) {
-  listeners.add(listener);
-  return function unsubscribeFromPostCreated() {
-    listeners.delete(listener);
-  };
+  return postLikeEvents.subscribeToPostCreated(listener);
 }
 
 export { startCommunityPostLiveEvents, stopCommunityPostLiveEvents, subscribeToPostCreated };

@@ -13,9 +13,7 @@ import mesh from "event-mesh/mesh";
 import { createShellEvents } from "@shared/shell-events";
 import "./styles.css";
 
-const { publishPathRequested, publishLogoutRequested } = createShellEvents({
-  mesh,
-});
+const { publishPathRequested, publishLogoutRequested } = createShellEvents(mesh);
 
 const ECOMMERCE_NAV_LINKS = [
   { path: "/products", label: "Products" },

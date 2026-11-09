@@ -19,7 +19,7 @@ import mesh from "event-mesh/mesh";
 import { createCheckoutEvents } from "@shared/checkout-events";
 import "./styles.css";
 
-const { publishPlaceOrderRequested } = createCheckoutEvents({ mesh });
+const { publishPlaceOrderRequested } = createCheckoutEvents(mesh);
 
 type CheckoutSummaryProps = {
   subtotal: number;

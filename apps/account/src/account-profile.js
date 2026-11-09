@@ -11,7 +11,7 @@ import mesh from "event-mesh/mesh";
 import { createAccountEvents } from "@shared/account-events";
 import "./styles.css";
 
-const { publishProfileSaveRequested } = createAccountEvents({ mesh });
+const { publishProfileSaveRequested } = createAccountEvents(mesh);
 
 const AccountProfileComponent = {
   props: {

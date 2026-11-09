@@ -31,6 +31,7 @@
     "packages/stock-events",
     "packages/order-status-events",
     "packages/session-events",
+    "packages/post-like-events",
     "packages/notification-inbox-events"
   ],
   "scripts": {

@@ -46,8 +46,13 @@ export type CatalogIntentHandlers = {
 };
 
 export type CatalogEvents = {
-  publishProductOpenRequested(productId: string): void;
+  publishProductOpenRequested(productId: string | ProductOpenRequest): void;
   publishCartItemAddRequested(cartItem: CartAddRequest): void;
+  publishCartChanged(cartItems?: CartAddRequest[]): void;
+  subscribeToCartChanges(listener: () => void): () => void;
+  subscribeToCartItemAddRequests(
+    listener: (cartItem: CartAddRequest) => void,
+  ): () => void;
   publishFiltersApplyRequested(filters: PlpFilters | object): void;
   publishPromotionApplied(promotion: { filters?: object }): void;
   publishCartItemUpdateRequested(cartItem: CartUpdateRequest): void;
@@ -57,6 +62,7 @@ export type CatalogEvents = {
 };
 
 export declare const CART_TOPIC: "cart";
+export declare const CART_CHANGED_EVENT: "changed";
 export declare const CART_ITEM_ADD_REQUESTED_EVENT: "item-add-requested";
 export declare const CART_ITEM_UPDATE_REQUESTED_EVENT: "item-update-requested";
 export declare const CART_ITEM_REMOVE_REQUESTED_EVENT: "item-remove-requested";
@@ -85,6 +91,4 @@ export function createCartUpdateRequest(
 ): CartUpdateRequest | null;
 export function createPlpFiltersSnapshot(filters: unknown): PlpFilters;
 
-export function createCatalogEvents(input: {
-  mesh: CatalogMeshClient;
-}): CatalogEvents;
+export function createCatalogEvents(input: CatalogMeshClient): CatalogEvents;

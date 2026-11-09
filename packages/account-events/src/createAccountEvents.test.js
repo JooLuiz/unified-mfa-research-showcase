@@ -1,5 +1,5 @@
 /**
- * Verifies the account profile-updated message on an injected transport.
+ * Verifies the account profile-save-requested message on an injected transport.
  * Role: Locks topic, event, payload, and scope for createAccountEvents.
  * Not in this file: Profile forms or auth storage.
  * Key dependencies: node:test; src/createAccountEvents.js; test/support/createRecordingTransport.js.
@@ -25,8 +25,8 @@ test("publishProfileUpdated emits a local account message until unsubscribe", ()
   accountEvents.publishProfileUpdated({ fullName: "Later" });
 
   assert.deepEqual(transport.published, [
-    { topic: "account", event: "profile-updated", payload: profile, scope: "local" },
-    { topic: "account", event: "profile-updated", payload: { fullName: "Later" }, scope: "local" },
+    { topic: "account", event: "profile-save-requested", payload: profile, scope: "local" },
+    { topic: "account", event: "profile-save-requested", payload: { fullName: "Later" }, scope: "local" },
   ]);
   assert.deepEqual(received, [profile]);
 });

@@ -15,7 +15,7 @@ import { createCommunityEvents } from "@shared/community-events";
 const COMMUNITY_LIKES_TOPIC = "community-likes";
 const COMMUNITY_LIKES_CHANGED_EVENT = "changed";
 
-const { publishPostLiked, publishPostLikesWatching } = createCommunityEvents({ mesh });
+const { publishPostLiked, publishPostLikesWatching } = createCommunityEvents(mesh);
 
 function formatPostDate(isoDateString) {
   if (!isoDateString) {

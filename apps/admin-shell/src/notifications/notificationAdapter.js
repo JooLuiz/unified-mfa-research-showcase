@@ -9,6 +9,6 @@
 import { createMeshNotificationAdapter } from "@shared/notifications";
 import mesh from "event-mesh/mesh";
 
-const { publishNotification } = createMeshNotificationAdapter({ mesh });
+const { publishNotification } = createMeshNotificationAdapter(mesh);
 
 export { publishNotification };

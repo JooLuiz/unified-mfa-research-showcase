@@ -9,12 +9,13 @@
  *   re-announce here.
  * Not in this file: The watching announce (packages/community-events, published per-card on
  *   mount) or the like-toggle request/reply (src/commands/postLikeCommands.js).
- * Key dependencies: event-mesh/mesh.
+ * Key dependencies: event-mesh/mesh; @shared/post-like-events.
  * See also: src/main.js (start from the authenticated mesh session, stop on downgrade);
  *   apps/ecommerce-shell/src/events/cartLiveEvents.js (same ensure/reset shape).
  */
 
 import mesh from "event-mesh/mesh";
+import { createPostLikeEvents } from "@shared/post-like-events";
 
 const COMMUNITY_LIKES_TOPIC = "community-likes";
 const COMMUNITY_LIKES_CHANGED_EVENT = "changed";
@@ -24,8 +25,16 @@ let liveEventsGeneration = 0;
 let unsubscribeFromMeshLikesChanged = null;
 let isStartInFlight = false;
 
-/** @type {Set<(payload: { postId: string, likes: number, ownerId: string, likerId: string, likerName: string, liked: boolean }) => void>} */
-const listeners = new Set();
+/** @type {Set<(message: { payload?: { postId: string, likes: number, ownerId: string, likerId: string, likerName: string, liked: boolean } }) => void>} */
+const inboundCallbacks = new Set();
+const postLikeEvents = createPostLikeEvents({
+  subscribe(_topic, _event, callback) {
+    inboundCallbacks.add(callback);
+    return function unsubscribeFromLikeChanges() {
+      inboundCallbacks.delete(callback);
+    };
+  },
+});
 
 /**
  * Calls every registered listener with one pushed like change.
@@ -34,7 +43,9 @@ const listeners = new Set();
  * @returns {void}
  */
 function notifyListeners(payload) {
-  listeners.forEach((listener) => listener(payload));
+  inboundCallbacks.forEach((callback) => {
+    callback({ payload });
+  });
 }
 
 /**
@@ -99,13 +110,10 @@ function stopCommunityLikesLiveEvents() {
  *
  * @param {(payload: { postId: string, likes: number, ownerId: string, likerId: string, likerName: string, liked: boolean }) => void} listener - Called with each community-likes/changed payload.
  * @returns {() => void} Removes this listener from the registry.
- * @sideEffects Mutates the module-local listener registry.
+ * @sideEffects Registers the listener on createPostLikeEvents. Mesh subscribe stays in start.
  */
 function subscribeToCommunityLikesChanged(listener) {
-  listeners.add(listener);
-  return function unsubscribeFromCommunityLikesChanged() {
-    listeners.delete(listener);
-  };
+  return postLikeEvents.subscribeToLikeChanges(listener);
 }
 
 /**

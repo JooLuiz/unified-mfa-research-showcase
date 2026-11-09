@@ -10,8 +10,8 @@ import mesh from "event-mesh/mesh";
 import { createShellEvents } from "@shared/shell-events";
 import { createAccountEvents } from "@shared/account-events";
 
-const shellEvents = createShellEvents({ mesh });
-const accountEvents = createAccountEvents({ mesh });
+const shellEvents = createShellEvents(mesh);
+const accountEvents = createAccountEvents(mesh);
 
 /**
  * Parity no-op for header subscription on mesh branch.

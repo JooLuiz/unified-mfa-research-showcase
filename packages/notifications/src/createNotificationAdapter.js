@@ -1,0 +1,54 @@
+/**
+ * Creates a notification publisher and subscriber over an injected transport.
+ * Role: Turns toast payloads into transport messages without choosing CustomEvents or Event Mesh.
+ * Not in this file: Toast rendering or the shell-specific window event name.
+ * Key dependencies: src/notificationPayload.js.
+ * See also: src/mountNotificationCenter.js.
+ */
+
+import { createNotificationPayload } from "./notificationPayload.js";
+
+const NOTIFICATION_TOPIC = "notifications";
+const NOTIFICATION_RAISED_EVENT = "raised";
+
+/**
+ * Creates the notify and subscribe pair shells pass to the toast center.
+ *
+ * @param {{ publish: (message: { topic: string, event: string, payload: object, scope: string }) => void, subscribe: (topic: string, event: string, callback: (message: { payload: object }) => void) => () => void }} transport - Branch transport that delivers notification messages.
+ * @returns {{ notify: (notification: object) => void, subscribeToNotifications: (listener: (notification: object) => void) => () => void }} Notification adapter.
+ * @throws {Error} When the notification payload is missing required fields.
+ */
+function createNotificationAdapter({ publish, subscribe }) {
+  /**
+   * Publishes a page-local notification request.
+   *
+   * @param {{ type: "success" | "error", title: string, message: string, durationMs?: number, link?: string, notificationId?: string }} notification - Toast content, display behavior, optional detail path, and optional id of the persisted inbox row this toast was raised from.
+   * @returns {void}
+   * @sideEffects Publishes a notifications.raised message.
+   */
+  function notify(notification) {
+    publish({
+      topic: NOTIFICATION_TOPIC,
+      event: NOTIFICATION_RAISED_EVENT,
+      payload: createNotificationPayload(notification),
+      scope: "local",
+    });
+  }
+
+  /**
+   * Subscribes to page-local notification requests.
+   *
+   * @param {(notification: { type: "success" | "error", title: string, message: string, durationMs?: number, link?: string, notificationId?: string }) => void} listener - Handler invoked for each notification.
+   * @returns {() => void} Function that removes the subscription.
+   * @sideEffects Registers a transport subscription.
+   */
+  function subscribeToNotifications(listener) {
+    return subscribe(NOTIFICATION_TOPIC, NOTIFICATION_RAISED_EVENT, (message) => {
+      listener(message.payload);
+    });
+  }
+
+  return { notify, subscribeToNotifications };
+}
+
+export { createNotificationAdapter, NOTIFICATION_TOPIC, NOTIFICATION_RAISED_EVENT };

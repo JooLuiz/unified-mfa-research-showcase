@@ -62,9 +62,15 @@ test("readGuestHoldsData reports persistence failure when the store throws", asy
   jsonStore.readJsonFileWithDefault = async () => {
     throw new Error("unreadable");
   };
-  const readResult = await readGuestHoldsData(jsonStore);
-  assert.equal(readResult.ok, false);
-  assert.equal(readResult.code, GUEST_HOLDS_PERSISTENCE_FAILED_CODE);
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    const readResult = await readGuestHoldsData(jsonStore);
+    assert.equal(readResult.ok, false);
+    assert.equal(readResult.code, GUEST_HOLDS_PERSISTENCE_FAILED_CODE);
+  } finally {
+    console.error = originalConsoleError;
+  }
 });
 
 test("writeGuestHoldLine stores a line, replaces it, and removes the session at quantity 0", async () => {

@@ -39,9 +39,9 @@ export interface NotificationCenterHandle {
   resetNotificationDisplayListeners(): void;
 }
 
-export function createMeshNotificationAdapter(input: {
-  mesh: Pick<NotificationMeshClient, "publish">;
-}): MeshNotificationAdapter;
+export function createMeshNotificationAdapter(
+  input: Pick<NotificationMeshClient, "publish">,
+): MeshNotificationAdapter;
 
 export function mountNotificationCenter(
   containerElement: HTMLElement,

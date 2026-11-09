@@ -2,8 +2,8 @@
  * Publishes and subscribes to shared checkout Event Mesh messages.
  * Role: Hides mesh transport details behind coupon and place-order operations for remotes and shells.
  * Not in this file: Mesh configuration, cart state ownership, order APIs, or UI rendering.
- * Key dependencies: An Event Mesh client supplied by the owning shell (remotes must not configureMesh).
- * See also: src/checkoutEventContracts.js; MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Key dependencies: An Event Mesh client supplied by the owning shell, or a recording transport in tests.
+ * See also: src/checkoutEventContracts.js; src/createCheckoutEvents.test.js.
  */
 
 import {
@@ -17,14 +17,14 @@ import {
 /**
  * Creates a checkout-scoped local event adapter for checkout remotes and host shells.
  *
- * @param {{ mesh: { publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void } }} adapterInput - Configured mesh client for the owning shell.
+ * @param {{ publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void }} transport - Mesh client or recording transport. Both expose publish and subscribe.
  * @returns {object} Checkout event adapter with publish helpers and intent listeners.
  */
-function createCheckoutEvents({ mesh }) {
+function createCheckoutEvents(transport) {
   let checkoutIntentListenersStarted = false;
 
   function publishLocalEvent(topic, event, payload = {}) {
-    mesh.publish({ topic, event, payload, scope: "local" });
+    transport.publish({ topic, event, payload, scope: "local" });
   }
 
   /**
@@ -51,14 +51,43 @@ function createCheckoutEvents({ mesh }) {
    * Publishes a request for the host shell to place the current order.
    *
    * @returns {void}
-   * @sideEffects Publishes a local checkout.place-order-requested message.
+   * @sideEffects Publishes a local checkout.place-order-requested message with no payload.
    */
   function publishPlaceOrderRequested() {
-    publishLocalEvent(
-      CHECKOUT_TOPIC,
-      CHECKOUT_PLACE_ORDER_REQUESTED_EVENT,
-      {},
-    );
+    transport.publish({
+      topic: CHECKOUT_TOPIC,
+      event: CHECKOUT_PLACE_ORDER_REQUESTED_EVENT,
+      scope: "local",
+    });
+  }
+
+  /**
+   * Subscribes to valid coupon-applied messages until the returned function runs.
+   *
+   * @param {(payload: { code: string, discountPercentage: number }) => void} listener - Called with each valid coupon.
+   * @returns {() => void} Removes the subscription.
+   * @sideEffects Registers a local checkout subscription. Invalid payloads are ignored.
+   */
+  function subscribeToCouponApplied(listener) {
+    return transport.subscribe(CHECKOUT_TOPIC, CHECKOUT_COUPON_APPLIED_EVENT, (message) => {
+      if (!isValidCouponAppliedRequest(message.payload)) {
+        return;
+      }
+      listener(message.payload);
+    });
+  }
+
+  /**
+   * Subscribes to place-order requests until the returned function runs.
+   *
+   * @param {() => void} listener - Called for each place-order request.
+   * @returns {() => void} Removes the subscription.
+   * @sideEffects Registers a local checkout subscription.
+   */
+  function subscribeToPlaceOrderRequests(listener) {
+    return transport.subscribe(CHECKOUT_TOPIC, CHECKOUT_PLACE_ORDER_REQUESTED_EVENT, () => {
+      listener();
+    });
   }
 
   /**
@@ -79,25 +108,11 @@ function createCheckoutEvents({ mesh }) {
     checkoutIntentListenersStarted = true;
 
     if (typeof handlers.onCouponApplied === "function") {
-      mesh.subscribe(
-        CHECKOUT_TOPIC,
-        CHECKOUT_COUPON_APPLIED_EVENT,
-        (message) => {
-          if (isValidCouponAppliedRequest(message.payload)) {
-            handlers.onCouponApplied(message.payload);
-          }
-        },
-      );
+      subscribeToCouponApplied(handlers.onCouponApplied);
     }
 
     if (typeof handlers.onPlaceOrderRequested === "function") {
-      mesh.subscribe(
-        CHECKOUT_TOPIC,
-        CHECKOUT_PLACE_ORDER_REQUESTED_EVENT,
-        () => {
-          handlers.onPlaceOrderRequested();
-        },
-      );
+      subscribeToPlaceOrderRequests(handlers.onPlaceOrderRequested);
     }
   }
 
@@ -113,6 +128,8 @@ function createCheckoutEvents({ mesh }) {
   return {
     publishCouponApplied,
     publishPlaceOrderRequested,
+    subscribeToCouponApplied,
+    subscribeToPlaceOrderRequests,
     ensureCheckoutIntentListeners,
     resetCheckoutIntentListeners,
   };

@@ -1,7 +1,6 @@
 /**
- * Shared names for the order-status Event Mesh contract.
- * Role: Keeps the customer and admin clients on the same mesh topics and event names as the
- *   mock data service's order-status handler and watcher registries.
+ * Shared names for the order-status Event Mesh contract and the HTTP/SSE paths.
+ * Role: Keeps mesh clients and the SSE session on the same topic and event names as the mock API.
  * Not in this file: The mesh publish/subscribe lifecycle or the status write.
  * Key dependencies: None.
  * See also: apps/mock-data-service/src/event-mesh/orderStatusHandler.js;
@@ -14,6 +13,11 @@ const ORDERS_STATUS_CHANGE_REQUESTED_EVENT = "status-change-requested";
 const ORDERS_STATUS_ACCEPTED_EVENT = "status-accepted";
 const ORDERS_STATUS_REJECTED_EVENT = "status-rejected";
 const ORDERS_STATUS_CHANGED_EVENT = "status-changed";
+const ORDER_STATUS_CHANGED_EVENT_NAME = "orders.status-changed";
+const CUSTOMER_ORDER_STATUS_TICKET_PATH = "/orders/connection-tickets";
+const CUSTOMER_ORDER_STATUS_STREAM_PATH = "/orders/stream";
+const ADMIN_ORDER_STATUS_TICKET_PATH = "/admin/orders/connection-tickets";
+const ADMIN_ORDER_STATUS_STREAM_PATH = "/admin/orders/stream";
 
 const ADMIN_TOPIC = "admin";
 const ADMIN_ORDER_STATUS_CHANGED_EVENT = "order_status_changed";
@@ -40,13 +44,18 @@ function formatOrderStatus(status) {
 }
 
 export {
+  ADMIN_ORDER_STATUS_CHANGED_EVENT,
+  ADMIN_ORDER_STATUS_STREAM_PATH,
+  ADMIN_ORDER_STATUS_TICKET_PATH,
+  ADMIN_TOPIC,
+  CUSTOMER_ORDER_STATUS_STREAM_PATH,
+  CUSTOMER_ORDER_STATUS_TICKET_PATH,
+  ORDER_STATUS_CHANGED_EVENT_NAME,
+  ORDERS_STATUS_ACCEPTED_EVENT,
+  ORDERS_STATUS_CHANGED_EVENT,
+  ORDERS_STATUS_CHANGE_REQUESTED_EVENT,
+  ORDERS_STATUS_REJECTED_EVENT,
   ORDERS_TOPIC,
   ORDERS_WATCHING_EVENT,
-  ORDERS_STATUS_CHANGE_REQUESTED_EVENT,
-  ORDERS_STATUS_ACCEPTED_EVENT,
-  ORDERS_STATUS_REJECTED_EVENT,
-  ORDERS_STATUS_CHANGED_EVENT,
-  ADMIN_TOPIC,
-  ADMIN_ORDER_STATUS_CHANGED_EVENT,
   formatOrderStatus,
 };

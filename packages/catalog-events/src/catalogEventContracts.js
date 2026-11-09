@@ -10,6 +10,7 @@ const CART_TOPIC = "cart";
 const CART_ITEM_ADD_REQUESTED_EVENT = "item-add-requested";
 const CART_ITEM_UPDATE_REQUESTED_EVENT = "item-update-requested";
 const CART_ITEM_REMOVE_REQUESTED_EVENT = "item-remove-requested";
+const CART_CHANGED_EVENT = "changed";
 const CATALOG_TOPIC = "catalog";
 const CATALOG_PRODUCT_OPEN_REQUESTED_EVENT = "product-open-requested";
 const CATALOG_FILTERS_APPLY_REQUESTED_EVENT = "filters-apply-requested";
@@ -161,6 +162,7 @@ function isValidPromotionAppliedRequest(value) {
 }
 
 export {
+  CART_CHANGED_EVENT,
   CART_ITEM_ADD_REQUESTED_EVENT,
   CART_ITEM_REMOVE_REQUESTED_EVENT,
   CART_ITEM_UPDATE_REQUESTED_EVENT,

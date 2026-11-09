@@ -16,7 +16,7 @@ configureMesh({
   enableWebSocket: true,
 });
 
-const iframeBridge = createIframeBridge({ mesh });
+const iframeBridge = createIframeBridge(mesh);
 
 function getBridgeContext() {
   const queryParameters = new URLSearchParams(window.location.search);
