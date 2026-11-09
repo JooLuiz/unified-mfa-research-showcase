@@ -50,25 +50,32 @@ test("subscribeToCartItemAddRequests ignores an invalid payload and stops after 
   assert.deepEqual(received, [{ productId: "p-02", quantity: 2 }]);
 });
 
-test("publishCartChanged and publishProductOpenRequested use their contract names", () => {
+test("publishCartChanged notifies a subscriber once and publishProductOpenRequested uses its contract name", () => {
   const transport = createRecordingTransport();
   const catalogEvents = createCatalogEvents(transport);
   const cartChanges = [];
-  catalogEvents.subscribeToCartChanges(() => {
+  const unsubscribe = catalogEvents.subscribeToCartChanges(() => {
     cartChanges.push("changed");
   });
 
   catalogEvents.publishCartChanged();
+  unsubscribe();
+  catalogEvents.publishCartChanged();
   catalogEvents.publishProductOpenRequested({ productId: "p-01" });
 
-  assert.deepEqual(transport.published, [
-    { topic: "cart", event: "changed", scope: "local" },
+  const cartChangedMessages = transport.published.filter(
+    (message) => message.topic === "cart" && message.event === "changed",
+  );
+  assert.equal(cartChangedMessages.length, 2);
+  assert.equal(cartChangedMessages[0].scope, "local");
+  assert.deepEqual(cartChanges, ["changed"]);
+  assert.deepEqual(
+    transport.published.find((message) => message.topic === "catalog"),
     {
       topic: "catalog",
       event: "product-open-requested",
       payload: { productId: "p-01" },
       scope: "local",
     },
-  ]);
-  assert.deepEqual(cartChanges, ["changed"]);
+  );
 });

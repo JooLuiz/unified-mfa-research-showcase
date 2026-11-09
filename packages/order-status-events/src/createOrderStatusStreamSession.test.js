@@ -1,39 +1,40 @@
 /**
- * Verifies the order-status stream delivers orders.status-changed until unsubscribe.
- * Role: Locks the SSE event name and listener fan-out of createOrderStatusStreamSession.
- * Not in this file: The status write command.
- * Key dependencies: node:test; src/createOrderStatusStreamSession.js; test/support/installBrowserTestDoubles.js.
- * See also: src/createOrderStatusStreamSession.js.
+ * Verifies order status delivery on an injected transport.
+ * Role: Locks that a subscriber receives one status update and nothing after unsubscribe.
+ * Not in this file: EventSource, HTTP paths, or the status write.
+ * Key dependencies: node:test; src/createOrderStatusEvents.js; test/support/createRecordingTransport.js.
+ * See also: src/createOrderStatusEvents.js.
  */
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createOrderStatusStreamSession } from "./createOrderStatusStreamSession.js";
 import {
-  FakeEventSource,
-  installBrowserTestDoubles,
-} from "../../../test/support/installBrowserTestDoubles.js";
+  createOrderStatusEvents,
+  ORDERS_STATUS_CHANGED_EVENT,
+  ORDERS_TOPIC,
+} from "./createOrderStatusEvents.js";
+import { createRecordingTransport } from "../../../test/support/createRecordingTransport.js";
 
-test("subscribe delivers orders.status-changed until unsubscribe, then stop closes the stream", async () => {
-  installBrowserTestDoubles();
-  const session = createOrderStatusStreamSession({
-    ticketPath: "/orders/connection-tickets",
-    streamPath: "/orders/stream",
-    logName: "customer-order-status",
-  });
+test("subscribeToOrderStatusChanged delivers one status update until unsubscribe", () => {
+  const transport = createRecordingTransport();
+  const orderStatusEvents = createOrderStatusEvents(transport);
   const received = [];
-  const unsubscribe = session.subscribe((statusEvent) => {
+  const unsubscribe = orderStatusEvents.subscribeToOrderStatusChanged((statusEvent) => {
     received.push(statusEvent);
   });
+  const shipped = { orderId: "order-01", status: "shipped" };
 
-  await session.start({ apiBaseUrl: "http://localhost:4000/api", authToken: "token-01" });
-  const eventSource = FakeEventSource.latestMatching("/orders/stream?ticket=");
-  eventSource.emit("orders.status-changed", { orderId: "order-01", status: "shipped" });
+  transport.publish({
+    topic: ORDERS_TOPIC,
+    event: ORDERS_STATUS_CHANGED_EVENT,
+    payload: shipped,
+  });
   unsubscribe();
-  eventSource.emit("orders.status-changed", { orderId: "order-01", status: "delivered" });
-  session.stop();
+  transport.publish({
+    topic: ORDERS_TOPIC,
+    event: ORDERS_STATUS_CHANGED_EVENT,
+    payload: { orderId: "order-01", status: "delivered" },
+  });
 
-  assert.equal(eventSource.url.includes("ticket-01"), true);
-  assert.deepEqual(received, [{ orderId: "order-01", status: "shipped" }]);
-  assert.equal(eventSource.closed, true);
+  assert.deepEqual(received, [shipped]);
 });

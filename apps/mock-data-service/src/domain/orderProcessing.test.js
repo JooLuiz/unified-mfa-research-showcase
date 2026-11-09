@@ -127,17 +127,22 @@ test("createOrderForUser reports persistence failure when the order file cannot 
   jsonStore.writeJsonFile = async () => {
     throw new Error("disk full");
   };
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    const orderResult = await createOrderForUser({
+      jsonStore,
+      user: { id: "u-01", address: null },
+      orderPayload: {
+        items: [{ productId: "p-01", quantity: 1 }],
+        totalAmount: 45,
+      },
+    });
 
-  const orderResult = await createOrderForUser({
-    jsonStore,
-    user: { id: "u-01", address: null },
-    orderPayload: {
-      items: [{ productId: "p-01", quantity: 1 }],
-      totalAmount: 45,
-    },
-  });
-
-  assert.equal(orderResult.ok, false);
-  assert.equal(orderResult.code, ORDER_PERSISTENCE_FAILED_CODE);
-  assert.equal(jsonStore.files["carts.json"].length, 1);
+    assert.equal(orderResult.ok, false);
+    assert.equal(orderResult.code, ORDER_PERSISTENCE_FAILED_CODE);
+    assert.equal(jsonStore.files["carts.json"].length, 1);
+  } finally {
+    console.error = originalConsoleError;
+  }
 });

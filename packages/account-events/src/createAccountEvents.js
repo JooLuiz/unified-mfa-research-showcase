@@ -1,12 +1,12 @@
 /**
  * Publishes and subscribes to account contracts.
- * Role: Exposes profile-updated over an injected transport.
+ * Role: Exposes profile-save-requested over an injected transport.
  * Not in this file: Profile forms or auth token storage.
  * Key dependencies: src/accountEventsContracts.js.
  * See also: src/index.js.
  */
 
-import { ACCOUNT_TOPIC, PROFILE_UPDATED_EVENT } from "./accountEventsContracts.js";
+import { ACCOUNT_TOPIC, ACCOUNT_PROFILE_SAVE_REQUESTED_EVENT } from "./accountEventsContracts.js";
 
 /**
  * Creates account event operations bound to a transport.
@@ -18,14 +18,14 @@ function createAccountEvents({ publish, subscribe }) {
   function publishProfileUpdated(payload) {
     publish({
       topic: ACCOUNT_TOPIC,
-      event: PROFILE_UPDATED_EVENT,
+      event: ACCOUNT_PROFILE_SAVE_REQUESTED_EVENT,
       payload,
       scope: "local",
     });
   }
 
   function subscribeToProfileUpdates(listener) {
-    return subscribe(ACCOUNT_TOPIC, PROFILE_UPDATED_EVENT, (message) => {
+    return subscribe(ACCOUNT_TOPIC, ACCOUNT_PROFILE_SAVE_REQUESTED_EVENT, (message) => {
       listener(message.payload);
     });
   }

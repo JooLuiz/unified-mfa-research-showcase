@@ -1,5 +1,5 @@
-export const NOTIFICATIONS_TOPIC: string;
-export const NOTIFICATION_REQUESTED_EVENT: string;
+export const NOTIFICATION_TOPIC: string;
+export const NOTIFICATION_RAISED_EVENT: string;
 
 export interface NotificationPayload {
   type: "success" | "error";

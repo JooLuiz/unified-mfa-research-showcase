@@ -1,6 +1,6 @@
 /**
  * Verifies checkout coupon and place-order messages on an injected transport.
- * Role: Locks topic, event, payload, scope, and the coupon payload guard.
+ * Role: Locks topic, event, coupon payload, scope, and the blank-code guard.
  * Not in this file: Order HTTP or window event names.
  * Key dependencies: node:test; src/createCheckoutEvents.js; test/support/createRecordingTransport.js.
  * See also: src/createCheckoutEvents.js.
@@ -15,15 +15,15 @@ test("publishCouponApplied emits a local checkout message and drops a blank code
   const transport = createRecordingTransport();
   const checkoutEvents = createCheckoutEvents(transport);
 
-  checkoutEvents.publishCouponApplied({ code: "SAVE10" });
-  checkoutEvents.publishCouponApplied({ code: "  " });
+  checkoutEvents.publishCouponApplied({ code: "SAVE10", discountPercentage: 10 });
+  checkoutEvents.publishCouponApplied({ code: "  ", discountPercentage: 10 });
   checkoutEvents.publishCouponApplied(null);
 
   assert.deepEqual(transport.published, [
     {
       topic: "checkout",
       event: "coupon-applied",
-      payload: { code: "SAVE10" },
+      payload: { code: "SAVE10", discountPercentage: 10 },
       scope: "local",
     },
   ]);
@@ -43,11 +43,11 @@ test("subscribeToCouponApplied ignores an invalid payload and stops after unsubs
     payload: { code: "" },
     scope: "local",
   });
-  checkoutEvents.publishCouponApplied({ code: "WELCOME" });
+  checkoutEvents.publishCouponApplied({ code: "WELCOME", discountPercentage: 15 });
   unsubscribe();
-  checkoutEvents.publishCouponApplied({ code: "LATER" });
+  checkoutEvents.publishCouponApplied({ code: "LATER", discountPercentage: 15 });
 
-  assert.deepEqual(received, [{ code: "WELCOME" }]);
+  assert.deepEqual(received, [{ code: "WELCOME", discountPercentage: 15 }]);
 });
 
 test("publishPlaceOrderRequested emits a local checkout message until unsubscribe", () => {

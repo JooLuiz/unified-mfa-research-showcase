@@ -9,13 +9,13 @@
 const AUTH_TOPIC = "auth";
 const AUTH_SESSION_CHANGED_EVENT = "session-changed";
 const AUTH_LOGOUT_REQUESTED_EVENT = "logout-requested";
-const SHELL_TOPIC = "shell";
+const NAVIGATION_TOPIC = "navigation";
 const RENDER_REQUESTED_EVENT = "render-requested";
 
 export {
   AUTH_TOPIC,
   AUTH_SESSION_CHANGED_EVENT,
   AUTH_LOGOUT_REQUESTED_EVENT,
-  SHELL_TOPIC,
+  NAVIGATION_TOPIC,
   RENDER_REQUESTED_EVENT,
 };

@@ -6,19 +6,54 @@
  *   registered for each (even if they registered before the socket opened).
  * Not in this file: The module-level singleton that lets many callers share one connection
  *   (src/postLikeEventsClient.js) or the toggle write (src/togglePostLike.js).
- * Key dependencies: EventSource; src/postLikeEventsContracts.js.
+ * Key dependencies: EventSource; src/createPostLikeEvents.js; src/postLikeEventsContracts.js.
  * See also: apps/mock-data-service/src/routes/postLikeRoutes.js (GET /posts/stream);
  *   apps/mock-data-service/src/routes/postRoutes.js (broadcasts post-created on the same stream).
  */
 
+import { createPostLikeEvents } from "./createPostLikeEvents.js";
 import {
-  POST_LIKES_CHANGED_EVENT_NAME,
+  COMMUNITY_LIKES_CHANGED_EVENT,
+  COMMUNITY_LIKES_TOPIC,
+  COMMUNITY_POSTS_CREATED_EVENT,
+  COMMUNITY_POSTS_TOPIC,
   POST_CREATED_EVENT_NAME,
+  POST_LIKES_CHANGED_EVENT_NAME,
   POST_LIKES_STREAM_PATH,
 } from "./postLikeEventsContracts.js";
 
 const INITIAL_RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
+
+/**
+ * Holds transport callbacks keyed by topic and event for one post stream.
+ *
+ * @returns {{ subscribe: (topic: string, event: string, callback: (message: { payload?: unknown }) => void) => () => void, deliver: (topic: string, event: string, payload: unknown) => void }} Inbound transport.
+ */
+function createPostStreamTransport() {
+  /** @type {Map<string, Set<(message: { payload?: unknown }) => void>>} */
+  const callbacksByContract = new Map();
+
+  function subscribe(topic, event, callback) {
+    const contractKey = `${topic}:${event}`;
+    const callbacks = callbacksByContract.get(contractKey) || new Set();
+    callbacks.add(callback);
+    callbacksByContract.set(contractKey, callbacks);
+    return function unsubscribeFromPostStream() {
+      callbacks.delete(callback);
+    };
+  }
+
+  function deliver(topic, event, payload) {
+    const callbacks = callbacksByContract.get(`${topic}:${event}`);
+    if (!callbacks) {
+      return;
+    }
+    callbacks.forEach((callback) => callback({ payload }));
+  }
+
+  return { subscribe, deliver };
+}
 
 /**
  * Creates and immediately opens a tab-scoped post-likes stream. Unlike the order-status
@@ -27,12 +62,11 @@ const MAX_RECONNECT_DELAY_MS = 30_000;
  *
  * @param {{ apiBaseUrl: string }} streamInput - Mock API base URL.
  * @returns {{ subscribe: (listener: (event: { postId: string, likes: number, ownerId: string, likerId: string, likerName: string, liked: boolean }) => void) => () => void, subscribeToPostCreated: (listener: (post: object) => void) => () => void }} Stream controls.
+ * @sideEffects Opens one EventSource and delivers parsed frames through createPostLikeEvents.
  */
 function createPostLikesStream({ apiBaseUrl }) {
-  /** @type {Set<(event: { postId: string, likes: number, ownerId: string, likerId: string, likerName: string, liked: boolean }) => void>} */
-  const listeners = new Set();
-  /** @type {Set<(post: object) => void>} */
-  const postCreatedListeners = new Set();
+  const postStreamTransport = createPostStreamTransport();
+  const postLikeEvents = createPostLikeEvents(postStreamTransport);
   let activeEventSource = null;
   let reconnectTimeoutId = null;
   let reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
@@ -45,13 +79,19 @@ function createPostLikesStream({ apiBaseUrl }) {
   }
 
   function dispatchLikesChanged(messageEvent) {
-    const likesChangedEvent = JSON.parse(messageEvent.data);
-    listeners.forEach((listener) => listener(likesChangedEvent));
+    postStreamTransport.deliver(
+      COMMUNITY_LIKES_TOPIC,
+      COMMUNITY_LIKES_CHANGED_EVENT,
+      JSON.parse(messageEvent.data),
+    );
   }
 
   function dispatchPostCreated(messageEvent) {
-    const createdPost = JSON.parse(messageEvent.data);
-    postCreatedListeners.forEach((listener) => listener(createdPost));
+    postStreamTransport.deliver(
+      COMMUNITY_POSTS_TOPIC,
+      COMMUNITY_POSTS_CREATED_EVENT,
+      JSON.parse(messageEvent.data),
+    );
   }
 
   function scheduleReconnect() {
@@ -85,12 +125,10 @@ function createPostLikesStream({ apiBaseUrl }) {
    *
    * @param {(event: { postId: string, likes: number, ownerId: string, likerId: string, likerName: string, liked: boolean }) => void} listener - Called for every push.
    * @returns {() => void} Unsubscribe function.
+   * @sideEffects Registers the listener on the shared like module.
    */
   function subscribe(listener) {
-    listeners.add(listener);
-    return function unsubscribe() {
-      listeners.delete(listener);
-    };
+    return postLikeEvents.subscribeToLikeChanges(listener);
   }
 
   /**
@@ -99,12 +137,10 @@ function createPostLikesStream({ apiBaseUrl }) {
    * @param {(post: object) => void} listener - Called with the newly created post (same shape
    *   GET /posts items have, author attached, likes 0).
    * @returns {() => void} Unsubscribe function.
+   * @sideEffects Registers the listener on the shared like module.
    */
   function subscribeToPostCreated(listener) {
-    postCreatedListeners.add(listener);
-    return function unsubscribe() {
-      postCreatedListeners.delete(listener);
-    };
+    return postLikeEvents.subscribeToPostCreated(listener);
   }
 
   openStream();

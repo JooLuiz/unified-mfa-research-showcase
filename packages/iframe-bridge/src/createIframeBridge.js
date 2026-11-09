@@ -1,6 +1,6 @@
 /**
  * Publishes and subscribes to iframe bridge messages.
- * Role: Exposes resize and submit operations, and maps them onto postMessage on main.
+ * Role: Publishes iframe actions as iframe-bridge message events and maps those actions onto postMessage.
  * Not in this file: Iframe DOM mounting or form field collection.
  * Key dependencies: src/iframeBridgeContracts.js; browser postMessage.
  * See also: src/index.js.
@@ -9,6 +9,7 @@
 import {
   FAQ_SUBMITTED_EVENT,
   GO_SHOPPING_EVENT,
+  IFRAME_BRIDGE_MESSAGE_EVENT,
   IFRAME_BRIDGE_TOPIC,
   POST_SUBMITTED_EVENT,
   RESIZED_EVENT,
@@ -29,6 +30,33 @@ const EVENT_BY_WINDOW_MESSAGE_TYPE = Object.fromEntries(
 );
 
 /**
+ * Reads the action name from an iframe-bridge message payload.
+ *
+ * @param {unknown} payload - Transport payload published for the message event.
+ * @returns {string | undefined} Action name when the payload carries one.
+ */
+function readBridgeAction(payload) {
+  if (!payload || typeof payload !== "object" || !("event" in payload)) {
+    return undefined;
+  }
+  const action = payload.event;
+  return typeof action === "string" ? action : undefined;
+}
+
+/**
+ * Reads the caller payload stored inside an iframe-bridge message payload.
+ *
+ * @param {unknown} payload - Transport payload published for the message event.
+ * @returns {unknown} Inner payload, or undefined when the message has none.
+ */
+function readBridgeInnerPayload(payload) {
+  if (!payload || typeof payload !== "object" || !("payload" in payload)) {
+    return undefined;
+  }
+  return payload.payload;
+}
+
+/**
  * Creates a postMessage transport that keeps the current host message shapes.
  *
  * @returns {{ publish: (message: { topic: string, event: string, payload?: object, scope?: string }) => void, subscribe: (topic: string, event: string, callback: (message: { payload?: unknown }) => void) => () => void }} Transport whose wire format is postMessage.
@@ -36,25 +64,35 @@ const EVENT_BY_WINDOW_MESSAGE_TYPE = Object.fromEntries(
  */
 function createPostMessageTransport() {
   function publish({ event, payload }) {
-    const messageType = WINDOW_MESSAGE_TYPE_BY_EVENT[event];
+    if (event !== IFRAME_BRIDGE_MESSAGE_EVENT) {
+      return;
+    }
+    const messageType = WINDOW_MESSAGE_TYPE_BY_EVENT[readBridgeAction(payload)];
     if (!messageType) {
       return;
     }
-    const message = payload === undefined ? { type: messageType } : { type: messageType, payload };
+    const innerPayload = readBridgeInnerPayload(payload);
+    const message =
+      innerPayload === undefined ? { type: messageType } : { type: messageType, payload: innerPayload };
     const targetWindow = window.parent === window ? window : window.parent;
     targetWindow.postMessage(message, "*");
   }
 
   function subscribe(_topic, event, callback) {
+    if (event !== IFRAME_BRIDGE_MESSAGE_EVENT) {
+      return function unsubscribeUnmappedIframeMessage() {};
+    }
+
     function handleMessage(domEvent) {
       const messageData = domEvent.data;
       if (!messageData || typeof messageData !== "object") {
         return;
       }
-      if (EVENT_BY_WINDOW_MESSAGE_TYPE[messageData.type] !== event) {
+      const action = EVENT_BY_WINDOW_MESSAGE_TYPE[messageData.type];
+      if (!action) {
         return;
       }
-      callback({ payload: messageData.payload });
+      callback({ payload: { event: action, payload: messageData.payload } });
     }
 
     window.addEventListener("message", handleMessage);
@@ -71,20 +109,24 @@ function createPostMessageTransport() {
  *
  * @param {{ publish: (message: { topic: string, event: string, payload?: object, scope: string }) => void, subscribe: (topic: string, event: string, callback: (message: { payload?: unknown }) => void) => () => void }} transport - Branch transport.
  * @returns {{ publishIframeMessage: (eventName: string, payload?: object) => void, subscribeToIframeEvent: (eventName: string, listener: (payload: unknown) => void) => () => void }} Iframe bridge operations.
+ * @sideEffects Publishes iframe-bridge message events. The action name is stored on the payload.
  */
 function createIframeBridge({ publish, subscribe }) {
   function publishIframeMessage(eventName, payload) {
     publish({
       topic: IFRAME_BRIDGE_TOPIC,
-      event: eventName,
-      payload,
+      event: IFRAME_BRIDGE_MESSAGE_EVENT,
+      payload: { event: eventName, payload },
       scope: "distributed",
     });
   }
 
   function subscribeToIframeEvent(eventName, listener) {
-    return subscribe(IFRAME_BRIDGE_TOPIC, eventName, (message) => {
-      listener(message.payload);
+    return subscribe(IFRAME_BRIDGE_TOPIC, IFRAME_BRIDGE_MESSAGE_EVENT, (message) => {
+      if (readBridgeAction(message.payload) !== eventName) {
+        return;
+      }
+      listener(readBridgeInnerPayload(message.payload));
     });
   }
 

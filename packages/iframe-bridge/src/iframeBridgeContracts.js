@@ -1,6 +1,6 @@
 /**
  * Names iframe bridge message kinds shared by isolated pages and their hosts.
- * Role: Holds the iframe-bridge topic and the resized, faq, post, and go-shopping event names.
+ * Role: Holds the iframe-bridge topic, the message event, and the resized, faq, post, and go-shopping action names.
  * Not in this file: postMessage type strings or host iframe mounting.
  * Key dependencies: None.
  * See also: src/createIframeBridge.js.

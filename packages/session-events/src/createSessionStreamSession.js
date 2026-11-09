@@ -3,10 +3,11 @@
  * Role: Manages a tab-scoped SSE connection to /auth/session-stream with reconnect logic,
  *   delivering events to registered listeners.
  * Not in this file: UI toasts or shell navigation.
- * Key dependencies: EventSource; src/sessionEventsContracts.js.
+ * Key dependencies: EventSource; src/createSessionEvents.js; src/sessionEventsContracts.js.
  * See also: src/sessionEventsClient.js.
  */
 
+import { createSessionEvents } from "./createSessionEvents.js";
 import {
   SESSION_REVOKED_EVENT_NAME,
   SESSION_STREAM_PATH,
@@ -26,8 +27,16 @@ const MAX_RECONNECT_DELAY_MS = 30_000;
  * }} Stream controls.
  */
 function createSessionStreamSession() {
-  /** @type {Set<() => void>} */
-  const listeners = new Set();
+  /** @type {Set<(message: { payload?: object }) => void>} */
+  const inboundCallbacks = new Set();
+  const sessionEvents = createSessionEvents({
+    subscribe(_topic, _event, callback) {
+      inboundCallbacks.add(callback);
+      return function unsubscribeFromSessionRevoked() {
+        inboundCallbacks.delete(callback);
+      };
+    },
+  });
   let activeEventSource = null;
   let reconnectTimeoutId = null;
   let reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
@@ -53,9 +62,9 @@ function createSessionStreamSession() {
     if (ignoreIncomingRevocation) {
       return;
     }
-    listeners.forEach((listener) => {
+    inboundCallbacks.forEach((callback) => {
       try {
-        listener();
+        callback({ payload: {} });
       } catch (error) {
         console.warn("createSessionStreamSession - listener error");
         console.warn(error);
@@ -149,12 +158,10 @@ function createSessionStreamSession() {
    *
    * @param {() => void} listener - Callback invoked when the user session is revoked.
    * @returns {() => void} Unsubscribe function.
+   * @sideEffects Registers the listener on the shared session module.
    */
   function subscribe(listener) {
-    listeners.add(listener);
-    return function unsubscribe() {
-      listeners.delete(listener);
-    };
+    return sessionEvents.subscribeToSessionRevoked(listener);
   }
 
   return { start, stop, markLocalSignOut, subscribe };

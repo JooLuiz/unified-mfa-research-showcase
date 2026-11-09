@@ -34,6 +34,21 @@ export declare function subscribeToPostCreated(
   listener: (post: CreatedPost) => void,
 ): () => void;
 
+export type PostLikeTransport = {
+  subscribe: (
+    topic: string,
+    event: string,
+    callback: (message: { payload?: unknown }) => void,
+  ) => () => void;
+};
+
+export type PostLikeEvents = {
+  subscribeToLikeChanges: (listener: (likeEvent: PostLikesChangedEvent) => void) => () => void;
+  subscribeToPostCreated: (listener: (post: CreatedPost) => void) => () => void;
+};
+
+export declare function createPostLikeEvents(transport: PostLikeTransport): PostLikeEvents;
+
 export declare function togglePostLike(input: {
   apiBaseUrl: string;
   authToken: string;

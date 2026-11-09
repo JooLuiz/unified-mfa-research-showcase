@@ -1,7 +1,7 @@
 export const AUTH_TOPIC: string;
 export const AUTH_SESSION_CHANGED_EVENT: string;
 export const AUTH_LOGOUT_REQUESTED_EVENT: string;
-export const SHELL_TOPIC: string;
+export const NAVIGATION_TOPIC: string;
 export const RENDER_REQUESTED_EVENT: string;
 
 export interface ShellTransportMessage {
