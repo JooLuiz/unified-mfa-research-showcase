@@ -20,6 +20,7 @@ import {
  *
  * @param {{ publish: (message: { topic: string, event: string, payload?: object, scope: string }) => void, subscribe: (topic: string, event: string, callback: (message: { payload?: unknown }) => void) => () => void }} transport - Branch transport.
  * @returns {{ publishCartItemAddRequested: (payload: object) => void, subscribeToCartItemAddRequests: (listener: (payload: object) => void) => () => void, publishCartChanged: () => void, subscribeToCartChanges: (listener: () => void) => () => void, publishProductOpenRequested: (payload: { productId: string }) => void }} Catalog event operations.
+ * @note publishCartChanged always includes payload: {} so every transport receives a record.
  */
 function createCatalogEvents({ publish, subscribe }) {
   function publishCartItemAddRequested(payload) {
@@ -46,6 +47,7 @@ function createCatalogEvents({ publish, subscribe }) {
     publish({
       topic: CART_TOPIC,
       event: CART_CHANGED_EVENT,
+      payload: {},
       scope: "local",
     });
   }

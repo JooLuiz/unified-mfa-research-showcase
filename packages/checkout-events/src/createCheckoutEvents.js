@@ -18,6 +18,7 @@ import {
  *
  * @param {{ publish: (message: { topic: string, event: string, payload?: object, scope: string }) => void, subscribe: (topic: string, event: string, callback: (message: { payload?: unknown }) => void) => () => void }} transport - Branch transport.
  * @returns {{ publishCouponApplied: (payload: { code: string }) => void, subscribeToCouponApplied: (listener: (payload: { code: string }) => void) => () => void, publishPlaceOrderRequested: () => void, subscribeToPlaceOrderRequests: (listener: () => void) => () => void }} Checkout event operations.
+ * @note publishPlaceOrderRequested always includes payload: {} so every transport receives a record.
  */
 function createCheckoutEvents({ publish, subscribe }) {
   function publishCouponApplied(payload) {
@@ -44,6 +45,7 @@ function createCheckoutEvents({ publish, subscribe }) {
     publish({
       topic: CHECKOUT_TOPIC,
       event: PLACE_ORDER_REQUESTED_EVENT,
+      payload: {},
       scope: "local",
     });
   }
