@@ -2,7 +2,7 @@
  * Admin order-status client for one admin tab.
  * Role: Opens the all-orders status stream and sends ship, deliver, cancel, accept, and decline writes.
  * Not in this file: Customer cancellation requests (src/customerOrderStatusClient.js) or table markup.
- * Key dependencies: src/createOrderStatusStreamSession.js; src/requestOrderStatusChange.js.
+ * Key dependencies: src/createOrderStatusSession.js; src/requestOrderStatusChange.js.
  * See also: apps/admin-shell/src/main.js; apps/admin-shell/src/pages/ordersPage.js.
  */
 
@@ -10,7 +10,7 @@ import {
   ADMIN_ORDER_STATUS_STREAM_PATH,
   ADMIN_ORDER_STATUS_TICKET_PATH,
 } from "./orderStatusContracts.js";
-import { createOrderStatusStreamSession } from "./createOrderStatusStreamSession.js";
+import { createOrderStatusStreamSession } from "./createOrderStatusSession.js";
 import { requestOrderStatusChange } from "./requestOrderStatusChange.js";
 
 const adminOrderStatusSession = createOrderStatusStreamSession({

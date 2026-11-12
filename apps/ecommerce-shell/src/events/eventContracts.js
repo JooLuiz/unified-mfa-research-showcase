@@ -1,7 +1,7 @@
 /**
  * Re-exports shared shell and catalog contracts for the ecommerce shell.
  * Role: Keeps the phase 2 import path while the package contracts own the names.
- * Not in this file: Browser event mapping (src/events/browserTransport.js).
+ * Not in this file: Browser event mapping (src/events/eventBus.js).
  * Key dependencies: @shared/shell-events; @shared/catalog-events.
  * See also: src/events/eventBus.js.
  */

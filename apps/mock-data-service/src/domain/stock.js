@@ -3,7 +3,7 @@
  * Role: Computes "available" (stock minus every active hold), and reserves, releases, and
  *   consumes holds. A hold is a saved-cart line (signed-in) or a guestHolds.json line (guest).
  * Not in this file: HTTP routing (src/routes/stockRoutes.js, src/routes/catalogRoutes.js) or the
- *   SSE watcher registry (src/infrastructure/stockEventStream.js).
+ *   SSE watcher registry (src/infrastructure/stockEvents.js).
  * Key dependencies: products.json; src/domain/cartProcessing.js; src/domain/guestHolds.js.
  * See also: src/domain/orderProcessing.js (consumes stock on sale); src/domain/orderStatus.js
  *   (restores stock when an order is cancelled).

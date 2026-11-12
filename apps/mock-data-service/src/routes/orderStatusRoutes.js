@@ -3,9 +3,9 @@
  * Role: Handles PUT /orders/:orderId/status, the customer and admin connection tickets, and
  *   GET /orders/stream plus GET /admin/orders/stream, mounted at /api.
  * Not in this file: Transition rules (src/domain/orderStatus.js) or the response registry
- *   (src/infrastructure/orderEventStream.js).
+ *   (src/infrastructure/orderEvents.js).
  * Key dependencies: orders.json via the JSON store; src/domain/auth.js; src/domain/connectionTickets.js;
- *   src/infrastructure/stockEventStream.js for the cancel broadcast.
+ *   src/infrastructure/stockEvents.js for the cancel broadcast.
  * See also: src/server.js; src/routes/orderRoutes.js; src/routes/adminRoutes.js.
  */
 

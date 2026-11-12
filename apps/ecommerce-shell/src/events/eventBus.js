@@ -1,18 +1,70 @@
 /**
  * Publishes and subscribes to ecommerce shell window, cart, and header events.
- * Role: Thin caller of the shared shell and catalog packages over the browser transport.
+ * Role: Maps shared shell and catalog contracts onto window CustomEvents and exposes the shell's publish and subscribe helpers.
  * Not in this file: Route rendering, cart item mutation, auth storage, or notification toasts.
- * Key dependencies: @shared/shell-events; @shared/catalog-events; src/events/browserTransport.js.
+ * Key dependencies: @shared/shell-events; @shared/catalog-events; window CustomEvent.
  * See also: src/main.js; src/utils/cartActions.js; src/utils/mountActions.js.
  */
 
-import { createCatalogEvents } from "@shared/catalog-events";
-import { createShellEvents } from "@shared/shell-events";
 import {
-  HOST_LOGOUT_EVENT,
-  HOST_NAVIGATE_EVENT,
-  createBrowserTransport,
-} from "./browserTransport";
+  CART_CHANGED_EVENT,
+  CART_ITEM_ADD_REQUESTED_EVENT,
+  CART_TOPIC,
+  createCatalogEvents,
+} from "@shared/catalog-events";
+import {
+  AUTH_LOGOUT_REQUESTED_EVENT,
+  AUTH_SESSION_CHANGED_EVENT,
+  AUTH_TOPIC,
+  NAVIGATION_TOPIC,
+  RENDER_REQUESTED_EVENT,
+  createShellEvents,
+} from "@shared/shell-events";
+
+const HOST_NAVIGATE_EVENT = "host:navigate";
+const HOST_LOGOUT_EVENT = "host:logout";
+
+const WINDOW_EVENT_BY_CONTRACT = {
+  [`${AUTH_TOPIC}.${AUTH_SESSION_CHANGED_EVENT}`]: "auth:changed",
+  [`${AUTH_TOPIC}.${AUTH_LOGOUT_REQUESTED_EVENT}`]: "auth:logout-request",
+  [`${NAVIGATION_TOPIC}.${RENDER_REQUESTED_EVENT}`]: "global:renderApp",
+  [`${CART_TOPIC}.${CART_ITEM_ADD_REQUESTED_EVENT}`]: "cart:add-item",
+  [`${CART_TOPIC}.${CART_CHANGED_EVENT}`]: "cart:updateGlobalCart",
+};
+
+/**
+ * Creates a window CustomEvent transport for contract topic and event pairs.
+ *
+ * @returns {{ publish: (message: { topic: string, event: string, payload?: object, scope?: string }) => void, subscribe: (topic: string, event: string, callback: (message: { payload?: unknown }) => void) => () => void }} Browser transport.
+ * @sideEffects Dispatches and listens for window CustomEvents.
+ */
+function createBrowserTransport() {
+  function publish({ topic, event, payload }) {
+    const eventName = WINDOW_EVENT_BY_CONTRACT[`${topic}.${event}`];
+    if (!eventName) {
+      return;
+    }
+    window.dispatchEvent(new CustomEvent(eventName, { detail: payload }));
+  }
+
+  function subscribe(topic, event, callback) {
+    const eventName = WINDOW_EVENT_BY_CONTRACT[`${topic}.${event}`];
+    if (!eventName) {
+      return function unsubscribeUnmappedContract() {};
+    }
+
+    function handleWindowEvent(domEvent) {
+      callback({ payload: domEvent.detail });
+    }
+
+    window.addEventListener(eventName, handleWindowEvent);
+    return function unsubscribeFromWindowEvent() {
+      window.removeEventListener(eventName, handleWindowEvent);
+    };
+  }
+
+  return { publish, subscribe };
+}
 
 const browserTransport = createBrowserTransport();
 const shellEvents = createShellEvents(browserTransport);

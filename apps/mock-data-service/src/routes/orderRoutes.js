@@ -3,8 +3,8 @@
  * Role: Handles POST /orders, GET /orders, and GET /orders/:orderId, mounted at /api.
  * Not in this file: Token helpers (src/domain/auth.js), order persistence
  *   (src/domain/orderProcessing.js), or the broadcast implementations
- *   (src/infrastructure/adminEventStream.js, src/infrastructure/cartEventStream.js,
- *   src/infrastructure/stockEventStream.js).
+ *   (src/infrastructure/adminEvents.js, src/infrastructure/cartEvents.js,
+ *   src/infrastructure/stockEvents.js).
  * Key dependencies: orders.json and users.json via the JSON store.
  * See also: src/server.js; src/routes/adminRoutes.js; src/routes/cartRoutes.js; src/routes/stockRoutes.js.
  */

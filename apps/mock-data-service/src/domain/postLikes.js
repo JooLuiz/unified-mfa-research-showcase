@@ -3,7 +3,7 @@
  * Role: Computes a post's live like count and whether a given viewer has liked it, and applies
  *   the toggle rule (an author may never like their own post).
  * Not in this file: HTTP routing (src/routes/postLikeRoutes.js, src/routes/postRoutes.js,
- *   src/routes/adminRoutes.js) or the SSE broadcast (src/infrastructure/postLikeEventStream.js).
+ *   src/routes/adminRoutes.js) or the SSE broadcast (src/infrastructure/postLikeEvents.js).
  * Key dependencies: postLikes.json via the JSON store.
  * See also: src/routes/postLikeRoutes.js; src/domain/exportProcessing.js (posts CSV export).
  */

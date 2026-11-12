@@ -1,9 +1,9 @@
 /**
  * Subscribes to order status changes over an injected transport.
  * Role: Delivers orders/status-changed payloads to one listener until unsubscribe.
- * Not in this file: The EventSource session (src/createOrderStatusStreamSession.js) or the status write.
+ * Not in this file: The EventSource session (src/createOrderStatusSession.js) or the status write.
  * Key dependencies: src/orderStatusContracts.js. The caller supplies publish and subscribe.
- * See also: src/createOrderStatusStreamSession.js; src/createOrderStatusStreamSession.test.js.
+ * See also: src/createOrderStatusSession.js; src/createOrderStatusSession.test.js.
  */
 
 import { ORDERS_STATUS_CHANGED_EVENT, ORDERS_TOPIC } from "./orderStatusContracts.js";

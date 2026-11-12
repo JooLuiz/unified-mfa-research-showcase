@@ -3,8 +3,8 @@
  * Role: Handles GET and POST /posts, mounted at /api.
  * Not in this file: Token helpers (src/domain/auth.js), id generation
  *   (src/domain/identifiers.js), the admin broadcast implementation
- *   (src/infrastructure/adminEventStream.js), or the like toggle/stream
- *   (src/routes/postLikeRoutes.js, src/infrastructure/postLikeEventStream.js).
+ *   (src/infrastructure/adminEvents.js), or the like toggle/stream
+ *   (src/routes/postLikeRoutes.js, src/infrastructure/postLikeEvents.js).
  * Key dependencies: posts.json and users.json via the JSON store; src/domain/postLikes.js.
  * See also: src/server.js; src/routes/adminRoutes.js (admin live-notifications stream).
  */
@@ -14,7 +14,7 @@ const { buildPublicUser, resolveAuthenticatedUserId } = require("../domain/auth"
 const { generateIdentifier } = require("../domain/identifiers");
 const { readPostLikesData, attachLikeCountsToPosts } = require("../domain/postLikes");
 const { recordPostCreatedNotifications } = require("../domain/notificationTriggers");
-const { POST_CREATED_EVENT_NAME } = require("../infrastructure/postLikeEventStream");
+const { POST_CREATED_EVENT_NAME } = require("../infrastructure/postLikeEvents");
 
 /**
  * Creates the post router.

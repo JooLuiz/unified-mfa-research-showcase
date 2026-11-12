@@ -1,9 +1,9 @@
 /**
  * Subscribes to session revocation over an injected transport.
  * Role: Delivers one session/revoked notice until unsubscribe.
- * Not in this file: The EventSource session (src/createSessionStreamSession.js) or the sign-out HTTP command.
+ * Not in this file: The EventSource session (src/createSessionSession.js) or the sign-out HTTP command.
  * Key dependencies: src/sessionEventsContracts.js. The caller supplies publish and subscribe.
- * See also: src/createSessionStreamSession.js; src/createSessionStreamSession.test.js.
+ * See also: src/createSessionSession.js; src/createSessionSession.test.js.
  */
 
 import { SESSION_REVOKED_EVENT, SESSION_TOPIC } from "./sessionEventsContracts.js";

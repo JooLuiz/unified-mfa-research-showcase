@@ -2,8 +2,8 @@
  * Serves the post-like toggle and the social live-updates stream for the mock data service.
  * Role: Handles POST /posts/:postId/like and GET /posts/stream, mounted at /api.
  * Not in this file: Like count/toggle rule (src/domain/postLikes.js), the social SSE registry
- *   (src/infrastructure/postLikeEventStream.js), or the admin SSE registry
- *   (src/infrastructure/adminEventStream.js, reused here for the admin broadcast side).
+ *   (src/infrastructure/postLikeEvents.js), or the admin SSE registry
+ *   (src/infrastructure/adminEvents.js, reused here for the admin broadcast side).
  * Key dependencies: posts.json and users.json via the JSON store; src/domain/auth.js;
  *   src/domain/postLikes.js.
  * See also: src/server.js; src/routes/postRoutes.js (GET /posts annotates `likes` from the
@@ -13,7 +13,7 @@
 const express = require("express");
 const { resolveAuthenticatedUserId } = require("../domain/auth");
 const { LIKE_NOT_ALLOWED_CODE, toggleLike } = require("../domain/postLikes");
-const { POST_LIKES_CHANGED_EVENT_NAME } = require("../infrastructure/postLikeEventStream");
+const { POST_LIKES_CHANGED_EVENT_NAME } = require("../infrastructure/postLikeEvents");
 const { recordPostLikedNotification } = require("../domain/notificationTriggers");
 
 const POST_LIKES_SSE_HEARTBEAT_INTERVAL_MS = 20_000;
