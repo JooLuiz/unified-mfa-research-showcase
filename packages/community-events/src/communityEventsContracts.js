@@ -17,7 +17,7 @@ const COMMUNITY_FAQ_SUBMITTED_EVENT = "faq-submitted";
 // same per-entity-watch shape as @shared/stock-events' createStockWatchClient); the toggle
 // request/reply and the changed-broadcast subscription are owned by the host shell (see
 // apps/social-media-shell/src/commands/postLikeCommands.js and
-// apps/social-media-shell/src/events/communityLikesLiveEvents.js).
+// packages/post-like-events/src/postLikeEventsClient.js).
 const COMMUNITY_LIKES_TOPIC = "community-likes";
 const COMMUNITY_LIKES_WATCHING_EVENT = "watching";
 const COMMUNITY_LIKES_TOGGLE_EVENT = "toggle";

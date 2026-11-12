@@ -3,7 +3,7 @@
  * Role: Hides mesh transport details behind profile and address save operations for remotes and shells.
  * Not in this file: Mesh configuration, HTTP account APIs, or UI rendering.
  * Key dependencies: An Event Mesh client supplied by the owning shell, or a recording transport in tests.
- * See also: src/accountEventContracts.js; src/createAccountEvents.test.js.
+ * See also: src/accountEventsContracts.js; src/createAccountEvents.test.js.
  */
 
 import {
@@ -14,7 +14,7 @@ import {
   createProfileSaveRequest,
   isValidAddressSaveRequest,
   isValidProfileSaveRequest,
-} from "./accountEventContracts.js";
+} from "./accountEventsContracts.js";
 
 /**
  * Creates an account-scoped local event adapter for account remotes and host shells.

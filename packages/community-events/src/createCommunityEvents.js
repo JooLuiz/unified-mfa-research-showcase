@@ -6,9 +6,9 @@
  * Not in this file: Mesh configuration, HTTP post/FAQ APIs, UI rendering, the like-toggle
  *   request/reply, or the community-likes/changed subscription (both host-shell-owned; see
  *   apps/social-media-shell/src/commands/postLikeCommands.js and
- *   apps/social-media-shell/src/events/communityLikesLiveEvents.js).
+ *   packages/post-like-events/src/postLikeEventsClient.js).
  * Key dependencies: An Event Mesh client supplied by the owning shell (remotes must not configureMesh).
- * See also: src/communityEventContracts.js; MESH_IMPLEMENTATIONS/remote-intents.md.
+ * See also: src/communityEventsContracts.js; MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
 import {
@@ -24,7 +24,7 @@ import {
   isValidFaqSubmittedRequest,
   isValidPostLikedRequest,
   isValidPostSubmittedRequest,
-} from "./communityEventContracts.js";
+} from "./communityEventsContracts.js";
 
 const MESH_CONNECT_TIMEOUT_MS = 5000;
 

@@ -3,7 +3,7 @@
  * Role: Hides mesh transport details behind catalog and cart intent operations for remotes and shells.
  * Not in this file: Mesh configuration, cart state ownership, routing, or UI rendering.
  * Key dependencies: An Event Mesh client supplied by the owning shell (remotes must not configureMesh).
- * See also: src/catalogEventContracts.js; MESH_IMPLEMENTATIONS/remote-intents.md.
+ * See also: src/catalogEventsContracts.js; MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
 import {
@@ -23,7 +23,7 @@ import {
   isValidPlpFiltersPayload,
   isValidProductOpenRequest,
   isValidPromotionAppliedRequest,
-} from "./catalogEventContracts.js";
+} from "./catalogEventsContracts.js";
 import { createCatalogCartOperations } from "./createCatalogCartOperations.js";
 
 /**

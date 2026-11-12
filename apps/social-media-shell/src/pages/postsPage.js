@@ -6,7 +6,7 @@
  * Not in this file: Post persistence (src/commands/postCommands.js), trending selection
  *   (src/pages/feedPage.js), or the toggle write itself (src/commands/postLikeCommands.js).
  * Key dependencies: Banner remotes publish promotion intents; social main handles ecommerce
- *   redirect; src/events/communityLikesLiveEvents.js.
+ *   redirect; @shared/post-like-events.
  * See also: src/utils/renderActions.js (public barrel); MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
@@ -16,10 +16,10 @@ import {
   rememberPostLoginRedirect,
 } from "../utils/authActions";
 import {
-  subscribeToCommunityLikesChanged,
+  subscribeToPostLikesChanged,
   applyLikesChangeToPosts,
-} from "../events/communityLikesLiveEvents";
-import { subscribeToPostCreated } from "../events/communityPostLiveEvents";
+  subscribeToPostCreated,
+} from "@shared/post-like-events";
 
 const POSTS_PER_BANNER_GROUP = 4;
 
@@ -161,7 +161,7 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
   };
 
   activeCleanupFunctions.push(
-    subscribeToCommunityLikesChanged((likesChangedPayload) => {
+    subscribeToPostLikesChanged((likesChangedPayload) => {
       appState.posts = applyLikesChangeToPosts(
         appState.posts,
         appState.currentUser?.id,

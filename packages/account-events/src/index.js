@@ -3,7 +3,7 @@
  * Role: Public barrel for account save-request names and the account event factory.
  * Not in this file: Event behavior or mesh configuration.
  * Key dependencies: None.
- * See also: src/createAccountEvents.js; src/accountEventContracts.js.
+ * See also: src/createAccountEvents.js; src/accountEventsContracts.js.
  */
 
 export {
@@ -14,5 +14,5 @@ export {
   createProfileSaveRequest,
   isValidAddressSaveRequest,
   isValidProfileSaveRequest,
-} from "./accountEventContracts.js";
+} from "./accountEventsContracts.js";
 export { createAccountEvents } from "./createAccountEvents.js";

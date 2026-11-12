@@ -2,12 +2,12 @@
  * HTTP command for revoking all sessions of the current user.
  * Role: Dispatches POST /auth/sign-out-everywhere with the current bearer token.
  * Not in this file: Toast UI or shell logout. Those stay in each shell.
- * Key dependencies: src/sessionEventsContracts.js; src/sessionLiveEventsClient.js.
- * See also: src/sessionLiveEventsClient.js.
+ * Key dependencies: src/sessionEventsContracts.js; src/sessionEventsClient.js.
+ * See also: src/sessionEventsClient.js.
  */
 
 import { SIGN_OUT_EVERYWHERE_PATH } from "./sessionEventsContracts.js";
-import { stopSessionLiveEvents } from "./sessionLiveEventsClient.js";
+import { stopSessionLiveEvents } from "./sessionEventsClient.js";
 
 /**
  * Sends a request to sign out from all sessions everywhere.

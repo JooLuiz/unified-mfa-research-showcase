@@ -2,7 +2,7 @@
  * Cart changed and cart-add operations for the catalog event adapter.
  * Role: Publishes cart/changed and subscribes to cart add and cart changed on the caller's transport.
  * Not in this file: Product open, filters, promotions, or mesh configuration.
- * Key dependencies: src/catalogEventContracts.js.
+ * Key dependencies: src/catalogEventsContracts.js.
  * See also: src/createCatalogEvents.js.
  */
 
@@ -11,7 +11,7 @@ import {
   CART_ITEM_ADD_REQUESTED_EVENT,
   CART_TOPIC,
   isValidCartAddRequest,
-} from "./catalogEventContracts.js";
+} from "./catalogEventsContracts.js";
 
 /**
  * Creates the cart operations shared by the catalog factory and its intent listeners.

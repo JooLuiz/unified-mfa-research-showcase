@@ -16,5 +16,5 @@ export {
   isValidFaqSubmittedRequest,
   isValidPostLikedRequest,
   isValidPostSubmittedRequest,
-} from "./communityEventContracts.js";
+} from "./communityEventsContracts.js";
 export { createCommunityEvents } from "./createCommunityEvents.js";

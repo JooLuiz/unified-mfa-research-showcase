@@ -1,28 +1,26 @@
 /**
- * One EventSource per tab for session events (such as session.revoked).
- * Role: Manages a tab-scoped SSE connection to /auth/session-stream with reconnect logic,
- *   delivering events to registered listeners.
- * Not in this file: UI toasts or shell navigation.
- * Key dependencies: EventSource; src/createSessionEvents.js; src/sessionEventsContracts.js.
+ * One mesh subscription per tab for session events (such as session.revoked).
+ * Role: Manages a tab-scoped session/revoked subscription on the local Event Mesh client,
+ *   delivering matching revocations to registered listeners.
+ * Not in this file: UI toasts, shell navigation, or the sign-out-everywhere HTTP write
+ *   (src/sessionRevocationCommands.js).
+ * Key dependencies: event-mesh/mesh; src/createSessionEvents.js; src/sessionEventsContracts.js.
  * See also: src/sessionEventsClient.js.
+ *   On main this module opens a Server-Sent Events connection; this branch subscribes through
+ *   the gateway. The server broadcasts session/revoked to every open socket; this module drops
+ *   events whose userId is not the one passed to start.
  */
 
+import mesh from "event-mesh/mesh";
 import { createSessionEvents } from "./createSessionEvents.js";
-import {
-  SESSION_REVOKED_EVENT_NAME,
-  SESSION_STREAM_PATH,
-} from "./sessionEventsContracts.js";
-
-const INITIAL_RECONNECT_DELAY_MS = 2000;
-const MAX_RECONNECT_DELAY_MS = 30_000;
+import { SESSION_TOPIC, SESSION_REVOKED_EVENT } from "./sessionEventsContracts.js";
 
 /**
- * Creates a tab-scoped session stream session.
+ * Creates a tab-scoped session stream session backed by the local mesh client.
  *
  * @returns {{
- *   start: (input: { apiBaseUrl: string, authToken: string }) => void,
+ *   start: (input: { authToken?: string, userId?: string }) => void,
  *   stop: () => void,
- *   markLocalSignOut: () => void,
  *   subscribe: (listener: () => void) => () => void
  * }} Stream controls.
  */
@@ -37,31 +35,16 @@ function createSessionStreamSession() {
       };
     },
   });
-  let activeEventSource = null;
-  let reconnectTimeoutId = null;
-  let reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
-  let activeApiBaseUrl = "";
-  let activeAuthToken = "";
-  let ignoreIncomingRevocation = false;
 
-  function clearReconnectTimer() {
-    if (reconnectTimeoutId) {
-      window.clearTimeout(reconnectTimeoutId);
-      reconnectTimeoutId = null;
-    }
-  }
+  let unsubscribeFromMeshRevocation = null;
+  let watchedUserId = null;
 
-  function closeActiveEventSource() {
-    if (activeEventSource) {
-      activeEventSource.close();
-      activeEventSource = null;
-    }
-  }
-
-  function dispatchSessionRevoked() {
-    if (ignoreIncomingRevocation) {
-      return;
-    }
+  /**
+   * Calls every registered listener once for a pushed session/revoked that matches this tab.
+   *
+   * @returns {void}
+   */
+  function notifyListeners() {
     inboundCallbacks.forEach((callback) => {
       try {
         callback({ payload: {} });
@@ -72,99 +55,71 @@ function createSessionStreamSession() {
     });
   }
 
-  function scheduleReconnect() {
-    clearReconnectTimer();
-    reconnectTimeoutId = window.setTimeout(() => {
-      if (!activeAuthToken) {
-        return;
-      }
-      reconnectDelayMs = Math.min(reconnectDelayMs * 2, MAX_RECONNECT_DELAY_MS);
-      start({ apiBaseUrl: activeApiBaseUrl, authToken: activeAuthToken });
-    }, reconnectDelayMs);
-  }
-
   /**
-   * Opens the tab's single session stream when an authToken is present and none is currently open.
+   * Starts the mesh subscription for this tab's signed-in user.
    *
-   * @param {{ apiBaseUrl: string, authToken: string }} startInput - API base URL and bearer token.
+   * Subscribes immediately. Waiting for the socket first drops a revoke that arrives in the
+   * gap, and a whenConnected timeout used to leave the tab unsubscribed for the rest of the
+   * session.
+   *
+   * @param {{ authToken?: string, userId?: string }} [startInput] - `authToken` gates the start.
+   *   `userId` is the signed-in user; revokes for any other user are ignored.
    * @returns {void}
-   * @sideEffects Opens one EventSource. Clears a previous local sign-out suppression so this session can be revoked remotely.
+   * @sideEffects Subscribes to session/revoked on the local mesh client.
    */
-  function start({ apiBaseUrl, authToken }) {
-    activeApiBaseUrl = apiBaseUrl;
-    activeAuthToken = authToken;
-
-    if (!authToken || activeEventSource) {
+  function start(startInput) {
+    if (!startInput?.authToken || !startInput.userId || unsubscribeFromMeshRevocation) {
       return;
     }
 
-    ignoreIncomingRevocation = false;
-
-    try {
-      const streamUrl = `${apiBaseUrl}${SESSION_STREAM_PATH}?token=${encodeURIComponent(authToken)}`;
-      const eventSource = new EventSource(streamUrl);
-
-      eventSource.addEventListener(SESSION_REVOKED_EVENT_NAME, () => {
-        dispatchSessionRevoked();
-        closeActiveEventSource();
-      });
-
-      eventSource.onerror = () => {
-        closeActiveEventSource();
-        if (ignoreIncomingRevocation) {
+    watchedUserId = startInput.userId;
+    unsubscribeFromMeshRevocation = mesh.subscribe(
+      SESSION_TOPIC,
+      SESSION_REVOKED_EVENT,
+      (message) => {
+        if (message.payload?.userId !== watchedUserId) {
           return;
         }
-        scheduleReconnect();
-      };
+        notifyListeners();
+      },
+    );
+  }
 
-      activeEventSource = eventSource;
-      reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
-    } catch (error) {
-      console.warn("createSessionStreamSession - start error");
-      console.warn(error);
-      scheduleReconnect();
+  /**
+   * Stops the mesh subscription without closing the mesh client.
+   *
+   * Calling this just before POSTing sign-out-everywhere removes this tab's own session/revoked
+   * handler synchronously, so the server's broadcast arrives with nothing registered to receive
+   * it — the clicking tab never sees its own "ended on another device" notice.
+   *
+   * @returns {void}
+   * @sideEffects Removes the mesh subscription and forgets the watched user id.
+   */
+  function stop() {
+    watchedUserId = null;
+
+    if (unsubscribeFromMeshRevocation) {
+      unsubscribeFromMeshRevocation();
+      unsubscribeFromMeshRevocation = null;
     }
   }
 
   /**
-   * Closes the open session stream and clears pending reconnect timers.
-   * Does not clear a local sign-out suppression. A session.revoked frame can still arrive after close.
+   * Subscribes a listener to session.revoked notifications that match this tab's user.
    *
-   * @returns {void}
-   * @sideEffects Closes the EventSource.
-   */
-  function stop() {
-    activeAuthToken = "";
-    clearReconnectTimer();
-    reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
-    closeActiveEventSource();
-  }
-
-  /**
-   * Ignores the next session.revoked delivery on this tab.
-   * The tab that calls sign-out-everywhere still receives the broadcast on its own stream.
-   * stop() leaves this flag set so a frame that arrives after the stream closes is still ignored.
-   * The next start() clears it.
+   * Safe to call at any time, including before the mesh session starts: this only adds
+   * to an in-memory registry and never touches the mesh client directly, so it cannot
+   * trigger EventMesh's lazy singleton ahead of configureMesh().
    *
-   * @returns {void}
-   * @sideEffects Suppresses listener delivery and reconnect until the next stream start.
-   */
-  function markLocalSignOut() {
-    ignoreIncomingRevocation = true;
-  }
-
-  /**
-   * Subscribes a listener to the session.revoked event.
-   *
-   * @param {() => void} listener - Callback invoked when the user session is revoked.
-   * @returns {() => void} Unsubscribe function.
-   * @sideEffects Registers the listener on the shared session module.
+   * @param {() => void} listener - Called once per matching session/revoked push.
+   * @returns {() => void} Removes this listener from the registry.
+   * @sideEffects Registers the listener on createSessionEvents. Mesh subscribe stays in start.
    */
   function subscribe(listener) {
     return sessionEvents.subscribeToSessionRevoked(listener);
   }
 
-  return { start, stop, markLocalSignOut, subscribe };
+  return { start, stop, subscribe };
 }
 
 export { createSessionStreamSession };

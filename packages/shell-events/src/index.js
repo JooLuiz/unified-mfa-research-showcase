@@ -3,7 +3,7 @@
  * Role: Public barrel for shell auth/navigation event contracts.
  * Not in this file: Event behavior, mesh configuration, or shell orchestration.
  * Key dependencies: None.
- * See also: src/createShellEvents.js; src/shellEventContracts.js.
+ * See also: src/createShellEvents.js; src/shellEventsContracts.js.
  */
 
 export { createShellEvents } from "./createShellEvents.js";
@@ -15,4 +15,4 @@ export {
   NAVIGATION_POST_LOGIN_REDIRECT_CHANGED_EVENT,
   NAVIGATION_RENDER_REQUESTED_EVENT,
   NAVIGATION_TOPIC,
-} from "./shellEventContracts.js";
+} from "./shellEventsContracts.js";

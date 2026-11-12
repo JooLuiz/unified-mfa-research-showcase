@@ -4,16 +4,17 @@
  *   from community-likes/changed. The host shell performs the gateway toggle.
  * Not in this file: The toggle request/reply (the host's postLikeCommands) or post loading
  *   (src/SinglePostView.js).
- * Key dependencies: event-mesh/mesh; @shared/community-events.
+ * Key dependencies: event-mesh/mesh; @shared/community-events; @shared/post-like-events.
  * See also: apps/social-media-posts/src/post-card.js.
  */
 
 import React, { useState, useEffect } from "react";
 import mesh from "event-mesh/mesh";
 import { createCommunityEvents } from "@shared/community-events";
-
-const COMMUNITY_LIKES_TOPIC = "community-likes";
-const COMMUNITY_LIKES_CHANGED_EVENT = "changed";
+import {
+  COMMUNITY_LIKES_CHANGED_EVENT,
+  COMMUNITY_LIKES_TOPIC,
+} from "@shared/post-like-events";
 
 const { publishPostLiked, publishPostLikesWatching } = createCommunityEvents(mesh);
 
@@ -52,16 +53,20 @@ export function SinglePostCard({ post, currentUserId, canLike = true }) {
 
   useEffect(() => {
     publishPostLikesWatching(post.id);
-    const unsubscribe = mesh.subscribe(COMMUNITY_LIKES_TOPIC, COMMUNITY_LIKES_CHANGED_EVENT, (message) => {
-      const event = message.payload;
-      if (!event || event.postId !== post.id) {
-        return;
-      }
-      setLikeState((previousState) => ({
-        likes: typeof event.likes === "number" ? event.likes : previousState.likes,
-        liked: event.likerId === currentUserId ? Boolean(event.liked) : previousState.liked,
-      }));
-    });
+    const unsubscribe = mesh.subscribe(
+      COMMUNITY_LIKES_TOPIC,
+      COMMUNITY_LIKES_CHANGED_EVENT,
+      (message) => {
+        const event = message.payload;
+        if (!event || event.postId !== post.id) {
+          return;
+        }
+        setLikeState((previousState) => ({
+          likes: typeof event.likes === "number" ? event.likes : previousState.likes,
+          liked: event.likerId === currentUserId ? Boolean(event.liked) : previousState.liked,
+        }));
+      },
+    );
     return () => {
       if (typeof unsubscribe === "function") {
         unsubscribe();

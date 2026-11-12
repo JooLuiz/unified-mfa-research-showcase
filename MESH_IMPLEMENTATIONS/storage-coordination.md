@@ -45,7 +45,7 @@ Remotes may use host-injected `subscribeToPlpFiltersChanges` from `localMeshEven
 
 | Area | Path |
 | --- | --- |
-| Shared navigation contract | `packages/shell-events/src/shellEventContracts.js` |
+| Shared navigation contract | `packages/shell-events/src/shellEventsContracts.js` |
 | Shared publish API | `packages/shell-events/src/createShellEvents.js` |
 | Ecommerce auth redirect | `apps/ecommerce-shell/src/utils/authActions.js` |
 | Social auth redirect | `apps/social-media-shell/src/utils/authActions.js` |

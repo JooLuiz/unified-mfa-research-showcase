@@ -3,7 +3,7 @@
  * Role: Hides mesh transport details behind coupon and place-order operations for remotes and shells.
  * Not in this file: Mesh configuration, cart state ownership, order APIs, or UI rendering.
  * Key dependencies: An Event Mesh client supplied by the owning shell, or a recording transport in tests.
- * See also: src/checkoutEventContracts.js; src/createCheckoutEvents.test.js.
+ * See also: src/checkoutEventsContracts.js; src/createCheckoutEvents.test.js.
  */
 
 import {
@@ -12,7 +12,7 @@ import {
   CHECKOUT_TOPIC,
   createCouponAppliedRequest,
   isValidCouponAppliedRequest,
-} from "./checkoutEventContracts.js";
+} from "./checkoutEventsContracts.js";
 
 /**
  * Creates a checkout-scoped local event adapter for checkout remotes and host shells.

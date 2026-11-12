@@ -1,19 +1,23 @@
 /**
- * Shared names for the post-like and post-created HTTP and SSE contract.
- * Role: Keeps the toggle command and the live stream on the same paths and event names as the
- *   mock API. `POST_CREATED_EVENT_NAME` travels over the same `/posts/stream` connection as
- *   `POST_LIKES_CHANGED_EVENT_NAME`, matching the server's single social SSE registry
+ * Shared names for the post-like and post-created Event Mesh contract.
+ * Role: Keeps the toggle command and the live stream on the same topic and event names as the
+ *   mock API gateway. `COMMUNITY_POSTS_CREATED_EVENT` travels over the same mesh subscription
+ *   as `COMMUNITY_LIKES_CHANGED_EVENT`, matching the server's single social registry
  *   (apps/mock-data-service/src/infrastructure/postLikeEventStream.js).
- * Not in this file: The EventSource lifecycle (src/createPostLikesStream.js) or the toggle
+ * Not in this file: The mesh subscription lifecycle (src/createPostLikesStream.js) or the toggle
  *   write (src/togglePostLike.js).
  * Key dependencies: None.
- * See also: apps/mock-data-service/src/routes/postLikeRoutes.js;
+ * See also: apps/mock-data-service/src/event-mesh/postLikeHandler.js;
  *   apps/mock-data-service/src/routes/postRoutes.js.
  */
 
 const COMMUNITY_LIKES_TOPIC = "community-likes";
 const COMMUNITY_LIKES_CHANGED_EVENT = "changed";
+const COMMUNITY_LIKES_TOGGLE_EVENT = "toggle";
+const COMMUNITY_LIKES_ACCEPTED_EVENT = "accepted";
+const COMMUNITY_LIKES_REJECTED_EVENT = "rejected";
 const COMMUNITY_POSTS_TOPIC = "community-posts";
+const COMMUNITY_POSTS_WATCHING_EVENT = "watching";
 const COMMUNITY_POSTS_CREATED_EVENT = "created";
 const POST_LIKES_CHANGED_EVENT_NAME = "community.post-likes-changed";
 const POST_CREATED_EVENT_NAME = "community.post-created";
@@ -30,10 +34,14 @@ function buildPostLikeTogglePath(postId) {
 }
 
 export {
+  COMMUNITY_LIKES_ACCEPTED_EVENT,
   COMMUNITY_LIKES_CHANGED_EVENT,
+  COMMUNITY_LIKES_REJECTED_EVENT,
   COMMUNITY_LIKES_TOPIC,
+  COMMUNITY_LIKES_TOGGLE_EVENT,
   COMMUNITY_POSTS_CREATED_EVENT,
   COMMUNITY_POSTS_TOPIC,
+  COMMUNITY_POSTS_WATCHING_EVENT,
   POST_LIKES_CHANGED_EVENT_NAME,
   POST_CREATED_EVENT_NAME,
   POST_LIKES_STREAM_PATH,

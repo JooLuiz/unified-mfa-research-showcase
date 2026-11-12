@@ -3,7 +3,7 @@
  * Role: Announces this tab on orders/watching, exposes the signed-in customer's own
  *   orders/status-changed stream, and sends a cancellation request.
  * Not in this file: Admin actions (src/adminOrderStatusClient.js) or rendering.
- * Key dependencies: src/createOrderStatusWatchSession.js; src/requestOrderStatusChange.js.
+ * Key dependencies: src/createOrderStatusStreamSession.js; src/requestOrderStatusChange.js.
  * See also: apps/ecommerce-shell/src/main.js; apps/order-details/src/useOrderDetails.js.
  */
 
@@ -12,10 +12,10 @@ import {
   ORDERS_STATUS_CHANGED_EVENT,
   ORDERS_WATCHING_EVENT,
 } from "./orderStatusContracts.js";
-import { createOrderStatusWatchSession } from "./createOrderStatusWatchSession.js";
+import { createOrderStatusStreamSession } from "./createOrderStatusStreamSession.js";
 import { requestOrderStatusChange } from "./requestOrderStatusChange.js";
 
-const customerOrderStatusSession = createOrderStatusWatchSession({
+const customerOrderStatusSession = createOrderStatusStreamSession({
   topic: ORDERS_TOPIC,
   watchingEvent: ORDERS_WATCHING_EVENT,
   statusChangedEvent: ORDERS_STATUS_CHANGED_EVENT,

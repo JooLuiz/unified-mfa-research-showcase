@@ -3,7 +3,7 @@
  * Role: Publishes one session/revoked message carrying the revoked user id so each tab can
  *   decide whether that user is the one signed in locally.
  * Not in this file: The revocation write (src/domain/sessionRevocation.js) and the client-side
- *   user-id filter (packages/session-events/src/sessionLiveEventsClient.js).
+ *   user-id filter (packages/session-events/src/createSessionStreamSession.js).
  * Key dependencies: event-mesh/gateway.
  * See also: src/routes/sessionRoutes.js.
  *   On main this concern is served over Server-Sent Events; this branch publishes through the

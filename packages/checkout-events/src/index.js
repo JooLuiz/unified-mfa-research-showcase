@@ -4,5 +4,5 @@ export {
   CHECKOUT_TOPIC,
   createCouponAppliedRequest,
   isValidCouponAppliedRequest,
-} from "./checkoutEventContracts.js";
+} from "./checkoutEventsContracts.js";
 export { createCheckoutEvents } from "./createCheckoutEvents.js";

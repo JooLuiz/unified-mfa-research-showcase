@@ -6,18 +6,17 @@
  * Not in this file: Post creation (src/pages/postsPage.js), post persistence
  *   (src/commands/postCommands.js), or the toggle write itself (src/commands/postLikeCommands.js).
  * Key dependencies: angular-product-showcase custom element; @shared/community-events
- *   publishPostLikesWatching; src/events/communityLikesLiveEvents.js;
- *   src/events/communityPostLiveEvents.js.
+ *   publishPostLikesWatching; @shared/post-like-events.
  * See also: src/utils/renderActions.js (public barrel); MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
 import mesh from "event-mesh/mesh";
 import { createCommunityEvents } from "@shared/community-events";
 import {
-  subscribeToCommunityLikesChanged,
+  subscribeToPostLikesChanged,
   applyLikesChangeToPosts,
-} from "../events/communityLikesLiveEvents";
-import { subscribeToPostCreated } from "../events/communityPostLiveEvents";
+  subscribeToPostCreated,
+} from "@shared/post-like-events";
 import { navigate } from "../utils/navigate";
 
 const { publishPostLikesWatching } = createCommunityEvents(mesh);
@@ -76,7 +75,7 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
     });
 
   activeCleanupFunctions.push(
-    subscribeToCommunityLikesChanged((likesChangedPayload) => {
+    subscribeToPostLikesChanged((likesChangedPayload) => {
       appState.posts = applyLikesChangeToPosts(
         appState.posts,
         appState.currentUser?.id,

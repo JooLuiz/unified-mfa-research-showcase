@@ -11,7 +11,7 @@
  *   here only publishes the local community/post-liked intent, never calls the gateway itself.
  * Key dependencies: react; event-mesh/mesh singleton; @shared/community-events.
  * See also: apps/social-media-shell/src/commands/postLikeCommands.js;
- *   apps/social-media-shell/src/events/communityLikesLiveEvents.js;
+ *   packages/post-like-events/src/postLikeEventsClient.js;
  *   MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 

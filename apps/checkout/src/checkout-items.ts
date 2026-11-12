@@ -1,9 +1,9 @@
 /**
  * Renders editable checkout cart items supplied by the ecommerce shell.
  * Role: Displays cart snapshots and publishes cart update/remove intents on the host mesh.
- * Not in this file: Angular bootstrap (src/checkout-items-bootstrap.ts), cart persistence, or shell-owned cart mutations.
+ * Not in this file: Angular bootstrap (src/checkout-items-mount.ts), cart persistence, or shell-owned cart mutations.
  * Key dependencies: src/checkout-availability-watcher.ts.
- * See also: src/checkout-items-bootstrap.ts; apps/ecommerce-shell/src/pages/checkoutPage.js.
+ * See also: src/checkout-items-mount.ts; apps/ecommerce-shell/src/pages/checkoutPage.js.
  */
 
 import "@angular/compiler";
@@ -247,4 +247,4 @@ export class CheckoutItemsComponent implements OnChanges, OnDestroy {
   }
 }
 
-export { mountCheckoutItems } from "./checkout-items-bootstrap";
+export { mountCheckoutItems } from "./checkout-items-mount";

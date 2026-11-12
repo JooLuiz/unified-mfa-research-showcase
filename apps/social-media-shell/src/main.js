@@ -51,16 +51,13 @@ import {
   resetShellEventListeners,
 } from "./events/eventBus";
 import {
-  startCommunityLikesLiveEvents,
-  stopCommunityLikesLiveEvents,
-  subscribeToCommunityLikesChanged,
-} from "./events/communityLikesLiveEvents";
-import {
-  startCommunityPostLiveEvents,
-  stopCommunityPostLiveEvents,
+  startPostLikesLiveEvents,
+  stopPostLikesLiveEvents,
+  subscribeToPostLikesChanged,
   subscribeToPostCreated,
-} from "./events/communityPostLiveEvents";
-import { toggleLikeForPost, resetPostLikeToggleListeners } from "./commands/postLikeCommands";
+  resetToggleListeners,
+} from "@shared/post-like-events";
+import { toggleLikeForPost } from "./commands/postLikeCommands";
 import {
   startSessionLiveEvents,
   stopSessionLiveEvents,
@@ -151,8 +148,7 @@ function startLocalMeshSession() {
   ensureCatalogIntentListeners(catalogIntentHandlers);
   ensureAccountIntentListeners(accountIntentHandlers);
   ensureCommunityIntentListeners(communityIntentHandlers);
-  void startCommunityLikesLiveEvents();
-  void startCommunityPostLiveEvents();
+  void startPostLikesLiveEvents();
 }
 
 function startAuthenticatedMeshSession() {
@@ -167,8 +163,7 @@ function startAuthenticatedMeshSession() {
     ensureCatalogIntentListeners(catalogIntentHandlers);
     ensureAccountIntentListeners(accountIntentHandlers);
     ensureCommunityIntentListeners(communityIntentHandlers);
-    void startCommunityLikesLiveEvents();
-    void startCommunityPostLiveEvents();
+    void startPostLikesLiveEvents();
     void startSessionLiveEvents({
       authToken: appState.authToken,
       userId: appState.currentUser?.id,
@@ -183,9 +178,8 @@ function startAuthenticatedMeshSession() {
   resetCatalogIntentListeners();
   resetAccountIntentListeners();
   resetCommunityIntentListeners();
-  resetPostLikeToggleListeners();
-  stopCommunityLikesLiveEvents();
-  stopCommunityPostLiveEvents();
+  resetToggleListeners();
+  stopPostLikesLiveEvents();
   stopNotificationInboxLiveEvents();
   mesh.close();
   clearMeshSessionFlags();
@@ -198,8 +192,7 @@ function startAuthenticatedMeshSession() {
   ensureCatalogIntentListeners(catalogIntentHandlers);
   ensureAccountIntentListeners(accountIntentHandlers);
   ensureCommunityIntentListeners(communityIntentHandlers);
-  void startCommunityLikesLiveEvents();
-  void startCommunityPostLiveEvents();
+  void startPostLikesLiveEvents();
   void startSessionLiveEvents({
     authToken: appState.authToken,
     userId: appState.currentUser?.id,
@@ -214,9 +207,8 @@ function downgradeToLocalMeshSession() {
   resetCatalogIntentListeners();
   resetAccountIntentListeners();
   resetCommunityIntentListeners();
-  resetPostLikeToggleListeners();
-  stopCommunityLikesLiveEvents();
-  stopCommunityPostLiveEvents();
+  resetToggleListeners();
+  stopPostLikesLiveEvents();
   stopSessionLiveEvents();
   stopNotificationInboxLiveEvents();
   mesh.close();
@@ -536,7 +528,7 @@ subscribeToSessionRevoked(() => {
 // keeps appState.posts correct for the next render. The author's "liked your post" toast comes
 // from the inbox stream. The liker's own "Post Liked" toast is fired separately, from the
 // accepted reply in src/commands/postLikeCommands.js.
-subscribeToCommunityLikesChanged(({ postId, likes, likerId, liked }) => {
+subscribeToPostLikesChanged(({ postId, likes, likerId, liked }) => {
   appState.posts = appState.posts.map((post) => {
     if (post.id !== postId) {
       return post;

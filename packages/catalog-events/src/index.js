@@ -17,5 +17,5 @@ export {
   isValidPlpFiltersPayload,
   isValidProductOpenRequest,
   isValidPromotionAppliedRequest,
-} from "./catalogEventContracts.js";
+} from "./catalogEventsContracts.js";
 export { createCatalogEvents } from "./createCatalogEvents.js";

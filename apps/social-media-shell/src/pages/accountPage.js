@@ -5,7 +5,7 @@
  * Not in this file: Account HTTP updates (src/commands/accountCommands.js), post creation
  *   (src/pages/postsPage.js), or the toggle write itself (src/commands/postLikeCommands.js).
  * Key dependencies: account/AccountProfile and account/AccountAddress remotes;
- *   src/events/communityLikesLiveEvents.js.
+ *   @shared/post-like-events.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
@@ -20,9 +20,9 @@ import { MOCK_API_BASE_URL } from "../utils/constants";
 import { requestCsvExport } from "../exports/requestCsvExport";
 import { publishNotification } from "../notifications/notificationAdapter";
 import {
-  subscribeToCommunityLikesChanged,
+  subscribeToPostLikesChanged,
   applyLikesChangeToPosts,
-} from "../events/communityLikesLiveEvents";
+} from "@shared/post-like-events";
 
 /**
  * Renders the account page with profile, address, and "My Posts" sections.
@@ -186,7 +186,7 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
   activeCleanupFunctions.push(accountPostFeedHandle);
 
   activeCleanupFunctions.push(
-    subscribeToCommunityLikesChanged((likesChangedPayload) => {
+    subscribeToPostLikesChanged((likesChangedPayload) => {
       appState.posts = applyLikesChangeToPosts(
         appState.posts,
         currentUserId,

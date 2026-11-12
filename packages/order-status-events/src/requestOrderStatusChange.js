@@ -2,7 +2,7 @@
  * Sends one order status write over the Event Mesh gateway and waits for the server's reply.
  * Role: Publishes orders/status-change-requested and resolves with the updated order from
  *   orders/status-accepted, or a rejection code from orders/status-rejected.
- * Not in this file: The status-changed broadcast subscription (src/createOrderStatusWatchSession.js).
+ * Not in this file: The status-changed broadcast subscription (src/createOrderStatusStreamSession.js).
  * Key dependencies: event-mesh/mesh.
  * See also: apps/mock-data-service/src/event-mesh/orderStatusHandler.js;
  *   apps/ecommerce-shell/src/commands/cartCommands.js (same publish-and-wait shape).

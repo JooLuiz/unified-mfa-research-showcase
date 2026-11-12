@@ -3,7 +3,7 @@
  * Role: Hides mesh transport details behind named auth/navigation operations and lifecycle-safe subscriptions.
  * Not in this file: Mesh configuration, authentication state, cart state, routing, or UI rendering.
  * Key dependencies: An Event Mesh client supplied by the owning shell, or a recording transport in tests.
- * See also: src/shellEventContracts.js; src/createShellEvents.test.js.
+ * See also: src/shellEventsContracts.js; src/createShellEvents.test.js.
  */
 
 import {
@@ -14,7 +14,7 @@ import {
   NAVIGATION_POST_LOGIN_REDIRECT_CHANGED_EVENT,
   NAVIGATION_RENDER_REQUESTED_EVENT,
   NAVIGATION_TOPIC,
-} from "./shellEventContracts.js";
+} from "./shellEventsContracts.js";
 
 function isValidNavigationPath(path) {
   return typeof path === "string" && path.trim() !== "";

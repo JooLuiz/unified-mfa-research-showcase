@@ -4,7 +4,7 @@
  *   sign-out command.
  * Not in this file: Client internals or shell-specific listeners.
  * Key dependencies: None.
- * See also: src/sessionLiveEventsClient.js, src/sessionRevocationCommands.js.
+ * See also: src/sessionEventsClient.js, src/sessionRevocationCommands.js.
  */
 
 export {
@@ -16,5 +16,5 @@ export {
   startSessionLiveEvents,
   stopSessionLiveEvents,
   subscribeToSessionRevoked,
-} from "./sessionLiveEventsClient.js";
+} from "./sessionEventsClient.js";
 export { requestSignOutEverywhere } from "./sessionRevocationCommands.js";
