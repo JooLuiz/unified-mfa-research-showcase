@@ -3,11 +3,11 @@
  * Role: Keeps the toggle command and the live stream on the same topic and event names as the
  *   mock API gateway. `COMMUNITY_POSTS_CREATED_EVENT` travels over the same mesh subscription
  *   as `COMMUNITY_LIKES_CHANGED_EVENT`, matching the server's single social registry
- *   (apps/mock-data-service/src/infrastructure/postLikeEventStream.js).
- * Not in this file: The mesh subscription lifecycle (src/createPostLikesStream.js) or the toggle
+ *   (apps/mock-data-service/src/infrastructure/postLikeEvents.js).
+ * Not in this file: The mesh subscription lifecycle (src/createPostLikesSession.js) or the toggle
  *   write (src/togglePostLike.js).
  * Key dependencies: None.
- * See also: apps/mock-data-service/src/event-mesh/postLikeHandler.js;
+ * See also: apps/mock-data-service/src/inbound/postLikeHandler.js;
  *   apps/mock-data-service/src/routes/postRoutes.js.
  */
 

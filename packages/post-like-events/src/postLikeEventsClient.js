@@ -4,13 +4,13 @@
  *   subscription without each one opening its own connection, plus the pure
  *   applyLikesChangeToPosts helper used by pages to patch a posts array from a changed payload.
  * Not in this file: The underlying mesh subscription/reconnect mechanics
- *   (src/createPostLikesStream.js) or the toggle write (src/togglePostLike.js).
- * Key dependencies: src/createPostLikesStream.js.
+ *   (src/createPostLikesSession.js) or the toggle write (src/togglePostLike.js).
+ * Key dependencies: src/createPostLikesSession.js.
  * See also: apps/social-media-shell/src/main.js; apps/social-media-shell/src/pages/feedPage.js;
  *   apps/social-media-shell/src/pages/postsPage.js.
  */
 
-import { createPostLikesStream } from "./createPostLikesStream.js";
+import { createPostLikesStream } from "./createPostLikesSession.js";
 
 const postLikesStream = createPostLikesStream();
 

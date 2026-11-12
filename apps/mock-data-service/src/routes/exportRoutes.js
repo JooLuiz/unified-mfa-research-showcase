@@ -3,7 +3,7 @@
  * Role: Downloads completed export snapshots created through the event-mesh gateway.
  * Not in this file: CSV generation, mesh request handling, or gateway startup.
  * Key dependencies: JSON store; src/domain/auth.js; src/domain/exportJobs.js.
- * See also: src/event-mesh/exportRequestHandler.js; src/server.js.
+ * See also: src/inbound/exportRequestHandler.js; src/server.js.
  */
 
 const express = require("express");

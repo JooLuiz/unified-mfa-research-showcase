@@ -2,9 +2,9 @@
  * Handles authenticated notification-inbox commands received through the event-mesh gateway.
  * Role: Marks one row or a whole shell read, replies to the sender, and pushes each changed row.
  * Not in this file: The GET list route (src/routes/notificationInboxRoutes.js) or the watcher
- *   registry (src/infrastructure/notificationInboxEventStream.js).
+ *   registry (src/infrastructure/notificationInboxEvents.js).
  * Key dependencies: JSON store; src/domain/notificationInbox.js; event-mesh/gateway.
- * See also: src/server.js; src/event-mesh/cartUpsertHandler.js (same reply shape).
+ * See also: src/server.js; src/inbound/cartUpsertHandler.js (same reply shape).
  */
 
 const {

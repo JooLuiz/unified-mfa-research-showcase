@@ -129,14 +129,14 @@ Each shell wires producers in [`notificationAdapter.js`](../apps/ecommerce-shell
 | Area | Path |
 | --- | --- |
 | Order persistence | `apps/mock-data-service/src/domain/orderProcessing.js` |
-| Order mesh handler | `apps/mock-data-service/src/event-mesh/orderRequestHandler.js` |
-| Order status mesh handler | `apps/mock-data-service/src/event-mesh/orderStatusHandler.js` |
-| Notification error replies (client-driven) | `apps/mock-data-service/src/event-mesh/notificationEvents.js` |
+| Order mesh handler | `apps/mock-data-service/src/inbound/orderRequestHandler.js` |
+| Order status mesh handler | `apps/mock-data-service/src/inbound/orderStatusHandler.js` |
+| Notification error replies (client-driven) | `apps/mock-data-service/src/inbound/notificationEvents.js` |
 | Inbox row triggers (persisted/inbox-driven) | `apps/mock-data-service/src/domain/notificationTriggers.js` |
-| Inbox watcher registry + targeted push | `apps/mock-data-service/src/infrastructure/notificationInboxEventStream.js` |
-| Inbox mark-read mesh handler | `apps/mock-data-service/src/event-mesh/notificationInboxHandler.js` |
+| Inbox watcher registry + targeted push | `apps/mock-data-service/src/infrastructure/notificationInboxEvents.js` |
+| Inbox mark-read mesh handler | `apps/mock-data-service/src/inbound/notificationInboxHandler.js` |
 | Inbox read routes (`GET /api/notifications`) | `apps/mock-data-service/src/routes/notificationInboxRoutes.js` |
-| Gateway auth (`orders.requested`, `notification-inbox.*`) | `apps/mock-data-service/src/event-mesh/gatewayAuth.js` |
+| Gateway auth (`orders.requested`, `notification-inbox.*`) | `apps/mock-data-service/src/inbound/gatewayAuth.js` |
 | Order read routes | `apps/mock-data-service/src/routes/orderRoutes.js` |
 
 `POST /api/orders` was removed. Order creation is mesh-only; GET routes remain for reads.

@@ -5,9 +5,9 @@
  *   public, so guests may watch alongside signed-in users (unlike cart-sync's signed-in-only
  *   watching); gatewayAuth.js is what actually gates toggling a like to signed-in users.
  * Not in this file: Post-like persistence or the toggle rule (src/domain/postLikes.js), or the
- *   gateway subscriber that calls into this registry (src/event-mesh/postLikeHandler.js).
+ *   gateway subscriber that calls into this registry (src/inbound/postLikeHandler.js).
  * Key dependencies: event-mesh/gateway.
- * See also: src/event-mesh/postLikeHandler.js; src/server.js.
+ * See also: src/inbound/postLikeHandler.js; src/server.js.
  *   On main this module writes Server-Sent Events; this branch publishes through the gateway.
  *
  * Unlike cart-sync (one user per client), one browser tab can have several post cards mounted

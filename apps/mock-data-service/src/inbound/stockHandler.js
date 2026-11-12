@@ -2,11 +2,11 @@
  * Handles live-stock reserve and release requests received through the event-mesh gateway.
  * Role: Resolves the caller's holder identity (signed-in user or guest session), calls
  *   src/domain/stock.js, replies accepted or rejected, and broadcasts the resulting
- *   availability to every watcher through src/infrastructure/stockEventStream.js.
+ *   availability to every watcher through src/infrastructure/stockEvents.js.
  * Not in this file: Availability math (src/domain/stock.js) or the watcher registry
- *   (src/infrastructure/stockEventStream.js).
- * Key dependencies: src/domain/stock.js; src/infrastructure/stockEventStream.js; event-mesh/gateway.
- * See also: src/server.js; src/event-mesh/cartUpsertHandler.js (same requestId reply shape).
+ *   (src/infrastructure/stockEvents.js).
+ * Key dependencies: src/domain/stock.js; src/infrastructure/stockEvents.js; event-mesh/gateway.
+ * See also: src/server.js; src/inbound/cartUpsertHandler.js (same requestId reply shape).
  */
 
 const {

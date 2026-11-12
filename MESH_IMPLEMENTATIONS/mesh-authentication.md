@@ -71,7 +71,7 @@ Roles are derived from `users.json`: `"admin"` → `["admin"]`, everything else 
 
 ### Gateway configuration
 
-**Module:** `apps/mock-data-service/src/event-mesh/gatewayAuth.js`
+**Module:** `apps/mock-data-service/src/inbound/gatewayAuth.js`
 
 **`authenticateConnection`** — runs during HTTP upgrade, before `clientId` assignment:
 
@@ -156,7 +156,7 @@ The linked `event-mesh` client calls `getConnectionTicket` on every initial conn
 | --- | --- |
 | Ticket store | `apps/mock-data-service/src/domain/connectionTickets.js` |
 | Ticket HTTP route | `apps/mock-data-service/src/routes/authRoutes.js` |
-| Gateway auth callbacks | `apps/mock-data-service/src/event-mesh/gatewayAuth.js` |
+| Gateway auth callbacks | `apps/mock-data-service/src/inbound/gatewayAuth.js` |
 | Gateway startup | `apps/mock-data-service/src/server.js` |
 | Ecommerce mesh bootstrap | `apps/ecommerce-shell/src/main.js`, `src/utils/authActions.js` |
 | Social mesh bootstrap | `apps/social-media-shell/src/main.js`, `src/utils/authActions.js` |

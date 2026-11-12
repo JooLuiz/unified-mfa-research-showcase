@@ -3,7 +3,7 @@
  * Role: Announces watching, subscribes to changed and read replies, and sends mark-read commands.
  * Not in this file: The in-memory list (src/notificationInboxClient.js) or the GET fetch.
  * Key dependencies: event-mesh/mesh; src/contracts.js.
- * See also: apps/mock-data-service/src/event-mesh/notificationInboxHandler.js.
+ * See also: apps/mock-data-service/src/inbound/notificationInboxHandler.js.
  */
 
 import mesh from "event-mesh/mesh";

@@ -3,7 +3,7 @@
  * Role: Creates export jobs from mesh requests and replies with targeted outcomes.
  * Not in this file: CSV serialization details, ticket issuance, or HTTP download routes.
  * Key dependencies: JSON store; src/domain/exportJobs.js; src/domain/exportProcessing.js.
- * See also: src/server.js; src/event-mesh/exportEvents.js.
+ * See also: src/server.js; src/inbound/exportEvents.js.
  */
 
 const { createExportJob } = require("../domain/exportJobs");

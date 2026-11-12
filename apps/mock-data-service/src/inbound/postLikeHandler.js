@@ -3,10 +3,10 @@
  * Role: Validates the actor and the author guard, persists the toggle, replies to the sender,
  *   and broadcasts the new count to every client watching that post and to admin clients.
  * Not in this file: Toggle/count rules (src/domain/postLikes.js) or the per-post watcher
- *   registry (src/infrastructure/postLikeEventStream.js).
- * Key dependencies: JSON store; src/domain/postLikes.js; src/infrastructure/postLikeEventStream.js;
- *   src/infrastructure/adminEventStream.js.
- * See also: src/server.js; src/event-mesh/cartUpsertHandler.js (same reply/broadcast shape).
+ *   registry (src/infrastructure/postLikeEvents.js).
+ * Key dependencies: JSON store; src/domain/postLikes.js; src/infrastructure/postLikeEvents.js;
+ *   src/infrastructure/adminEvents.js.
+ * See also: src/server.js; src/inbound/cartUpsertHandler.js (same reply/broadcast shape).
  */
 
 const { LIKE_NOT_ALLOWED_CODE, toggleLike } = require("../domain/postLikes");

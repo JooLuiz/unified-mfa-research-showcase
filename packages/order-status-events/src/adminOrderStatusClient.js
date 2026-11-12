@@ -5,7 +5,7 @@
  * Not in this file: Customer cancellation requests (src/customerOrderStatusClient.js) or table
  *   markup. The admin/watching announce itself lives in apps/admin-shell/src/events/adminLiveEvents.js
  *   and is reused here rather than duplicated.
- * Key dependencies: src/createOrderStatusStreamSession.js; src/requestOrderStatusChange.js.
+ * Key dependencies: src/createOrderStatusSession.js; src/requestOrderStatusChange.js.
  * See also: apps/admin-shell/src/main.js; apps/admin-shell/src/pages/ordersPage.js.
  */
 
@@ -13,7 +13,7 @@ import {
   ADMIN_TOPIC,
   ADMIN_ORDER_STATUS_CHANGED_EVENT,
 } from "./orderStatusContracts.js";
-import { createOrderStatusStreamSession } from "./createOrderStatusStreamSession.js";
+import { createOrderStatusStreamSession } from "./createOrderStatusSession.js";
 import { requestOrderStatusChange } from "./requestOrderStatusChange.js";
 
 const adminOrderStatusSession = createOrderStatusStreamSession({

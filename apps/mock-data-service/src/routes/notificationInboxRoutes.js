@@ -3,7 +3,7 @@
  * Role: Handles GET /notifications?shell=X. Mark-read and live push travel over event mesh.
  * Not in this file: Trigger side-effects or the mesh watcher registry.
  * Key dependencies: src/domain/auth.js, src/domain/notificationInbox.js.
- * See also: src/domain/notificationTriggers.js, src/event-mesh/notificationInboxHandler.js.
+ * See also: src/domain/notificationTriggers.js, src/inbound/notificationInboxHandler.js.
  */
 
 const express = require("express");

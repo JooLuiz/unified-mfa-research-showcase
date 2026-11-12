@@ -3,8 +3,8 @@
  * Role: Keeps mesh clients and the SSE session on the same topic and event names as the mock API.
  * Not in this file: The mesh publish/subscribe lifecycle or the status write.
  * Key dependencies: None.
- * See also: apps/mock-data-service/src/event-mesh/orderStatusHandler.js;
- *   apps/mock-data-service/src/infrastructure/orderEventStream.js.
+ * See also: apps/mock-data-service/src/inbound/orderStatusHandler.js;
+ *   apps/mock-data-service/src/infrastructure/orderEvents.js.
  */
 
 const ORDERS_TOPIC = "orders";

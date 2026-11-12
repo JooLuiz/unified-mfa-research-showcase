@@ -3,7 +3,7 @@
  * Role: Translates export job outcomes into reply-to-client mesh messages.
  * Not in this file: Export job state, CSV serialization, or HTTP routing.
  * Key dependencies: The linked event-mesh/gateway package.
- * See also: src/event-mesh/exportRequestHandler.js; src/domain/exportJobs.js.
+ * See also: src/inbound/exportRequestHandler.js; src/domain/exportJobs.js.
  */
 
 const EXPORT_TOPIC = "exports";

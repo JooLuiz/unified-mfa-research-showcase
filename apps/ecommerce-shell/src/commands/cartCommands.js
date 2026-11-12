@@ -3,7 +3,7 @@
  * Role: Reads the saved cart over HTTP and replaces it with a cart-sync/upsert mesh message.
  * Not in this file: Local cart mutation, login merge, or applying pushed carts (src/utils/cartSync.js).
  * Key dependencies: Mock data service GET /api/cart; event-mesh/mesh; @shared/stock-events.
- * See also: src/utils/cartSync.js; apps/mock-data-service/src/event-mesh/cartUpsertHandler.js.
+ * See also: src/utils/cartSync.js; apps/mock-data-service/src/inbound/cartUpsertHandler.js.
  */
 
 import mesh from "event-mesh/mesh";

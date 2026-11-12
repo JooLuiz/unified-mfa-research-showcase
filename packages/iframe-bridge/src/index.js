@@ -3,7 +3,7 @@
  * Role: Public barrel for channel helpers and the Event Mesh bridge factory.
  * Not in this file: Mesh configuration, gateway relay persistence, or iframe DOM creation.
  * Key dependencies: src/createIframeBridge.js.
- * See also: apps/mock-data-service/src/event-mesh/iframeBridgeHandler.js.
+ * See also: apps/mock-data-service/src/inbound/iframeBridgeHandler.js.
  */
 
 export {

@@ -3,7 +3,7 @@
  * Role: Adapts either a configured Event Mesh client or an injected transport to iframe messages.
  * Not in this file: Mesh configuration, gateway relay persistence, iframe DOM creation, or postMessage.
  * Key dependencies: An Event Mesh client supplied by the parent shell or iframe, or a recording transport in tests.
- * See also: src/iframeBridgeContracts.js; src/index.js; apps/mock-data-service/src/event-mesh/iframeBridgeHandler.js.
+ * See also: src/iframeBridgeContracts.js; src/index.js; apps/mock-data-service/src/inbound/iframeBridgeHandler.js.
  */
 
 import {

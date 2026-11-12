@@ -3,11 +3,11 @@
  * Role: Handles GET and POST /posts, mounted at /api.
  * Not in this file: Token helpers (src/domain/auth.js), id generation
  *   (src/domain/identifiers.js), the admin broadcast implementation
- *   (src/infrastructure/adminEventStream.js), the like toggle/watch mesh handler
- *   (src/event-mesh/postLikeHandler.js), or the social post-created broadcast
- *   (src/infrastructure/communityPostEventStream.js).
+ *   (src/infrastructure/adminEvents.js), the like toggle/watch mesh handler
+ *   (src/inbound/postLikeHandler.js), or the social post-created broadcast
+ *   (src/infrastructure/communityPostEvents.js).
  * Key dependencies: posts.json and users.json via the JSON store; src/domain/postLikes.js.
- * See also: src/server.js; src/infrastructure/adminEventStream.js (admin live-event publish).
+ * See also: src/server.js; src/infrastructure/adminEvents.js (admin live-event publish).
  */
 
 const express = require("express");

@@ -3,7 +3,7 @@
  * Role: Owns short-lived credentials consumed during WebSocket upgrade authentication.
  * Not in this file: HTTP routing or gateway configuration.
  * Key dependencies: src/domain/identifiers.js.
- * See also: src/routes/authRoutes.js; src/event-mesh/gatewayAuth.js.
+ * See also: src/routes/authRoutes.js; src/inbound/gatewayAuth.js.
  */
 
 const { randomBytes } = require("crypto");

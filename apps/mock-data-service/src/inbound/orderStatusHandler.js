@@ -3,11 +3,11 @@
  * Role: Validates the actor and the transition, persists the result, replies to the sender,
  *   and broadcasts the new status to that customer's watchers and to every admin client.
  * Not in this file: Transition rules (src/domain/orderStatus.js) or the watcher registry
- *   (src/infrastructure/orderEventStream.js).
- * Key dependencies: JSON store; src/domain/orderStatus.js; src/infrastructure/orderEventStream.js;
- *   src/infrastructure/adminEventStream.js; src/infrastructure/stockEventStream.js;
+ *   (src/infrastructure/orderEvents.js).
+ * Key dependencies: JSON store; src/domain/orderStatus.js; src/infrastructure/orderEvents.js;
+ *   src/infrastructure/adminEvents.js; src/infrastructure/stockEvents.js;
  *   src/domain/notificationTriggers.js.
- * See also: src/server.js; src/event-mesh/cartUpsertHandler.js (same reply/broadcast shape).
+ * See also: src/server.js; src/inbound/cartUpsertHandler.js (same reply/broadcast shape).
  */
 
 const {

@@ -2,7 +2,7 @@
  * Serves the authenticated user's saved cart for the mock data service.
  * Role: Handles GET /cart, mounted at /api. Cart replacement arrives on Event Mesh as cart-sync/upsert.
  * Not in this file: Cart persistence (src/domain/cartProcessing.js) or mesh publishing
- *   (src/event-mesh/cartUpsertHandler.js).
+ *   (src/inbound/cartUpsertHandler.js).
  * Key dependencies: carts.json via src/domain/cartProcessing.js; src/domain/auth.js.
  * See also: src/server.js.
  */

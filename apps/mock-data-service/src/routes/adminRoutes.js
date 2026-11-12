@@ -2,7 +2,7 @@
  * Serves admin-only read routes for the mock data service.
  * Role: Handles GET /admin/orders and GET /admin/posts, mounted at /api, returning all users' records.
  * Not in this file: Token helpers (src/domain/auth.js), user-scoped routes, data mutation, or
- *   admin live-event publishing (src/infrastructure/adminEventStream.js).
+ *   admin live-event publishing (src/infrastructure/adminEvents.js).
  * Key dependencies: orders.json, posts.json, and users.json via the JSON store; src/domain/postLikes.js.
  * See also: src/server.js.
  */

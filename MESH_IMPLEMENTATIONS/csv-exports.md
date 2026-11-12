@@ -52,8 +52,8 @@ Replies are targeted to the requesting client via `gateway.reply()`, so shells d
 | Mesh authentication (shared) | [mesh-authentication.md](./mesh-authentication.md) |
 | Job store | `apps/mock-data-service/src/domain/exportJobs.js` |
 | CSV processing | `apps/mock-data-service/src/domain/exportProcessing.js` |
-| Gateway request handler | `apps/mock-data-service/src/event-mesh/exportRequestHandler.js` |
-| Gateway reply helpers | `apps/mock-data-service/src/event-mesh/exportEvents.js` |
+| Gateway request handler | `apps/mock-data-service/src/inbound/exportRequestHandler.js` |
+| Gateway reply helpers | `apps/mock-data-service/src/inbound/exportEvents.js` |
 | HTTP download route | `apps/mock-data-service/src/routes/exportRoutes.js` |
 | Ecommerce adapter | `apps/ecommerce-shell/src/exports/requestCsvExport.js` |
 | Social adapter | `apps/social-media-shell/src/exports/requestCsvExport.js` |

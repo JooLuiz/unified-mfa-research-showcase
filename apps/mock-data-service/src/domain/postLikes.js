@@ -2,11 +2,11 @@
  * Owns the per-user post-like rule shared by every post read and the toggle write.
  * Role: Computes a post's live like count and whether a given viewer has liked it, and applies
  *   the toggle rule (an author may never like their own post).
- * Not in this file: The mesh toggle/watch handler (src/event-mesh/postLikeHandler.js), HTTP
+ * Not in this file: The mesh toggle/watch handler (src/inbound/postLikeHandler.js), HTTP
  *   post reads (src/routes/postRoutes.js, src/routes/adminRoutes.js), or the per-post watcher
- *   registry (src/infrastructure/postLikeEventStream.js).
+ *   registry (src/infrastructure/postLikeEvents.js).
  * Key dependencies: postLikes.json via the JSON store.
- * See also: src/event-mesh/postLikeHandler.js; src/domain/exportProcessing.js (posts CSV export).
+ * See also: src/inbound/postLikeHandler.js; src/domain/exportProcessing.js (posts CSV export).
  */
 
 const POST_LIKES_FILE_NAME = "postLikes.json";

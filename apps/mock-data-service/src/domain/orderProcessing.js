@@ -5,7 +5,7 @@
  * Not in this file: HTTP routing, mesh replies, notification delivery, id generation
  *   (src/domain/identifiers.js), or later status changes (src/domain/orderStatus.js).
  * Key dependencies: JSON store; src/domain/identifiers.js; src/domain/cartProcessing.js; src/domain/stock.js.
- * See also: src/event-mesh/orderRequestHandler.js; src/routes/orderRoutes.js.
+ * See also: src/inbound/orderRequestHandler.js; src/routes/orderRoutes.js.
  */
 
 const { clearCartForUser } = require("./cartProcessing");

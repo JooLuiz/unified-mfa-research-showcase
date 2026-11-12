@@ -5,7 +5,7 @@
  * Key dependencies: JSON store; src/csv/csvSerializer.js; src/domain/exportJobs.js;
  *   src/domain/postLikes.js (the posts export computes its `likes` column the same way every
  *   other post read does, rather than trusting the stale seeded field on the stored post record).
- * See also: src/event-mesh/exportRequestHandler.js; src/routes/exportRoutes.js.
+ * See also: src/inbound/exportRequestHandler.js; src/routes/exportRoutes.js.
  */
 
 const { serializeCsv } = require("../csv/csvSerializer");

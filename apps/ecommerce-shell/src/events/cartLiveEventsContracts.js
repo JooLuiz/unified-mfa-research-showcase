@@ -3,7 +3,7 @@
  * Role: Holds the cart-sync topic and event names shared with the gateway.
  * Not in this file: The mesh subscription or cart state updates.
  * Key dependencies: None.
- * See also: src/events/cartLiveEvents.js; apps/mock-data-service/src/event-mesh/cartUpsertHandler.js.
+ * See also: src/events/cartLiveEvents.js; apps/mock-data-service/src/inbound/cartUpsertHandler.js.
  */
 
 const CART_SYNC_TOPIC = "cart-sync";

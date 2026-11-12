@@ -2,9 +2,9 @@
  * Handles authenticated cart saves received through the event-mesh gateway.
  * Role: Persists cart-sync/upsert messages, publishes the stored cart to that user's watchers,
  *   and releases a guest stock hold when the upsert is a login merge.
- * Not in this file: HTTP cart reads or the watcher registry (src/infrastructure/cartEventStream.js).
+ * Not in this file: HTTP cart reads or the watcher registry (src/infrastructure/cartEvents.js).
  * Key dependencies: JSON store; src/domain/cartProcessing.js; src/domain/stock.js; event-mesh/gateway.
- * See also: src/server.js; src/event-mesh/orderRequestHandler.js.
+ * See also: src/server.js; src/inbound/orderRequestHandler.js.
  */
 
 const {

@@ -3,9 +3,9 @@
  * Role: Tracks notification-inbox/watching client ids per (userId, shell) and publishes
  *   notification-inbox/changed only to them.
  * Not in this file: Inbox persistence or the mark-read subscriber
- *   (src/event-mesh/notificationInboxHandler.js).
+ *   (src/inbound/notificationInboxHandler.js).
  * Key dependencies: event-mesh/gateway.
- * See also: src/infrastructure/cartEventStream.js; src/server.js.
+ * See also: src/infrastructure/cartEvents.js; src/server.js.
  *   On main this module writes Server-Sent Events; this branch publishes through the gateway.
  */
 

@@ -3,7 +3,7 @@
  * Role: Translates server outcomes into reply-to-client notification mesh messages.
  * Not in this file: Order persistence, CSV exports, or HTTP routing.
  * Key dependencies: The linked event-mesh/gateway package.
- * See also: src/event-mesh/orderRequestHandler.js.
+ * See also: src/inbound/orderRequestHandler.js.
  */
 
 const NOTIFICATION_TOPIC = "notifications";

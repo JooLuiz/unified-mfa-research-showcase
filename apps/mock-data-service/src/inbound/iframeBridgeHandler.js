@@ -2,7 +2,7 @@
  * Relays validated cross-origin iframe mesh messages to their owning shell client.
  * Role: Maps short-lived iframe channels to gateway clients and performs targeted delivery.
  * Not in this file: Iframe DOM behavior, mesh connection authentication, or business command handling.
- * Key dependencies: event-mesh/gateway; gateway authorization in src/event-mesh/gatewayAuth.js.
+ * Key dependencies: event-mesh/gateway; gateway authorization in src/inbound/gatewayAuth.js.
  * See also: src/server.js; packages/iframe-bridge/src/index.js.
  */
 

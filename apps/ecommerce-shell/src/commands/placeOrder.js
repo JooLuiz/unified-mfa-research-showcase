@@ -5,7 +5,7 @@
  *   The "Order placed" toast itself comes from the persisted notification inbox
  *   (@shared/notification-inbox-events, wired in src/main.js), not from this reply.
  * Key dependencies: event-mesh/mesh.
- * See also: src/pages/checkoutPage.js; apps/mock-data-service/src/event-mesh/orderRequestHandler.js.
+ * See also: src/pages/checkoutPage.js; apps/mock-data-service/src/inbound/orderRequestHandler.js.
  */
 
 import mesh from "event-mesh/mesh";

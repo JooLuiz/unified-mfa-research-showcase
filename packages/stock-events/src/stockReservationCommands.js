@@ -5,7 +5,7 @@
  * Not in this file: Live availability display (src/createStockWatchClient.js) or guest session
  *   id management (src/guestStockSession.js).
  * Key dependencies: An Event Mesh client supplied by the caller; src/stockEventsContracts.js.
- * See also: apps/mock-data-service/src/event-mesh/stockHandler.js.
+ * See also: apps/mock-data-service/src/inbound/stockHandler.js.
  *   On main this module sends HTTP requests; this branch publishes through mesh and waits for
  *   a targeted reply instead of an HTTP response.
  */

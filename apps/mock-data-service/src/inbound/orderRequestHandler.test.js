@@ -6,7 +6,7 @@
  *   waited up to 15s for a reply that never arrived and reported every successful order as
  *   failed. This proves the handler now replies with orders/accepted immediately on success.
  * Key dependencies: event-mesh/gateway (real library, local test gateway); ws.
- * See also: src/event-mesh/orderRequestHandler.js; apps/ecommerce-shell/src/commands/placeOrder.js.
+ * See also: src/inbound/orderRequestHandler.js; apps/ecommerce-shell/src/commands/placeOrder.js.
  */
 
 const { test, beforeEach, afterEach } = require("node:test");

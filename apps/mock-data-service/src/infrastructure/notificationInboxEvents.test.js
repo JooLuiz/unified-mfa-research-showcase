@@ -5,14 +5,14 @@
  *   shell does not. Regression coverage for the persisted-notification-toast investigation:
  *   this hop was suspected of dropping pushes but was confirmed working end to end.
  * Key dependencies: event-mesh/gateway (real library, local test gateway); ws.
- * See also: src/infrastructure/notificationInboxEventStream.js.
+ * See also: src/infrastructure/notificationInboxEvents.js.
  */
 
 const { test, before, after } = require("node:test");
 const assert = require("node:assert/strict");
 const WebSocket = require("ws");
 
-const { createNotificationInboxEventStream } = require("./notificationInboxEventStream");
+const { createNotificationInboxEventStream } = require("./notificationInboxEvents");
 
 const TEST_GATEWAY_PORT = 39872;
 const TEST_USER_ID = "u-test-watcher";

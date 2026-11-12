@@ -12,7 +12,7 @@
  *   than this command patching it twice. The author's persisted toast comes from the inbox
  *   stream, since the owner is not the one making this request.
  * Key dependencies: @shared/post-like-events; src/notifications/notificationAdapter.js.
- * See also: src/main.js; apps/mock-data-service/src/event-mesh/postLikeHandler.js.
+ * See also: src/main.js; apps/mock-data-service/src/inbound/postLikeHandler.js.
  */
 
 import { togglePostLike } from "@shared/post-like-events";

@@ -3,7 +3,7 @@
  * Role: Owns the in-memory lifecycle from queued export request to downloadable result.
  * Not in this file: HTTP routing, CSV serialization, or event-mesh publication.
  * Key dependencies: src/domain/identifiers.js.
- * See also: src/routes/exportRoutes.js; src/event-mesh/exportEvents.js.
+ * See also: src/routes/exportRoutes.js; src/inbound/exportEvents.js.
  */
 
 const { generateIdentifier } = require("./identifiers");

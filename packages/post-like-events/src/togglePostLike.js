@@ -4,9 +4,9 @@
  *   code from community-likes/rejected. A guest or the post's own author is rejected by the
  *   server; this command surfaces that as a rejection code rather than a toast, since the UI
  *   already disables the button for both cases.
- * Not in this file: The mesh subscription stream (src/createPostLikesStream.js).
+ * Not in this file: The mesh subscription stream (src/createPostLikesSession.js).
  * Key dependencies: event-mesh/mesh; src/postLikeEventsContracts.js.
- * See also: apps/mock-data-service/src/event-mesh/postLikeHandler.js;
+ * See also: apps/mock-data-service/src/inbound/postLikeHandler.js;
  *   apps/social-media-shell/src/commands/postLikeCommands.js.
  *   On main this module sends an HTTP POST; this branch publishes through mesh and waits for
  *   a targeted reply instead of an HTTP response.

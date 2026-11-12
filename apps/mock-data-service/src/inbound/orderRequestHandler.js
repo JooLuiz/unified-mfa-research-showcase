@@ -2,8 +2,8 @@
  * Handles authenticated order placement requests received through the event-mesh gateway.
  * Role: Persists orders from mesh requests and replies with targeted notifications.
  * Not in this file: HTTP order routes or mesh ticket validation.
- * Key dependencies: JSON store; src/domain/orderProcessing.js; src/event-mesh/notificationEvents.js;
- *   src/infrastructure/adminEventStream.js.
+ * Key dependencies: JSON store; src/domain/orderProcessing.js; src/inbound/notificationEvents.js;
+ *   src/infrastructure/adminEvents.js.
  * See also: src/server.js.
  */
 

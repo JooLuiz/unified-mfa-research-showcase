@@ -5,10 +5,10 @@
  *   likes), so guests may watch alongside signed-in users — unlike admin/watching, there is no
  *   role check here.
  * Not in this file: Post persistence or the create rule (src/routes/postRoutes.js), or the
- *   per-post like-watcher registry (src/infrastructure/postLikeEventStream.js), which is keyed
+ *   per-post like-watcher registry (src/infrastructure/postLikeEvents.js), which is keyed
  *   by post id instead of a single flat client set since a new post isn't scoped to one post.
  * Key dependencies: event-mesh/gateway.
- * See also: src/server.js; src/infrastructure/adminEventStream.js (same flat-registry shape).
+ * See also: src/server.js; src/infrastructure/adminEvents.js (same flat-registry shape).
  */
 
 const COMMUNITY_POSTS_TOPIC = "community-posts";

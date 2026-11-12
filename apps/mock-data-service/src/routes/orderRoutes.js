@@ -3,7 +3,7 @@
  * Role: Returns orders for the authenticated user; order creation is handled over event mesh.
  * Not in this file: Order persistence or mesh gateway handlers.
  * Key dependencies: JSON store; src/domain/auth.js.
- * See also: src/event-mesh/orderRequestHandler.js; src/server.js.
+ * See also: src/inbound/orderRequestHandler.js; src/server.js.
  */
 
 const express = require("express");

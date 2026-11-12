@@ -1,9 +1,9 @@
 /**
  * Publishes saved-cart changes to the Event Mesh clients watching that user.
  * Role: Tracks cart-sync/watching client ids per user and publishes cart-sync/changed only to them.
- * Not in this file: Cart persistence or the upsert subscriber (src/event-mesh/cartUpsertHandler.js).
+ * Not in this file: Cart persistence or the upsert subscriber (src/inbound/cartUpsertHandler.js).
  * Key dependencies: event-mesh/gateway.
- * See also: src/event-mesh/orderRequestHandler.js; src/server.js.
+ * See also: src/inbound/orderRequestHandler.js; src/server.js.
  *   On main this module writes Server-Sent Events; this branch publishes through the gateway.
  */
 

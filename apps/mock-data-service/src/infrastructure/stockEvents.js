@@ -4,9 +4,9 @@
  *   client is reserving under, so stock.changed can be targeted and a guest hold can be
  *   released when that client disconnects.
  * Not in this file: Availability math (src/domain/stock.js) or the reserve/release subscriber
- *   (src/event-mesh/stockHandler.js).
+ *   (src/inbound/stockHandler.js).
  * Key dependencies: event-mesh/gateway; src/domain/stock.js for the count pushed when a watcher registers.
- * See also: src/event-mesh/stockHandler.js; src/server.js.
+ * See also: src/inbound/stockHandler.js; src/server.js.
  *   On main this module writes Server-Sent Events; this branch publishes through the gateway.
  */
 
@@ -152,7 +152,7 @@ function createStockEventStream() {
   /**
    * Records which guest session a client is reserving or releasing stock under. Watching alone
    * carries no session id — only stock/reserve and stock/release do — so this is set from
-   * src/event-mesh/stockHandler.js, not from registerWithGateway above.
+   * src/inbound/stockHandler.js, not from registerWithGateway above.
    *
    * @param {string} clientId - Gateway client id of the guest connection.
    * @param {string} sessionId - Guest stock session id from the request payload.

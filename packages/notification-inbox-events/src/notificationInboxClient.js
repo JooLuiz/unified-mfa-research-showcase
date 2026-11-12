@@ -3,7 +3,7 @@
  * Role: Fetches the list, keeps it in sync with mesh changed events, and sends mark-read commands.
  * Not in this file: Mesh subscribe/publish details (src/notificationInboxMeshSession.js) or toast rendering.
  * Key dependencies: event-mesh/mesh; src/notificationInboxApi.js.
- * See also: apps/mock-data-service/src/event-mesh/notificationInboxHandler.js.
+ * See also: apps/mock-data-service/src/inbound/notificationInboxHandler.js.
  *   On main this module opens an EventSource; this branch uses the gateway.
  *   Call start again after mesh.close(), because that drops these subscriptions.
  */

@@ -7,8 +7,8 @@
  * Not in this file: The module-level singleton that lets many callers share one connection
  *   (src/postLikeEventsClient.js) or the toggle write (src/togglePostLike.js).
  * Key dependencies: event-mesh/mesh; src/createPostLikeEvents.js; src/postLikeEventsContracts.js.
- * See also: apps/mock-data-service/src/event-mesh/postLikeHandler.js;
- *   apps/mock-data-service/src/infrastructure/postLikeEventStream.js.
+ * See also: apps/mock-data-service/src/inbound/postLikeHandler.js;
+ *   apps/mock-data-service/src/infrastructure/postLikeEvents.js.
  *   On main this module opens a Server-Sent Events stream; this branch subscribes through the
  *   gateway. Per-post community-likes/watching is published by each mounted post card via
  *   @shared/community-events, not here.

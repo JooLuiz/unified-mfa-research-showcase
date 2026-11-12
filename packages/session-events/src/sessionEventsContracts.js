@@ -3,7 +3,7 @@
  * Role: Keeps the mesh client and the SSE session on the same topic, event, and path as the mock API.
  * Not in this file: The mesh publish/subscribe lifecycle or the HTTP write.
  * Key dependencies: None.
- * See also: apps/mock-data-service/src/event-mesh/sessionEventStream.js;
+ * See also: apps/mock-data-service/src/inbound/sessionEvents.js;
  *   apps/mock-data-service/src/routes/sessionRoutes.js.
  */
 

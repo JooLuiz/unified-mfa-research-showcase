@@ -11,14 +11,14 @@ const cors = require("cors");
 const path = require("path");
 
 const { createJsonStore } = require("./infrastructure/jsonStore");
-const { createAdminEventStream } = require("./infrastructure/adminEventStream");
-const { createCartEventStream } = require("./infrastructure/cartEventStream");
-const { createStockEventStream } = require("./infrastructure/stockEventStream");
-const { createOrderEventStream } = require("./infrastructure/orderEventStream");
-const { createPostLikeEventStream } = require("./infrastructure/postLikeEventStream");
-const { createCommunityPostEventStream } = require("./infrastructure/communityPostEventStream");
-const { createSessionEventStream } = require("./event-mesh/sessionEventStream");
-const { createNotificationInboxEventStream } = require("./infrastructure/notificationInboxEventStream");
+const { createAdminEventStream } = require("./infrastructure/adminEvents");
+const { createCartEventStream } = require("./infrastructure/cartEvents");
+const { createStockEventStream } = require("./infrastructure/stockEvents");
+const { createOrderEventStream } = require("./infrastructure/orderEvents");
+const { createPostLikeEventStream } = require("./infrastructure/postLikeEvents");
+const { createCommunityPostEventStream } = require("./infrastructure/communityPostEvents");
+const { createSessionEventStream } = require("./inbound/sessionEvents");
+const { createNotificationInboxEventStream } = require("./infrastructure/notificationInboxEvents");
 const { createCatalogRouter } = require("./routes/catalogRoutes");
 const { createAuthRouter } = require("./routes/authRoutes");
 const { createUserRouter } = require("./routes/userRoutes");
@@ -34,15 +34,15 @@ const { releaseGuestSession } = require("./domain/stock");
 const {
   createAuthenticateConnection,
   createAuthorizeMessage,
-} = require("./event-mesh/gatewayAuth");
-const { registerExportRequestHandler } = require("./event-mesh/exportRequestHandler");
-const { registerOrderRequestHandler } = require("./event-mesh/orderRequestHandler");
-const { registerOrderStatusHandler } = require("./event-mesh/orderStatusHandler");
-const { registerCartUpsertHandler } = require("./event-mesh/cartUpsertHandler");
-const { registerPostLikeHandler } = require("./event-mesh/postLikeHandler");
-const { registerStockHandler } = require("./event-mesh/stockHandler");
-const { registerIframeBridgeHandler } = require("./event-mesh/iframeBridgeHandler");
-const { registerNotificationInboxHandler } = require("./event-mesh/notificationInboxHandler");
+} = require("./inbound/gatewayAuth");
+const { registerExportRequestHandler } = require("./inbound/exportRequestHandler");
+const { registerOrderRequestHandler } = require("./inbound/orderRequestHandler");
+const { registerOrderStatusHandler } = require("./inbound/orderStatusHandler");
+const { registerCartUpsertHandler } = require("./inbound/cartUpsertHandler");
+const { registerPostLikeHandler } = require("./inbound/postLikeHandler");
+const { registerStockHandler } = require("./inbound/stockHandler");
+const { registerIframeBridgeHandler } = require("./inbound/iframeBridgeHandler");
+const { registerNotificationInboxHandler } = require("./inbound/notificationInboxHandler");
 const { createNotificationInboxRouter } = require("./routes/notificationInboxRoutes");
 
 const app = express();

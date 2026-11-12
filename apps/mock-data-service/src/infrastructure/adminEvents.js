@@ -4,7 +4,7 @@
  *   order_created, post_created, and post_likes_changed only to those clients.
  * Not in this file: Order, post, or like persistence, toast copy, or gateway authentication.
  * Key dependencies: event-mesh/gateway.
- * See also: src/event-mesh/orderRequestHandler.js; src/event-mesh/postLikeHandler.js;
+ * See also: src/inbound/orderRequestHandler.js; src/inbound/postLikeHandler.js;
  *   src/routes/postRoutes.js; src/server.js.
  *   On main this module writes Server-Sent Events; this branch publishes through the gateway.
  */

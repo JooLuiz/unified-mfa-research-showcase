@@ -3,9 +3,9 @@
  * Role: Tracks orders/watching client ids per user and publishes orders/status-changed only
  *   to those clients.
  * Not in this file: Transition rules (src/domain/orderStatus.js) or the status-change subscriber
- *   (src/event-mesh/orderStatusHandler.js).
+ *   (src/inbound/orderStatusHandler.js).
  * Key dependencies: event-mesh/gateway.
- * See also: src/event-mesh/orderStatusHandler.js; src/server.js.
+ * See also: src/inbound/orderStatusHandler.js; src/server.js.
  *   On main this module writes Server-Sent Events; this branch publishes through the gateway.
  */
 

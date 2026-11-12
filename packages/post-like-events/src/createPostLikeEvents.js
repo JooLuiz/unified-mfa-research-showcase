@@ -1,9 +1,9 @@
 /**
  * Subscribes to live like counts and new posts over an injected transport.
  * Role: Delivers one like payload and one created-post payload on separate subscribers.
- * Not in this file: The mesh subscription stream (src/createPostLikesStream.js) or the like toggle command.
+ * Not in this file: The mesh subscription stream (src/createPostLikesSession.js) or the like toggle command.
  * Key dependencies: src/postLikeEventsContracts.js. The caller supplies publish and subscribe.
- * See also: src/createPostLikesStream.js; src/createPostLikesStream.test.js.
+ * See also: src/createPostLikesSession.js; src/createPostLikesSession.test.js.
  */
 
 import {

@@ -4,8 +4,8 @@
  * Not in this file: Mesh publish/subscribe calls (src/createStockWatchClient.js) or reservation
  *   request/reply handling (src/stockReservationCommands.js).
  * Key dependencies: None.
- * See also: apps/mock-data-service/src/event-mesh/stockHandler.js;
- *   apps/mock-data-service/src/infrastructure/stockEventStream.js.
+ * See also: apps/mock-data-service/src/inbound/stockHandler.js;
+ *   apps/mock-data-service/src/infrastructure/stockEvents.js.
  */
 
 const STOCK_RESERVATIONS_PATH = "/stock/reservations";
@@ -33,7 +33,7 @@ const STOCK_INSUFFICIENT_CODE = "insufficient-stock";
 // Payload field name the ecommerce shell sets on a login-merge cart-sync/upsert, naming the
 // guest stock session whose guestHolds.json row the server should delete. Matches
 // GUEST_STOCK_SESSION_RELEASE_FIELD in
-// apps/mock-data-service/src/event-mesh/cartUpsertHandler.js.
+// apps/mock-data-service/src/inbound/cartUpsertHandler.js.
 const GUEST_STOCK_SESSION_RELEASE_FIELD = "guestStockSessionIdToRelease";
 
 export {

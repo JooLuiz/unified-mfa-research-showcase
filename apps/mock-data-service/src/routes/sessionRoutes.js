@@ -3,9 +3,9 @@
  * Role: Handles POST /auth/sign-out-everywhere, mounted at /api. The live push to this user's
  *   other open tabs travels over the event-mesh gateway, not this route.
  * Not in this file: Session revocation pure domain math, token formatting, or the gateway
- *   broadcast (src/event-mesh/sessionEventStream.js).
+ *   broadcast (src/inbound/sessionEvents.js).
  * Key dependencies: sessionRevocations.json via jsonStore; src/domain/auth.js;
- *   src/domain/sessionRevocation.js; src/event-mesh/sessionEventStream.js.
+ *   src/domain/sessionRevocation.js; src/inbound/sessionEvents.js.
  * See also: src/server.js.
  *   On main this route also exposes GET /auth/session-stream (Server-Sent Events); this branch
  *   has no stream endpoint, since every tab already carries a gateway connection.
