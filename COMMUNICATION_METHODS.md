@@ -26,7 +26,7 @@ This report describes the `main` branch. The method column is the window CustomE
 | Social Media Shell (`notificationAdapter.js`)                                                             | Notifications | Toast payload: `{ type, title, message, durationMs? }`                     | `social-media-shell:notification`                 | Social Media Shell notification center                                                 |
 | Admin Shell (`notificationAdapter.js`)                                                                    | Notifications | Toast payload: `{ type, title, message, durationMs? }`                     | `admin-shell:notification`                        | Admin Shell notification center                                                        |
 
-`host:navigate` and `host:logout` are events on the header element. The other rows in this subsection are window CustomEvents. Each shell's `browserTransport.js` maps the shared contract names onto `global:renderApp`, `auth:changed`, and `auth:logout-request`. The ecommerce transport also maps cart contracts onto `cart:add-item` and `cart:updateGlobalCart`.
+`host:navigate` and `host:logout` are events on the header element. The other rows in this subsection are window CustomEvents. Each shell's `eventBus.js` maps the shared contract names onto `global:renderApp`, `auth:changed`, and `auth:logout-request`. The ecommerce shell also maps cart contracts onto `cart:add-item` and `cart:updateGlobalCart`.
 
 ### Iframe boundary
 

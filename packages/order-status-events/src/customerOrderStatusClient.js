@@ -2,7 +2,7 @@
  * Customer order-status client for one ecommerce tab.
  * Role: Opens the signed-in customer's orders.status-changed stream and sends a cancellation request.
  * Not in this file: Admin actions (src/adminOrderStatusClient.js) or rendering.
- * Key dependencies: src/createOrderStatusStreamSession.js; src/requestOrderStatusChange.js.
+ * Key dependencies: src/createOrderStatusSession.js; src/requestOrderStatusChange.js.
  * See also: apps/ecommerce-shell/src/main.js; apps/order-details/src/useOrderDetails.js.
  */
 
@@ -10,7 +10,7 @@ import {
   CUSTOMER_ORDER_STATUS_STREAM_PATH,
   CUSTOMER_ORDER_STATUS_TICKET_PATH,
 } from "./orderStatusContracts.js";
-import { createOrderStatusStreamSession } from "./createOrderStatusStreamSession.js";
+import { createOrderStatusStreamSession } from "./createOrderStatusSession.js";
 import { requestOrderStatusChange } from "./requestOrderStatusChange.js";
 
 const customerOrderStatusSession = createOrderStatusStreamSession({

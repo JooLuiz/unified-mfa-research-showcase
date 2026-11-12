@@ -2,7 +2,7 @@
  * Defines the admin shell's live-notifications event contract.
  * Role: Names the window CustomEvent used to fan out SSE-sourced events to pages, and the
  *   event types the mock data service broadcasts.
- * Not in this file: Transport (src/events/adminLiveEventsTransport.js) or public API
+ * Not in this file: The EventSource connection or the public subscribe API
  *   (src/events/adminLiveEvents.js).
  * Key dependencies: None.
  * See also: apps/mock-data-service/src/routes/adminRoutes.js (GET /admin/events).

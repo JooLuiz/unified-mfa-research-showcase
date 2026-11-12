@@ -9,7 +9,7 @@
  * Not in this file: Route handling, authentication, or the toggle rule (src/domain/postLikes.js).
  * Key dependencies: None (pure Node `http.ServerResponse` writes).
  * See also: src/routes/postLikeRoutes.js (registers clients, broadcasts on toggle);
- *   src/routes/postRoutes.js (broadcasts on create); src/infrastructure/adminEventStream.js
+ *   src/routes/postRoutes.js (broadcasts on create); src/infrastructure/adminEvents.js
  *   (the admin side reuses that existing broadcaster for the same events, rather than a
  *   second registry — the same idiom this file now follows for the social side).
  */

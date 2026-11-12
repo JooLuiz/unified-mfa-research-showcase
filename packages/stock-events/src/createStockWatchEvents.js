@@ -1,7 +1,7 @@
 /**
  * Subscribes to live stock counts over an injected transport.
  * Role: Delivers stock/changed updates, and lets one caller watch a single product id.
- * Not in this file: The EventSource stream (src/createStockWatchStream.js) or reservation HTTP commands.
+ * Not in this file: The EventSource connection (src/createStockWatchClient.js) or reservation HTTP commands.
  * Key dependencies: src/stockEventsContracts.js. The caller supplies publish and subscribe.
  * See also: src/createStockWatchClient.js; src/createStockWatchClient.test.js.
  */

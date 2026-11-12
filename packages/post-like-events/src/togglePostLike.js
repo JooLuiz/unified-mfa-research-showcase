@@ -1,7 +1,7 @@
 /**
  * Sends one post-like toggle to the mock API.
  * Role: POST /posts/:postId/like for the signed-in caller's own like/unlike.
- * Not in this file: The SSE connection (src/createPostLikesStream.js).
+ * Not in this file: The SSE connection (src/createPostLikesSession.js).
  * Key dependencies: fetch; src/postLikeEventsContracts.js.
  * See also: apps/mock-data-service/src/routes/postLikeRoutes.js.
  */

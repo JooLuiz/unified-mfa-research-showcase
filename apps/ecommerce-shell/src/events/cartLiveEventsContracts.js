@@ -3,7 +3,7 @@
  * Role: Holds the window event used to fan a pushed cart into the shell.
  * Not in this file: The EventSource connection or cart state updates.
  * Key dependencies: None.
- * See also: src/events/cartLiveEventsTransport.js; apps/mock-data-service/src/routes/cartRoutes.js.
+ * See also: src/events/cartLiveEvents.js; apps/mock-data-service/src/routes/cartRoutes.js.
  */
 
 const CART_LIVE_EVENT_NAME = "ecommerce-shell:cart-live-event";

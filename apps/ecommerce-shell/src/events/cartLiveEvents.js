@@ -1,16 +1,45 @@
 /**
  * Manages the ecommerce shell's live cart SSE connection.
- * Role: Exchanges the bearer token for a one-time ticket, then opens, closes, and reconnects the stream.
- * Not in this file: Applying the cart (src/utils/cartSync.js) or the raw EventSource
- *   (src/events/cartLiveEventsTransport.js).
- * Key dependencies: src/events/cartLiveEventsTransport.js; src/utils/fetchJson.js.
- * See also: src/main.js.
+ * Role: Exchanges the bearer token for a one-time ticket, opens the cart EventSource, and reconnects it.
+ * Not in this file: Applying the cart (src/utils/cartSync.js).
+ * Key dependencies: src/events/cartLiveEventsContracts.js; src/utils/fetchJson.js; EventSource.
+ * See also: src/main.js; apps/mock-data-service/src/routes/cartRoutes.js.
  */
 
 import fetchJson from "../utils/fetchJson";
 import { MOCK_API_BASE_URL } from "../utils/constants";
-import { CART_LIVE_EVENT_NAME } from "./cartLiveEventsContracts";
-import { connectCartEventSource } from "./cartLiveEventsTransport";
+import { CART_CHANGED_EVENT_TYPE, CART_LIVE_EVENT_NAME } from "./cartLiveEventsContracts";
+
+/**
+ * Re-dispatches a pushed cart as a window event for this tab.
+ *
+ * @param {MessageEvent} messageEvent - Raw SSE message event.
+ * @returns {void}
+ * @sideEffects Dispatches a window CustomEvent whose detail is the cart payload.
+ */
+function dispatchCartLiveEvent(messageEvent) {
+  const cart = JSON.parse(messageEvent.data);
+  window.dispatchEvent(
+    new CustomEvent(CART_LIVE_EVENT_NAME, {
+      detail: cart,
+    }),
+  );
+}
+
+/**
+ * Opens an authenticated SSE connection to the cart stream.
+ *
+ * @param {string} ticket - One-time connection ticket from POST /api/cart/connection-tickets.
+ * @returns {EventSource} The open connection; callers own closing it.
+ * @sideEffects Opens a network connection and registers the cart_changed listener.
+ */
+function connectCartEventSource(ticket) {
+  const eventSource = new EventSource(
+    `${MOCK_API_BASE_URL}/cart/events?ticket=${encodeURIComponent(ticket)}`,
+  );
+  eventSource.addEventListener(CART_CHANGED_EVENT_TYPE, dispatchCartLiveEvent);
+  return eventSource;
+}
 
 const INITIAL_RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_DELAY_MS = 30_000;

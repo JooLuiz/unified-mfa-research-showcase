@@ -3,7 +3,7 @@
  * Role: Route paths, header names, SSE event names, and the insufficient-stock code, used by
  *   both the reservation commands and the watch stream/client on this branch.
  * Not in this file: HTTP calls (src/stockReservationCommands.js) or the EventSource lifecycle
- *   (src/createStockWatchStream.js).
+ *   (src/createStockWatchClient.js).
  * Key dependencies: None.
  * See also: apps/mock-data-service/src/routes/stockRoutes.js.
  */

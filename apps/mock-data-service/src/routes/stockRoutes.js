@@ -3,9 +3,9 @@
  * Role: Handles POST/PUT /stock/reservations, GET /stock/stream, and PUT /stock/watching,
  *   mounted at /api.
  * Not in this file: Availability math (src/domain/stock.js) or the SSE watcher registry
- *   (src/infrastructure/stockEventStream.js).
+ *   (src/infrastructure/stockEvents.js).
  * Key dependencies: src/domain/stock.js; src/domain/auth.js; src/domain/identifiers.js;
- *   src/infrastructure/stockEventStream.js.
+ *   src/infrastructure/stockEvents.js.
  * See also: src/server.js; src/routes/cartRoutes.js (guest-hold release on login merge);
  *   src/routes/orderRoutes.js (broadcast after a sale).
  */

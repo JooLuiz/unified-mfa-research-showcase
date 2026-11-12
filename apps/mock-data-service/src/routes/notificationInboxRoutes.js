@@ -4,7 +4,7 @@
  *   PUT /notifications/:notificationId/read, and GET /notifications/stream?shell=X.
  * Not in this file: Trigger side-effects or connection storage internals.
  * Key dependencies: src/domain/auth.js, src/domain/notificationInbox.js, src/domain/identifiers.js.
- * See also: src/domain/notificationTriggers.js, src/infrastructure/notificationInboxEventStream.js.
+ * See also: src/domain/notificationTriggers.js, src/infrastructure/notificationInboxEvents.js.
  */
 
 const express = require("express");

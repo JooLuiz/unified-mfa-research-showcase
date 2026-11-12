@@ -3,7 +3,7 @@
  * Role: Centralizes topic/event names and endpoints across shells.
  * Not in this file: EventSource connection or shell state.
  * Key dependencies: None.
- * See also: src/createSessionStreamSession.js, src/sessionRevocationCommands.js.
+ * See also: src/createSessionSession.js, src/sessionRevocationCommands.js.
  */
 
 const SESSION_TOPIC = "session";

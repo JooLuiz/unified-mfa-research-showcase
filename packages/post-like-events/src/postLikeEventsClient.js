@@ -2,14 +2,14 @@
  * Public per-tab post-like and post-created stream client.
  * Role: Module-level singleton (one per apiBaseUrl) that lets any page share the tab's single
  *   social stream without each one opening its own connection.
- * Not in this file: The underlying EventSource/reconnect mechanics (src/createPostLikesStream.js)
+ * Not in this file: The underlying EventSource/reconnect mechanics (src/createPostLikesSession.js)
  *   or the toggle write (src/togglePostLike.js).
- * Key dependencies: src/createPostLikesStream.js.
+ * Key dependencies: src/createPostLikesSession.js.
  * See also: apps/social-media-shell/src/main.js; apps/social-media-shell/src/pages/feedPage.js;
  *   apps/social-media-shell/src/pages/postsPage.js.
  */
 
-import { createPostLikesStream } from "./createPostLikesStream.js";
+import { createPostLikesStream } from "./createPostLikesSession.js";
 
 /** @type {Map<string, ReturnType<typeof createPostLikesStream>>} */
 const streamsByApiBaseUrl = new Map();

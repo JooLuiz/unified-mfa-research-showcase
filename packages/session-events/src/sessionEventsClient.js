@@ -2,11 +2,11 @@
  * Singleton tab client for session event streaming.
  * Role: Provides start, stop, local sign-out suppression, and subscribe helpers for the tab's session SSE connection.
  * Not in this file: Stream internals or the sign-out HTTP request.
- * Key dependencies: src/createSessionStreamSession.js.
+ * Key dependencies: src/createSessionSession.js.
  * See also: src/sessionRevocationCommands.js.
  */
 
-import { createSessionStreamSession } from "./createSessionStreamSession.js";
+import { createSessionStreamSession } from "./createSessionSession.js";
 
 const sessionStreamSession = createSessionStreamSession();
 

@@ -2,7 +2,7 @@
  * Serves the authenticated user's cart for the mock data service.
  * Role: Handles GET /cart, PUT /cart, and the per-user cart SSE stream, mounted at /api.
  * Not in this file: Cart persistence (src/domain/cartProcessing.js) or the stream map
- *   (src/infrastructure/cartEventStream.js).
+ *   (src/infrastructure/cartEvents.js).
  * Key dependencies: carts.json via src/domain/cartProcessing.js; src/domain/auth.js;
  *   src/domain/connectionTickets.js; src/domain/guestHolds.js for the login-merge hand-off.
  * See also: src/server.js; src/routes/orderRoutes.js; src/routes/stockRoutes.js.

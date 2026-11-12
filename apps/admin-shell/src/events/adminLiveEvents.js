@@ -1,19 +1,62 @@
 /**
  * Manages the admin shell's live-notifications SSE connection lifecycle.
- * Role: Exchanges the admin's Bearer token for a one-time connection ticket, opens/closes the
- *   SSE stream, and exposes a subscribe API for pages to react to live order/post events.
- * Not in this file: Raw EventSource wiring (src/events/adminLiveEventsTransport.js) or
- *   toast/page rendering decisions (consumers call subscribeToAdminLiveEvents themselves).
- * Key dependencies: src/events/adminLiveEventsTransport.js; src/utils/authActions.js;
- *   src/utils/fetchJson.js.
- * See also: src/main.js (start/stop on bootstrap, login, logout).
+ * Role: Exchanges the admin's Bearer token for a one-time connection ticket, opens the admin EventSource, and exposes a subscribe API for live order and post events.
+ * Not in this file: Toast or page rendering. Consumers call subscribeToAdminLiveEvents themselves.
+ * Key dependencies: src/events/adminLiveEventsContracts.js; src/utils/authActions.js; src/utils/fetchJson.js; EventSource.
+ * See also: src/main.js; apps/mock-data-service/src/routes/adminRoutes.js.
  */
 
 import fetchJson from "../utils/fetchJson";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import { isAdminAuthenticated } from "../utils/authActions";
-import { connectAdminEventSource } from "./adminLiveEventsTransport";
-import { ADMIN_LIVE_EVENT_NAME } from "./adminLiveEventsContracts";
+import {
+  ADMIN_LIVE_EVENT_NAME,
+  ORDER_CREATED_EVENT_TYPE,
+  POST_CREATED_EVENT_TYPE,
+  POST_LIKES_CHANGED_EVENT_TYPE,
+} from "./adminLiveEventsContracts";
+
+/**
+ * Re-dispatches a parsed SSE payload as a window CustomEvent for shell-local subscribers.
+ *
+ * @param {string} eventType - SSE event name (e.g. "order_created").
+ * @param {MessageEvent} messageEvent - Raw SSE message event.
+ * @returns {void}
+ * @sideEffects Dispatches a window CustomEvent.
+ */
+function dispatchAdminLiveEvent(eventType, messageEvent) {
+  const data = JSON.parse(messageEvent.data);
+  window.dispatchEvent(
+    new CustomEvent(ADMIN_LIVE_EVENT_NAME, {
+      detail: { type: eventType, data },
+    }),
+  );
+}
+
+/**
+ * Opens an authenticated SSE connection to the admin live-notifications stream.
+ *
+ * @param {string} ticket - One-time connection ticket from POST /admin/connection-tickets.
+ * @returns {EventSource} The open connection; callers own closing it.
+ * @sideEffects Opens a network connection and registers SSE listeners.
+ */
+function connectAdminEventSource(ticket) {
+  const eventSource = new EventSource(
+    `${MOCK_API_BASE_URL}/admin/events?ticket=${encodeURIComponent(ticket)}`,
+  );
+
+  eventSource.addEventListener(ORDER_CREATED_EVENT_TYPE, (messageEvent) =>
+    dispatchAdminLiveEvent(ORDER_CREATED_EVENT_TYPE, messageEvent),
+  );
+  eventSource.addEventListener(POST_CREATED_EVENT_TYPE, (messageEvent) =>
+    dispatchAdminLiveEvent(POST_CREATED_EVENT_TYPE, messageEvent),
+  );
+  eventSource.addEventListener(POST_LIKES_CHANGED_EVENT_TYPE, (messageEvent) =>
+    dispatchAdminLiveEvent(POST_LIKES_CHANGED_EVENT_TYPE, messageEvent),
+  );
+
+  return eventSource;
+}
 
 const INITIAL_RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_DELAY_MS = 30_000;

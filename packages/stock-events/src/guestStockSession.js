@@ -4,7 +4,7 @@
  *   watch stream and the shell's own reservation calls, so both always agree on one identity.
  * Not in this file: HTTP calls or the EventSource lifecycle.
  * Key dependencies: window.sessionStorage.
- * See also: src/createStockWatchStream.js; src/stockReservationCommands.js.
+ * See also: src/createStockWatchClient.js; src/stockReservationCommands.js.
  */
 
 const GUEST_STOCK_SESSION_STORAGE_KEY = "ecommerce-shell:stock-session";

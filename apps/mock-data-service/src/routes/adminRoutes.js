@@ -3,9 +3,9 @@
  * Role: Handles GET /admin/orders, GET /admin/posts, and the admin live-notifications SSE
  *   stream (POST /admin/connection-tickets + GET /admin/events), mounted at /api.
  * Not in this file: Token helpers (src/domain/auth.js), user-scoped routes, data mutation,
- *   or the broadcast implementation (src/infrastructure/adminEventStream.js).
+ *   or the broadcast implementation (src/infrastructure/adminEvents.js).
  * Key dependencies: orders.json, posts.json, and users.json via the JSON store;
- *   src/domain/connectionTickets.js; src/infrastructure/adminEventStream.js.
+ *   src/domain/connectionTickets.js; src/infrastructure/adminEvents.js.
  * See also: src/server.js; src/routes/orderRoutes.js and src/routes/postRoutes.js (broadcast producers).
  */
 

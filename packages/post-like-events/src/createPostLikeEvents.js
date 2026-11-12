@@ -1,9 +1,9 @@
 /**
  * Subscribes to live like counts and new posts over an injected transport.
  * Role: Delivers one like payload and one created-post payload on separate subscribers.
- * Not in this file: The EventSource stream (src/createPostLikesStream.js) or the like toggle HTTP command.
+ * Not in this file: The EventSource stream (src/createPostLikesSession.js) or the like toggle HTTP command.
  * Key dependencies: src/postLikeEventsContracts.js. The caller supplies publish and subscribe.
- * See also: src/createPostLikesStream.js; src/createPostLikesStream.test.js.
+ * See also: src/createPostLikesSession.js; src/createPostLikesSession.test.js.
  */
 
 import {

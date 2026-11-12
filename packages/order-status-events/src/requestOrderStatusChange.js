@@ -1,7 +1,7 @@
 /**
  * Sends one order status write to the mock API.
  * Role: PUT /orders/:orderId/status for both the customer cancellation request and admin actions.
- * Not in this file: The SSE connection (src/createOrderStatusStreamSession.js).
+ * Not in this file: The SSE connection (src/createOrderStatusSession.js).
  * Key dependencies: fetch.
  * See also: apps/mock-data-service/src/routes/orderStatusRoutes.js.
  */

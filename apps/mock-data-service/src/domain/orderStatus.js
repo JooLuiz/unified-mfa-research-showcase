@@ -2,7 +2,7 @@
  * Applies the order lifecycle shared by the customer and the admin.
  * Role: Validates one status transition, and restores product stock when the result is cancelled.
  * Not in this file: HTTP routing (src/routes/orderStatusRoutes.js) or the SSE registry
- *   (src/infrastructure/orderEventStream.js).
+ *   (src/infrastructure/orderEvents.js).
  * Key dependencies: src/domain/stock.js.
  * See also: src/domain/orderStatus.test.js; src/domain/orderProcessing.js.
  */
