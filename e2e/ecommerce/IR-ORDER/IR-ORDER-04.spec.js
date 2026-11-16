@@ -1,4 +1,4 @@
-const { test, expect, chromium } = require("@playwright/test");
+const { test, expect } = require("../../fixtures");
 const { restoreMockData } = require("../../support/reset-mock-data");
 
 // IR-ORDER-04 - The open customer screens follow an order status change.
@@ -58,10 +58,10 @@ async function shipFromAdmin(browser, orderId) {
   await adminContext.close();
 }
 
-test("open customer screens follow a status change", async ({ browser }) => {
+test("open customer screens follow a status change", async ({ browser, launchBrowser }) => {
   test.setTimeout(180_000);
   const context = await browser.newContext({ baseURL: STORE_ORIGIN });
-  const detailsBrowser = await chromium.launch({ headless: false });
+  const detailsBrowser = await launchBrowser({ headless: false });
   try {
     const detailsContext = await detailsBrowser.newContext({
       baseURL: STORE_ORIGIN,

@@ -1,4 +1,4 @@
-const { test, expect, chromium } = require("@playwright/test");
+const { test, expect } = require("../../fixtures");
 const { restoreMockData } = require("../../support/reset-mock-data");
 const { seedCart } = require("../../support/seed-cart");
 
@@ -62,11 +62,12 @@ async function signIn(context) {
 
 test("open dashboard and tables follow a new order, a new post, and a like", async ({
   browser,
+  launchBrowser,
 }) => {
   test.setTimeout(180_000);
   const context = await browser.newContext({ baseURL: ADMIN_ORIGIN });
-  const ordersBrowser = await chromium.launch({ headless: false });
-  const postsBrowser = await chromium.launch({ headless: false });
+  const ordersBrowser = await launchBrowser({ headless: false });
+  const postsBrowser = await launchBrowser({ headless: false });
   let storeContext;
   let carlaContext;
   let brunoContext;

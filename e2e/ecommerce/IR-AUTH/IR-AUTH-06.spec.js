@@ -1,4 +1,4 @@
-const { test, expect } = require("@playwright/test");
+const { test, expect } = require("../../fixtures");
 const { restoreMockData } = require("../../support/reset-mock-data");
 
 // IR-AUTH-06 - A protected ecommerce route stays pending through a failed sign-in, then opens after login succeeds.

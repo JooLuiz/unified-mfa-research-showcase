@@ -109,6 +109,24 @@ npm test
 
 Runs the shared domain and package contract tests with Node's test runner and prints a coverage table. The report covers `apps/mock-data-service/src/domain` and `packages/*/src`. Transport adapters are outside that set, so the same command is the check on every comparison branch.
 
+### Run end-to-end tests
+
+```bash
+npm run e2e
+```
+
+### Run end-to-end coverage
+
+```bash
+npm run e2e:coverage
+```
+
+The Playwright process needs Node.js `>= 22.15`. Stop any dev servers first. This command starts its own, with inline source maps, and does not reuse an existing `npm run dev`.
+
+`npm run e2e:coverage` collects Chromium JavaScript coverage with Playwright's `page.coverage` API. `monocart-reporter` merges those entries and writes the v8 report to `coverage/e2e`. `npm run e2e` does not collect coverage.
+
+The report lists shell, micro frontend, and shared package files that ran in the browser. It does not include `apps/mock-data-service`. Cross-origin iframe documents — the FAQ formulary, empty checkout, and the new-post form — are also outside the report, because page coverage stays on the page that owns the test.
+
 ## Main Routes
 
 E-commerce shell (`http://localhost:4200`):
