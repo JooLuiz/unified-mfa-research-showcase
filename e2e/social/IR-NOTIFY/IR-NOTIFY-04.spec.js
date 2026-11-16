@@ -1,4 +1,4 @@
-const { test, expect, chromium } = require("@playwright/test");
+const { test, expect } = require("../../fixtures");
 const { restoreMockData } = require("../../support/reset-mock-data");
 const { seedLike } = require("../../support/seed-like");
 const { seedNotification } = require("../../support/seed-notification");
@@ -45,10 +45,10 @@ function markReadButtons(targetPage) {
     .getByRole("button", { name: "Mark as read", exact: true });
 }
 
-test("both social tabs follow mark-one and mark-all", async ({ browser }) => {
+test("both social tabs follow mark-one and mark-all", async ({ browser, launchBrowser }) => {
   test.setTimeout(180_000);
   const context = await browser.newContext({ baseURL: SOCIAL_ORIGIN });
-  const otherBrowser = await chromium.launch({ headless: false });
+  const otherBrowser = await launchBrowser({ headless: false });
   try {
     for (const postId of ["post-03", "post-06"]) {
       await seedLike("bruno.silva", postId);

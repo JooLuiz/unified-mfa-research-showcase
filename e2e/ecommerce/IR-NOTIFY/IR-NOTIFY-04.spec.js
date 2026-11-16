@@ -1,4 +1,4 @@
-const { test, expect, chromium } = require("@playwright/test");
+const { test, expect } = require("../../fixtures");
 const { restoreMockData } = require("../../support/reset-mock-data");
 const { seedNotification } = require("../../support/seed-notification");
 const { seedOrder } = require("../../support/seed-order");
@@ -71,10 +71,10 @@ function markReadButton(targetPage, title) {
   });
 }
 
-test("both store tabs follow mark-one and mark-all", async ({ browser }) => {
+test("both store tabs follow mark-one and mark-all", async ({ browser, launchBrowser }) => {
   test.setTimeout(180_000);
   const context = await browser.newContext({ baseURL: STORE_ORIGIN });
-  const otherBrowser = await chromium.launch({ headless: false });
+  const otherBrowser = await launchBrowser({ headless: false });
   try {
     await seedOrder("alice.parker", {
       id: SEEDED_ORDER_ID,

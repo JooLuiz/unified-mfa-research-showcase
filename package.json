@@ -41,7 +41,8 @@
     "test": "node --test --experimental-test-coverage --test-reporter=spec --test-coverage-exclude=**/*.test.js --test-coverage-include=apps/mock-data-service/src/domain/**/*.js --test-coverage-include=apps/mock-data-service/src/csv/**/*.js --test-coverage-include=packages/*/src/**/*.js apps/mock-data-service/src/domain/**/*.test.js apps/mock-data-service/src/csv/**/*.test.js apps/mock-data-service/src/infrastructure/**/*.test.js packages/*/src/**/*.test.js",
     "start": "npm run dev",
     "e2e": "playwright test",
-    "e2e:ui": "playwright test --ui"
+    "e2e:ui": "playwright test --ui",
+    "e2e:coverage": "playwright test"
   },
   "keywords": [
     "micro-frontend",
@@ -55,6 +56,7 @@
   "description": "Unified micro frontend research showcase organized by business domains.",
   "devDependencies": {
     "@playwright/test": "^1.64.1",
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "monocart-reporter": "^2.15.1"
   }
 }

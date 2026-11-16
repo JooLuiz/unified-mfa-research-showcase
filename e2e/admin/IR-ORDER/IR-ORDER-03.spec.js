@@ -1,4 +1,4 @@
-const { test, expect } = require("@playwright/test");
+const { test, expect } = require("../../fixtures");
 const { restoreMockData } = require("../../support/reset-mock-data");
 
 // IR-ORDER-03 - The admin accepts a cancellation. The order is cancelled, stock comes back, and the admin was notified of the request.

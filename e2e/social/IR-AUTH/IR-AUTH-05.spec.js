@@ -1,4 +1,4 @@
-const { test, expect, chromium } = require("@playwright/test");
+const { test, expect } = require("../../fixtures");
 const { restoreMockData } = require("../../support/reset-mock-data");
 
 // IR-AUTH-05 - Signing out everywhere on social media ends that user's open sessions on the other shells.
@@ -29,10 +29,11 @@ function readStoredSession(page, storagePrefix) {
 
 test("signing out everywhere ends the same account on the other shells", async ({
   page,
+  launchBrowser,
 }) => {
   test.setTimeout(180_000);
-  const ecommerceBrowser = await chromium.launch({ headless: false });
-  const adminBrowser = await chromium.launch({ headless: false });
+  const ecommerceBrowser = await launchBrowser({ headless: false });
+  const adminBrowser = await launchBrowser({ headless: false });
   const ecommerceContext = await ecommerceBrowser.newContext();
   const adminContext = await adminBrowser.newContext();
   const ecommercePage = await ecommerceContext.newPage();
