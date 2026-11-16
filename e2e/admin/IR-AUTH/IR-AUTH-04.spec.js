@@ -1,4 +1,4 @@
-const { test, expect } = require("@playwright/test");
+const { test, expect } = require("../../fixtures");
 const { restoreMockData } = require("../../support/reset-mock-data");
 
 // IR-AUTH-04 - Logging out clears the admin session and returns to the login page.

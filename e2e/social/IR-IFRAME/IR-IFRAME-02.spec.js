@@ -1,4 +1,4 @@
-const { test, expect } = require("@playwright/test");
+const { test, expect } = require("../../fixtures");
 const { restoreMockData } = require("../../support/reset-mock-data");
 
 // IR-IFRAME-02 - The new-post iframe delivers the post to the social shell.

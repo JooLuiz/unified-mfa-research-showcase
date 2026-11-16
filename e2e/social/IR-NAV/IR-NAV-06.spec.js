@@ -1,4 +1,4 @@
-const { test, expect } = require("@playwright/test");
+const { test, expect } = require("../../fixtures");
 const { restoreMockData } = require("../../support/reset-mock-data");
 
 // IR-NAV-06 - Opening a product on the social feed goes to that product in the ecommerce shell.

@@ -1,4 +1,4 @@
-const { test, expect } = require("@playwright/test");
+const { test, expect } = require("../../fixtures");
 const { restoreMockData } = require("../../support/reset-mock-data");
 
 // IR-NAV-04 - A protected ecommerce route sends a guest to /login and keeps the destination.

@@ -1,4 +1,4 @@
-const { test, expect } = require("@playwright/test");
+const { test, expect } = require("../../fixtures");
 const { restoreMockData } = require("../../support/reset-mock-data");
 const { seedLike } = require("../../support/seed-like");
 const { seedNotification } = require("../../support/seed-notification");

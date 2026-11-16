@@ -1,4 +1,4 @@
-const { test, expect } = require("@playwright/test");
+const { test, expect } = require("../../fixtures");
 const { restoreMockData } = require("../../support/reset-mock-data");
 
 // IR-IFRAME-02 - The FAQ form and the empty cart deliver their actions to the store shell.

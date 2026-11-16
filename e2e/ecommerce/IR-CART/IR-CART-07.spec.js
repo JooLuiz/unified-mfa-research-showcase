@@ -1,4 +1,4 @@
-const { test, expect, chromium } = require("@playwright/test");
+const { test, expect } = require("../../fixtures");
 const { restoreMockData } = require("../../support/reset-mock-data");
 const { seedCart } = require("../../support/seed-cart");
 
@@ -56,12 +56,16 @@ async function raiseKeyboardQuantity(page) {
   await expectCart(page, "2", "Total: $241.00");
 }
 
-test("a checkout change shows on another tab", async ({ page, context }) => {
+test("a checkout change shows on another tab", async ({
+  page,
+  context,
+  launchBrowser,
+}) => {
   test.setTimeout(180_000);
   const bruno = await loginAs(page, "bruno.silva");
   await seedCart("bruno.silva", [{ productId: "p-03", quantity: 1 }]);
   await installSession(context, bruno);
-  const otherBrowser = await chromium.launch({ headless: false });
+  const otherBrowser = await launchBrowser({ headless: false });
   try {
     const otherContext = await otherBrowser.newContext();
     await installSession(otherContext, bruno);
@@ -79,12 +83,13 @@ test("a checkout change shows on another tab", async ({ page, context }) => {
 test("a checkout change shows in another browser", async ({
   page,
   context,
+  launchBrowser,
 }) => {
   test.setTimeout(180_000);
   const bruno = await loginAs(page, "bruno.silva");
   await seedCart("bruno.silva", [{ productId: "p-03", quantity: 1 }]);
   await installSession(context, bruno);
-  const otherBrowser = await chromium.launch({ headless: false });
+  const otherBrowser = await launchBrowser({ headless: false });
   try {
     const otherContext = await otherBrowser.newContext();
     await installSession(otherContext, bruno);
@@ -102,13 +107,14 @@ test("a checkout change shows in another browser", async ({
 test("placing an order empties the cart on the other screens", async ({
   page,
   context,
+  launchBrowser,
 }) => {
   test.setTimeout(180_000);
   const bruno = await loginAs(page, "bruno.silva");
   await seedCart("bruno.silva", [{ productId: "p-03", quantity: 1 }]);
   await installSession(context, bruno);
-  const tabBrowser = await chromium.launch({ headless: false });
-  const otherBrowser = await chromium.launch({ headless: false });
+  const tabBrowser = await launchBrowser({ headless: false });
+  const otherBrowser = await launchBrowser({ headless: false });
   try {
     const tabContext = await tabBrowser.newContext();
     await installSession(tabContext, bruno);
@@ -166,11 +172,14 @@ test("logging out clears the other open tab", async ({ page, context }) => {
   await expectCart(page, "1", "Total: $120.50");
 });
 
-test("items added before login join the saved cart", async ({ page }) => {
+test("items added before login join the saved cart", async ({
+  page,
+  launchBrowser,
+}) => {
   test.setTimeout(180_000);
   const bruno = await loginAs(page, "bruno.silva");
   await seedCart("bruno.silva", [{ productId: "p-04", quantity: 1 }]);
-  const otherBrowser = await chromium.launch({ headless: false });
+  const otherBrowser = await launchBrowser({ headless: false });
   try {
     const otherContext = await otherBrowser.newContext();
     await installSession(otherContext, bruno);

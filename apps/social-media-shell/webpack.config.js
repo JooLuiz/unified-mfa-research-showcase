@@ -1,8 +1,10 @@
+const { applyE2eCoverage } = require("../../e2e/coverage-dev-server");
+
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { ModuleFederationPlugin } = require("webpack").container;
 
-module.exports = {
+module.exports = applyE2eCoverage({
   mode: "development",
   entry: path.resolve(__dirname, "src/index.js"),
   output: {
@@ -56,4 +58,4 @@ module.exports = {
       template: path.resolve(__dirname, "public/index.html"),
     }),
   ],
-};
+});
