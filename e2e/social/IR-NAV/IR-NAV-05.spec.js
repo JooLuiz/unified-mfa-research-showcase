@@ -18,8 +18,8 @@ const PROMOTIONS = [
   },
   {
     title: "The Perfect Setup Starts Here",
-    storeUrl: `${STORE_PRODUCTS_URL}?maxPrice=150&categoryIds=cat-electronics`,
-    tags: ["Max Price: $150", "Category: Electronics"],
+    storeUrl: `${STORE_PRODUCTS_URL}?minPrice=10&maxPrice=150&categoryIds=cat-electronics`,
+    tags: ["Min Price: $10", "Max Price: $150", "Category: Electronics"],
   },
   {
     title: "Studio Quality at Home",
