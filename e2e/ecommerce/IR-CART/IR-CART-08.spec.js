@@ -113,3 +113,31 @@ test("raising a checkout quantity reserves the remaining units", async ({
     await guestContext.close();
   }
 });
+
+async function typeQuantity(scope, inputSelector, typedValue, expectedValue) {
+  const quantityInput = scope.locator(inputSelector);
+  await quantityInput.fill(typedValue);
+  await quantityInput.press("Tab");
+  await expect(quantityInput).toHaveValue(expectedValue);
+}
+
+test("typing zero or past the available count snaps back to a valid quantity", async ({
+  page,
+}) => {
+  await page.goto("/products", { waitUntil: "domcontentloaded" });
+  const card = lampCard(page);
+  await expect(card.getByText("2 available")).toBeVisible();
+  await typeQuantity(card, 'input[type="number"]', "0", "1");
+  await typeQuantity(card, 'input[type="number"]', "9", "2");
+  await expect(card.getByRole("button", { name: "+", exact: true })).toBeDisabled();
+
+  await page.goto("/product?productId=p-01", { waitUntil: "domcontentloaded" });
+  const details = page.locator(".pdp-shell");
+  await expect(details.getByRole("heading", { name: LAMP })).toBeVisible();
+  await expect(details.getByText("2 available")).toBeVisible();
+  await typeQuantity(details, "input.pdp-quantity-value-input", "0", "1");
+  await typeQuantity(details, "input.pdp-quantity-value-input", "9", "2");
+  await expect(
+    details.getByRole("button", { name: "+", exact: true }),
+  ).toBeDisabled();
+});
