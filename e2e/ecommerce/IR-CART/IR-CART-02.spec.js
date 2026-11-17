@@ -56,3 +56,18 @@ test("the shopper raises and lowers a checkout line quantity", async ({
   await line.getByRole("button", { name: "-", exact: true }).click();
   await expectQuantity(page, 1, "$120.50", "Total: $120.50");
 });
+
+test("typing zero or past the available count snaps the checkout line back", async ({
+  page,
+}) => {
+  await openCheckoutWithOneKeyboard(page);
+  const line = keyboardLine(page);
+  const quantityInput = line.locator("input.checkout-quantity-input");
+  await expectQuantity(page, 1, "$120.50", "Total: $120.50");
+  await quantityInput.fill("0");
+  await quantityInput.press("Tab");
+  await expectQuantity(page, 1, "$120.50", "Total: $120.50");
+  await quantityInput.fill("99");
+  await quantityInput.press("Tab");
+  await expectQuantity(page, 12, "$1446.00", "Total: $1446.00");
+});

@@ -14,7 +14,7 @@ const PROMOTIONS = [
   },
   {
     title: "The Perfect Setup Starts Here",
-    tags: ["Max Price: $150", "Category: Electronics"],
+    tags: ["Min Price: $10", "Max Price: $150", "Category: Electronics"],
   },
   {
     title: "Studio Quality at Home",
