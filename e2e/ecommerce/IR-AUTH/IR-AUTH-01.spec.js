@@ -24,6 +24,15 @@ test("customer can sign in", async ({ page }) => {
   await expect(page).toHaveURL(/\/$/);
 });
 
+test("an empty sign-in asks for both fields", async ({ page }) => {
+  await page.goto("/login", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(
+    page.getByText("Please type both username/email and password."),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/\/login$/);
+});
+
 test("wrong password stays on the login page", async ({ page }) => {
   await page.goto("/login", { waitUntil: "domcontentloaded" });
   await expect(

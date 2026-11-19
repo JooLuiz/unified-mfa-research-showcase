@@ -109,6 +109,8 @@ npm test
 
 Runs the shared domain and package contract tests with Node's test runner and prints a coverage table. The report covers `apps/mock-data-service/src/domain` and `packages/*/src`. Transport adapters are outside that set, so the same command is the check on every comparison branch.
 
+`npm test` hides console output from unit files that passed. `npm run test:logs` prints that output. `npm run test:coverage` and `npm run coverage` use the quiet unit command.
+
 ### Run end-to-end tests
 
 ```bash
@@ -123,9 +125,19 @@ npm run e2e:coverage
 
 The Playwright process needs Node.js `>= 22.15`. Stop any dev servers first. This command starts its own, with inline source maps, and does not reuse an existing `npm run dev`.
 
-`npm run e2e:coverage` collects Chromium JavaScript coverage with Playwright's `page.coverage` API. `monocart-reporter` merges those entries and writes the v8 report to `coverage/e2e`. `npm run e2e` does not collect coverage.
+`npm run e2e:coverage` collects Chromium JavaScript coverage with Playwright's `page.coverage` API. `monocart-reporter` merges those entries and writes the v8 report to `coverage/.v8/e2e/index.html` and the raw export to `coverage/.v8/e2e/raw`. `coverage/e2e/index.html` is the Playwright result page. `npm run e2e` does not collect coverage.
 
-The report lists shell, micro frontend, and shared package files that ran in the browser. It does not include `apps/mock-data-service`. Cross-origin iframe documents — the FAQ formulary, empty checkout, and the new-post form — are also outside the report, because page coverage stays on the page that owns the test.
+The report lists shell, micro frontend, and shared package files that ran in the browser. Cross-origin iframe documents — the FAQ formulary, empty checkout, and the new-post form — are also outside the report, because page coverage stays on the page that owns the test. When this command starts the mock data service, that process writes its own V8 files to `coverage/.v8/server`. The browser report does not include them.
+
+### Combined unit and end-to-end coverage
+
+Three reports, each runnable on its own:
+
+- `npm run test:coverage` runs the unit suite with `NODE_V8_COVERAGE` and writes `coverage/unit/index.html` and `coverage/unit/raw`.
+- `npm run e2e:coverage` writes `coverage/.v8/e2e/index.html` and `coverage/.v8/e2e/raw` as described above, and the mock server writes `coverage/.v8/server`. `coverage/e2e/index.html` is the Playwright result page.
+- `npm run coverage` runs both, then merges the unit raw directory, the browser raw directory, and the server V8 files into `coverage/combined/index.html` with `scripts/coverage/combineCoverage.js`.
+
+The combined report unions those source sets. Files reached by more than one run (the `packages/*/src` contracts, and server files hit by both unit tests and the running mock service) are merged, not double-counted. It leaves out tests, declarations, `*.types.ts`, app `polyfills.ts`, `bootstrap-app.ts`, and standalone MFE preview entries. Shell bootstrap files and package `src/index.js` stay in the report. Raw V8 files live under `coverage/.v8/` and `coverage/unit/raw`, and are gitignored with the rest of `coverage/`.
 
 ## Main Routes
 

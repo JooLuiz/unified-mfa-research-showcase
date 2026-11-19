@@ -26,6 +26,16 @@ test("watchProduct delivers that product's availability until unwatch", () => {
   transport.publish({
     topic: STOCK_TOPIC,
     event: STOCK_CHANGED_EVENT,
+    payload: null,
+  });
+  transport.publish({
+    topic: STOCK_TOPIC,
+    event: STOCK_CHANGED_EVENT,
+    payload: { available: 1 },
+  });
+  transport.publish({
+    topic: STOCK_TOPIC,
+    event: STOCK_CHANGED_EVENT,
     payload: { productId: "p-01", available: 4 },
   });
   transport.publish({
@@ -41,4 +51,34 @@ test("watchProduct delivers that product's availability until unwatch", () => {
   });
 
   assert.deepEqual(received, [4]);
+});
+
+test("subscribeToStockChanged delivers every update until unsubscribe", () => {
+  const transport = createRecordingTransport();
+  const stockWatchEvents = createStockWatchEvents(transport);
+  const received = [];
+  const unsubscribe = stockWatchEvents.subscribeToStockChanged((stockUpdate) => {
+    received.push(stockUpdate);
+  });
+  const firstUpdate = { productId: "p-01", available: 4 };
+  const secondUpdate = { productId: "p-02", available: 1 };
+
+  transport.publish({
+    topic: STOCK_TOPIC,
+    event: STOCK_CHANGED_EVENT,
+    payload: firstUpdate,
+  });
+  transport.publish({
+    topic: STOCK_TOPIC,
+    event: STOCK_CHANGED_EVENT,
+    payload: secondUpdate,
+  });
+  unsubscribe();
+  transport.publish({
+    topic: STOCK_TOPIC,
+    event: STOCK_CHANGED_EVENT,
+    payload: { productId: "p-01", available: 0 },
+  });
+
+  assert.deepEqual(received, [firstUpdate, secondUpdate]);
 });

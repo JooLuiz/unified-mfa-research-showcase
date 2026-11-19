@@ -3,7 +3,7 @@
  * Role: Owns items-per-row estimation from viewport width and the visible-count window.
  * Not in this file: Product data or filter state.
  * Key dependencies: Window resize events.
- * See also: src/ProductListView.js.
+ * See also: src/ProductListView.js; src/hooks/useResponsiveGrid.test.js.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -13,6 +13,11 @@ const CARD_GAP = 12;
 const FILTERS_COLUMN_WIDTH = 220;
 const PAGE_PADDING_ALLOWANCE = 96;
 
+/**
+ * Estimates how many product cards fit in one row of the current viewport.
+ *
+ * @returns {number} Cards per row, or 4 when no window is available.
+ */
 function calculateItemsPerRow() {
   if (typeof window === "undefined") {
     return 4;
@@ -27,6 +32,12 @@ function calculateItemsPerRow() {
   return Math.max(estimatedCardsPerRow, 1);
 }
 
+/**
+ * Returns the first visible-card window for a row size.
+ *
+ * @param {number} itemsPerRow - Cards that fit in one row.
+ * @returns {number} Two rows of cards, and at least two cards.
+ */
 function getInitialVisibleCount(itemsPerRow) {
   return Math.max(itemsPerRow * 2, 2);
 }
@@ -87,4 +98,4 @@ function useResponsiveGrid() {
   return { visibleCount, resetVisibleCount, loadMore };
 }
 
-export { useResponsiveGrid };
+export { calculateItemsPerRow, getInitialVisibleCount, useResponsiveGrid };

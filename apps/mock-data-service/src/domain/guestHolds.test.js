@@ -130,3 +130,24 @@ test("getTotalGuestHoldQuantity sums every session and deleteGuestHoldSession re
   const alreadyGone = await deleteGuestHoldSession({ jsonStore, sessionId: "session-09" });
   assert.deepEqual(alreadyGone, { ok: true, removedLines: [] });
 });
+
+test("writeGuestHoldLine and deleteGuestHoldSession report a failed write", async () => {
+  const jsonStore = createMemoryJsonStore({
+    "guestHolds.json": { "session-01": [{ productId: "p-01", quantity: 1 }] },
+  });
+  jsonStore.writeJsonFile = async function failWrite() {
+    throw new Error("disk full");
+  };
+
+  const writeResult = await writeGuestHoldLine({
+    jsonStore,
+    sessionId: "session-01",
+    productId: "p-01",
+    quantity: 2,
+  });
+  const deleteResult = await deleteGuestHoldSession({ jsonStore, sessionId: "session-01" });
+
+  assert.equal(writeResult.code, GUEST_HOLDS_PERSISTENCE_FAILED_CODE);
+  assert.equal(deleteResult.code, GUEST_HOLDS_PERSISTENCE_FAILED_CODE);
+  assert.equal(jsonStore.files["guestHolds.json"]["session-01"][0].quantity, 1);
+});

@@ -1,7 +1,7 @@
 /**
  * Verifies order status delivery on an injected transport.
  * Role: Locks that a subscriber receives one status update and nothing after unsubscribe.
- * Not in this file: EventSource, HTTP paths, or the status write.
+ * Not in this file: The live connection or the status write.
  * Key dependencies: node:test; src/createOrderStatusEvents.js; test/support/createRecordingTransport.js.
  * See also: src/createOrderStatusEvents.js.
  */

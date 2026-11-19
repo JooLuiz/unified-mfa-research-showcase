@@ -72,3 +72,60 @@ test("subscribeToIframeEvent delivers the payload until unsubscribe", () => {
 
   assert.deepEqual(received, [{ question: "Shipping?" }]);
 });
+
+test("subscribeToIframeEvent ignores an action it did not subscribe to", () => {
+  const transport = createRecordingTransport();
+  const iframeBridge = createIframeBridge(transport);
+  const received = [];
+  iframeBridge.subscribeToIframeEvent(FAQ_SUBMITTED_EVENT, (payload) => {
+    received.push(payload);
+  });
+
+  transport.publish({
+    topic: "iframe-bridge",
+    event: "message",
+    payload: { event: RESIZED_EVENT, payload: { height: 10 } },
+  });
+
+  assert.deepEqual(received, []);
+});
+
+test("subscribeToIframeEvent ignores a message that does not carry an action name", () => {
+  const transport = createRecordingTransport();
+  const iframeBridge = createIframeBridge(transport);
+  const received = [];
+  iframeBridge.subscribeToIframeEvent(FAQ_SUBMITTED_EVENT, (payload) => {
+    received.push(payload);
+  });
+
+  transport.publish({ topic: "iframe-bridge", event: "message", payload: null });
+  transport.publish({
+    topic: "iframe-bridge",
+    event: "message",
+    payload: { height: 10 },
+  });
+  transport.publish({
+    topic: "iframe-bridge",
+    event: "message",
+    payload: { event: 4, payload: { height: 10 } },
+  });
+
+  assert.deepEqual(received, []);
+});
+
+test("subscribeToIframeEvent delivers undefined when the action has no inner payload", () => {
+  const transport = createRecordingTransport();
+  const iframeBridge = createIframeBridge(transport);
+  const received = [];
+  iframeBridge.subscribeToIframeEvent(FAQ_SUBMITTED_EVENT, (payload) => {
+    received.push(payload);
+  });
+
+  transport.publish({
+    topic: "iframe-bridge",
+    event: "message",
+    payload: { event: FAQ_SUBMITTED_EVENT },
+  });
+
+  assert.deepEqual(received, [undefined]);
+});

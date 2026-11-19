@@ -146,3 +146,78 @@ test("createOrderForUser reports persistence failure when the order file cannot 
     console.error = originalConsoleError;
   }
 });
+
+test("createOrderForUser reports persistence failure when the saved cart cannot be cleared", async () => {
+  const jsonStore = createOrderStore();
+  jsonStore.files["carts.json"] = { not: "an-array" };
+
+  const orderResult = await createOrderForUser({
+    jsonStore,
+    user: { id: "u-01", address: null },
+    orderPayload: {
+      items: [{ productId: "p-01", quantity: 1 }],
+      subtotal: 45,
+      totalAmount: 45,
+    },
+  });
+
+  assert.equal(orderResult.ok, false);
+  assert.equal(orderResult.code, ORDER_PERSISTENCE_FAILED_CODE);
+});
+
+test("createOrderForUser rejects items that are not a list", async () => {
+  const jsonStore = createOrderStore();
+  const orderResult = await createOrderForUser({
+    jsonStore,
+    user: { id: "u-01", address: null },
+    orderPayload: { items: null },
+  });
+
+  assert.equal(orderResult.ok, false);
+  assert.equal(orderResult.code, ORDER_REQUEST_INVALID_CODE);
+  assert.equal(jsonStore.files["orders.json"].length, 0);
+});
+
+test("createOrderForUser stores zero money fields when the payload omits them", async () => {
+  const jsonStore = createOrderStore();
+  const orderResult = await createOrderForUser({
+    jsonStore,
+    user: { id: "u-01", address: null },
+    orderPayload: { items: [{ productId: "p-01", quantity: 1 }] },
+  });
+
+  assert.equal(orderResult.ok, true);
+  assert.equal(orderResult.order.subtotal, 0);
+  assert.equal(orderResult.order.discountAmount, 0);
+  assert.equal(orderResult.order.totalAmount, 0);
+});
+
+test("createOrderForUser still stores the order when stock cannot be read", async () => {
+  const jsonStore = createOrderStore();
+  const originalRead = jsonStore.readJsonFile.bind(jsonStore);
+  jsonStore.readJsonFile = async (fileName) => {
+    if (fileName === "products.json") {
+      throw new Error("products unreadable");
+    }
+    return originalRead(fileName);
+  };
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    const orderResult = await createOrderForUser({
+      jsonStore,
+      user: { id: "u-01", address: null },
+      orderPayload: {
+        items: [{ productId: "p-01", quantity: 1 }],
+        subtotal: 45,
+        totalAmount: 45,
+      },
+    });
+
+    assert.equal(orderResult.ok, true);
+    assert.deepEqual(orderResult.stockAvailability, []);
+    assert.equal(jsonStore.files["orders.json"].length, 1);
+  } finally {
+    console.error = originalConsoleError;
+  }
+});
