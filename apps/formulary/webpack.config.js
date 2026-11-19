@@ -8,7 +8,7 @@ module.exports = applyE2eCoverage({
   mode: "development",
   entry: {
     main: path.resolve(__dirname, "src/index.js"),
-    "iframe-bridge-client": path.resolve(__dirname, "src/iframe-bridge-client.js"),
+    "agnostic-formulary": path.resolve(__dirname, "src/agnosticFormularyEntry.js"),
   },
   output: {
     publicPath: "auto",

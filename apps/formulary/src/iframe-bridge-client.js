@@ -3,7 +3,7 @@
  * Role: Owns resize and form-submitted calls for the FAQ and new-post iframe.
  * Not in this file: Form rendering or host-side message listeners.
  * Key dependencies: @shared/iframe-bridge.
- * See also: public/faq-formulary.html.
+ * See also: public/faq-formulary.html; src/mountAgnosticFormulary.js.
  */
 
 import {
@@ -55,7 +55,4 @@ function publishFormularySubmitted(messageType, payload) {
   iframeBridge.publishIframeMessage(eventName, payload);
 }
 
-window.iframeBridgeClient = {
-  publishIframeResize,
-  publishFormularySubmitted,
-};
+export { publishIframeResize, publishFormularySubmitted };

@@ -9,7 +9,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createCatalogEvents } from "./createCatalogEvents.js";
+import { isValidCartAddRequest } from "./catalogEventsContracts.js";
 import { createRecordingTransport } from "../../../test/support/createRecordingTransport.js";
+
+test("isValidCartAddRequest accepts a product id with a positive finite quantity and rejects a missing id or a non-finite quantity", () => {
+  assert.equal(isValidCartAddRequest(null), false);
+  assert.equal(isValidCartAddRequest({ quantity: 1 }), false);
+  assert.equal(isValidCartAddRequest({ productId: " " }), false);
+  assert.equal(isValidCartAddRequest({ productId: "sku-lamp", quantity: 2 }), true);
+  assert.equal(isValidCartAddRequest({ productId: "sku-lamp", quantity: Number.NaN }), false);
+});
 
 test("publishCartItemAddRequested emits a local cart message and drops an invalid payload", () => {
   const transport = createRecordingTransport();
