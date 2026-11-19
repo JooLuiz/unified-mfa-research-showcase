@@ -114,6 +114,25 @@ test("recordPostCreatedNotifications does not write or broadcast when there are 
   assert.equal(notificationStream.broadcasts.length, 0);
 });
 
+test("recordPostCreatedNotifications stores one admin row for the new post", async () => {
+  const jsonStore = createMemoryJsonStore({
+    "users.json": [{ id: "admin-01", role: "admin" }],
+    "notificationInbox.json": [],
+  });
+  const notificationStream = createRecordingStream();
+
+  await recordPostCreatedNotifications({
+    jsonStore,
+    notificationInboxEventStream: notificationStream,
+    post: { id: "post-01", author: { username: "ada" } },
+  });
+
+  assert.equal(jsonStore.files["notificationInbox.json"].length, 1);
+  assert.equal(jsonStore.files["notificationInbox.json"][0].userId, "admin-01");
+  assert.equal(jsonStore.files["notificationInbox.json"][0].message, "ada published a new post.");
+  assert.equal(notificationStream.broadcasts.length, 1);
+});
+
 test("recordOrderStatusChangedNotifications tells the customer or the admins, matching the actor", async () => {
   const jsonStore = createMemoryJsonStore({
     "users.json": [{ id: "admin-01", role: "admin" }],
@@ -165,5 +184,58 @@ test("recordPostLikedNotification stores one social row for the post author", as
   assert.equal(
     notificationStream.broadcasts[0].notification.message,
     "Bruno Silva liked your post.",
+  );
+});
+
+test("recordOrderPlacedNotifications names a customer with no name as a customer", async () => {
+  const jsonStore = createMemoryJsonStore({
+    "users.json": [{ id: "admin-01", role: "admin" }],
+    "notificationInbox.json": [],
+  });
+  const notificationStream = createRecordingStream();
+
+  await recordOrderPlacedNotifications({
+    jsonStore,
+    notificationInboxEventStream: notificationStream,
+    order: { id: "order-02" },
+    user: { id: "u-01" },
+  });
+
+  assert.equal(
+    notificationStream.broadcasts[1].notification.message,
+    "A new order #order-02 was placed by a customer.",
+  );
+});
+
+test("recordPostLikedNotification names a missing liker as Someone", async () => {
+  const jsonStore = createMemoryJsonStore({ "notificationInbox.json": [] });
+  const notificationStream = createRecordingStream();
+
+  await recordPostLikedNotification({
+    jsonStore,
+    notificationInboxEventStream: notificationStream,
+    post: { id: "post-01", authorId: "u-01" },
+    likerName: "",
+  });
+
+  assert.equal(notificationStream.broadcasts[0].notification.message, "Someone liked your post.");
+});
+
+test("recordPostCreatedNotifications names a missing author as A user", async () => {
+  const jsonStore = createMemoryJsonStore({
+    "users.json": [{ id: "admin-01", role: "admin" }],
+    "notificationInbox.json": [],
+  });
+  const notificationStream = createRecordingStream();
+
+  await recordPostCreatedNotifications({
+    jsonStore,
+    notificationInboxEventStream: notificationStream,
+    post: { id: "post-02" },
+  });
+
+  assert.equal(
+    notificationStream.broadcasts[0].notification.message,
+    "A user published a new post.",
   );
 });

@@ -127,3 +127,20 @@ test("markAllNotificationsRead returns empty lists when the inbox is missing", (
   assert.deepEqual(outcome.notifications, []);
   assert.deepEqual(outcome.changedNotifications, []);
 });
+
+test("inbox helpers reject a missing list and a null row", () => {
+  assert.deepEqual(getAdminUserIds(null), []);
+  assert.deepEqual(listNotificationsForUser(null, "u-1", "ecommerce"), []);
+
+  const missingList = markNotificationRead(null, "notification-01", "u-1");
+  assert.equal(missingList.ok, false);
+  assert.equal(missingList.code, NOTIFICATION_NOT_FOUND_CODE);
+
+  const nullRow = markNotificationRead(
+    [null, { id: "notification-01", userId: "u-1", read: false }],
+    "notification-01",
+    "u-1",
+  );
+  assert.equal(nullRow.ok, true);
+  assert.equal(nullRow.notification.read, true);
+});

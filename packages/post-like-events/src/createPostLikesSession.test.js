@@ -1,7 +1,7 @@
 /**
  * Verifies like and new-post delivery on an injected transport.
  * Role: Locks that each subscriber receives one update and nothing after unsubscribe.
- * Not in this file: EventSource, HTTP paths, or the like toggle command.
+ * Not in this file: The live connection or the like toggle command.
  * Key dependencies: node:test; src/createPostLikeEvents.js; test/support/createRecordingTransport.js.
  * See also: src/createPostLikeEvents.js.
  */
