@@ -34,6 +34,7 @@ import {
   readProductIdFromQueryParams,
 } from "./product-loader";
 import { ProductAvailabilityWatcher } from "./product-availability-watcher";
+import mesh from "event-mesh/mesh";
 import { PRODUCT_DETAILS_TEMPLATE } from "./product-details.template";
 
 const normalizeQuantity = (nextQuantity: number): number => {
@@ -84,7 +85,7 @@ export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDest
       this.quantityValue = nextAvailable;
     }
     this.changeDetectorRef.detectChanges();
-  });
+  }, mesh);
 
   get isOutOfStock(): boolean {
     return this.availableCount === 0;

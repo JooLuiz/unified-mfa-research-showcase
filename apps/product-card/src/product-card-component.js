@@ -66,6 +66,8 @@ export const ProductCardComponent = {
       type: String,
       default: "default",
     },
+    onProductClick: Function,
+    onAddToCart: Function,
   },
   setup(props) {
     const quantityValue = ref(normalizeQuantity(props.defaultQuantity));
@@ -76,7 +78,9 @@ export const ProductCardComponent = {
 
     const { availableCount } = useProductAvailability({
       productRef: productData,
+      getApiBaseUrl: () => props.apiBaseUrl,
       quantityRef: quantityValue,
+      transport: mesh,
     });
     const isOutOfStock = computed(() => availableCount.value === 0);
     const isAtMaxQuantity = computed(
@@ -181,6 +185,10 @@ export const ProductCardComponent = {
       if (!currentProduct) {
         return;
       }
+      if (typeof props.onProductClick === "function") {
+        props.onProductClick(currentProduct.id);
+        return;
+      }
       publishProductOpenRequested(currentProduct.id);
     };
 
@@ -190,13 +198,22 @@ export const ProductCardComponent = {
         return;
       }
       if (props.actionIntent === "open-product") {
+        if (typeof props.onProductClick === "function") {
+          props.onProductClick(currentProduct.id);
+          return;
+        }
         publishProductOpenRequested(currentProduct.id);
         return;
       }
-      publishCartItemAddRequested({
+      const cartItem = {
         productId: currentProduct.id,
         quantity: props.hideQuantity ? 1 : quantityValue.value,
-      });
+      };
+      if (typeof props.onAddToCart === "function") {
+        props.onAddToCart(cartItem);
+        return;
+      }
+      publishCartItemAddRequested(cartItem);
     };
 
     const renderAvailability = () => {

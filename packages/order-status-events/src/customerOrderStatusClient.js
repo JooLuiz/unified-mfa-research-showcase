@@ -1,48 +1,32 @@
 /**
  * Customer order-status client for one ecommerce tab.
- * Role: Announces this tab on orders/watching, exposes the signed-in customer's own
- *   orders/status-changed stream, and sends a cancellation request.
+ * Role: Opens the signed-in customer's orders.status-changed stream and sends a cancellation request.
  * Not in this file: Admin actions (src/adminOrderStatusClient.js) or rendering.
  * Key dependencies: src/createOrderStatusSession.js; src/requestOrderStatusChange.js.
  * See also: apps/ecommerce-shell/src/main.js; apps/order-details/src/useOrderDetails.js.
  */
 
-import {
-  ORDERS_TOPIC,
-  ORDERS_STATUS_CHANGED_EVENT,
-  ORDERS_WATCHING_EVENT,
-} from "./orderStatusContracts.js";
 import { createOrderStatusStreamSession } from "./createOrderStatusSession.js";
 import { requestOrderStatusChange } from "./requestOrderStatusChange.js";
 
-const customerOrderStatusSession = createOrderStatusStreamSession({
-  topic: ORDERS_TOPIC,
-  watchingEvent: ORDERS_WATCHING_EVENT,
-  statusChangedEvent: ORDERS_STATUS_CHANGED_EVENT,
-  logName: "startCustomerOrderStatusStream",
-});
+const customerOrderStatusSession = createOrderStatusStreamSession();
 
 /**
- * Opens this tab's customer order-status watch session. A second call while it is open does nothing.
+ * Opens this tab's customer order-status stream. A second call while it is open does nothing.
  *
- * @param {{ apiBaseUrl?: string, authToken?: string }} [startInput] - `authToken` gates the
- *   start, matching the HTTP branch's guard; `apiBaseUrl` is accepted and unused since the open
- *   mesh connection already carries the credential.
- * @returns {Promise<void>}
- * @sideEffects Publishes orders/watching on an interval and subscribes to orders/status-changed.
+ * @param {{ subscribe: Function }} transport - Ecommerce event interface.
+ * @returns {void}
+ * @sideEffects Subscribes to orders/status-changed.
  */
-function startCustomerOrderStatusStream(startInput) {
-  if (!startInput?.authToken) {
-    return Promise.resolve();
-  }
-  return customerOrderStatusSession.start();
+function startCustomerOrderStatusStream(transport) {
+  customerOrderStatusSession.start(transport);
 }
 
 /**
- * Closes this tab's customer order-status watch session.
+ * Closes this tab's customer order-status stream.
  *
  * @returns {void}
- * @sideEffects Clears the watching interval and removes the mesh subscription.
+ * @sideEffects Unsubscribes from the transport.
  */
 function stopCustomerOrderStatusStream() {
   customerOrderStatusSession.stop();
@@ -53,7 +37,7 @@ function stopCustomerOrderStatusStream() {
  *
  * @param {(event: { orderId: string, status: string }) => void} listener - Called with each pushed status.
  * @returns {() => void} Unsubscribe function.
- * @sideEffects Registers the listener. The session itself is owned by startCustomerOrderStatusStream.
+ * @sideEffects Registers the listener. The stream itself is owned by startCustomerOrderStatusStream.
  */
 function subscribeToOrderStatusChanged(listener) {
   return customerOrderStatusSession.subscribe(listener);
@@ -62,14 +46,13 @@ function subscribeToOrderStatusChanged(listener) {
 /**
  * Asks to cancel one of the signed-in customer's placed orders.
  *
- * @param {{ apiBaseUrl?: string, authToken?: string, orderId: string }} requestInput - Order id.
- *   `apiBaseUrl`/`authToken` are accepted for call-site compatibility and unused.
+ * @param {{ request: Function }} transport - Event interface.
+ * @param {{ orderId: string }} requestInput - Order id.
  * @returns {Promise<{ ok: true, order: object } | { ok: false, code: string }>} Updated order, or a rejection code.
- * @sideEffects Publishes orders/status-change-requested with nextStatus cancellation-requested
- *   and actor customer. The server grants this when the order belongs to the caller.
+ * @sideEffects Sends orders/status-change with the customer actor.
  */
-function requestOrderCancellation({ orderId }) {
-  return requestOrderStatusChange({
+function requestOrderCancellation(transport, { orderId }) {
+  return requestOrderStatusChange(transport, {
     orderId,
     status: "cancellation-requested",
     actor: "customer",

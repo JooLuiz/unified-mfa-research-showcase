@@ -2,16 +2,17 @@
  * Calculates cart totals and applies local cart edits.
  * Role: Owns in-memory cart math, the edits that schedule a saved-cart write, and the
  *   stock-gated variants of those edits that reserve or release stock before applying locally.
- * Not in this file: Mesh cart-sync transport (src/commands/cartCommands.js) or cross-tab sync
- *   (src/utils/cartSync.js).
- * Key dependencies: src/events/eventBus.js; src/utils/cartSync.js; @shared/stock-events;
- *   event-mesh/mesh.
- * See also: src/main.js; src/pages/checkoutPage.js.
+ * Not in this file: HTTP cart commands or cross-tab sync (src/utils/cartSync.js).
+ * Key dependencies: src/events/eventBus.js; src/utils/cartSync.js; @shared/stock-events.
+ * See also: src/utils/cartSync.js; src/pages/checkoutPage.js; src/main.js.
  */
 
-import mesh from "event-mesh/mesh";
 import { getOrCreateGuestStockSessionId, reserveStockQuantity, setStockQuantity } from "@shared/stock-events";
-import { publishCartChanged } from "../events/eventBus";
+import {
+  publishCartChanged,
+  publishCartItemAddRequested,
+  shellTransport,
+} from "../events/eventBus";
 import { publishNotification } from "../notifications/notificationAdapter";
 import { scheduleCartPersist } from "./cartSync";
 
@@ -59,15 +60,20 @@ function getCartDiscountedTotal(appState) {
   return calculateCartTotals(appState).totalAmount;
 }
 
+function dispatchAddToCartEvent(addToCartPayload) {
+  publishCartItemAddRequested(addToCartPayload);
+}
+
 /**
- * Publishes the current cart in this tab and queues a save when the shopper is signed in.
+ * Publishes the current cart and queues a save when the shopper is signed in.
  *
  * @param {object} appState - Shell state holding cart items.
  * @returns {void}
- * @sideEffects Publishes local cart.changed and may send cart-sync/upsert.
+ * @sideEffects Updates window.__APP_SHELL_CART__ and may PUT /api/cart.
  */
 function commitCartState(appState) {
-  publishCartChanged(appState.cartItems);
+  window.__APP_SHELL_CART__ = appState.cartItems;
+  publishCartChanged();
   scheduleCartPersist(appState);
 }
 
@@ -131,17 +137,16 @@ function removeCartItem(appState, productId) {
 }
 
 /**
- * Returns the stock caller identity for the current shopper. A signed-in shopper is identified
- * by the mesh credential already attached to the connection, so no payload field is needed.
+ * Returns the guest stock session id when the shopper is signed out.
  *
  * @param {object} appState - Shell state holding an optional auth token.
- * @returns {{}} | {{ sessionId: string }} A guest session id, or nothing when signed in.
+ * @returns {string} Guest session id, or an empty string for a signed-in shopper.
  */
-function getStockHolderIdentity(appState) {
+function guestStockSessionId(appState) {
   if (appState.authToken) {
-    return {};
+    return "";
   }
-  return { sessionId: getOrCreateGuestStockSessionId() };
+  return getOrCreateGuestStockSessionId();
 }
 
 /**
@@ -156,11 +161,10 @@ function getStockHolderIdentity(appState) {
 async function addCartItemWithStockCheck(appState, productId, quantityToAdd) {
   const quantityValue =
     Number.isFinite(quantityToAdd) && quantityToAdd > 0 ? quantityToAdd : 1;
-  const reservationResult = await reserveStockQuantity({
-    mesh,
-    ...getStockHolderIdentity(appState),
+  const reservationResult = await reserveStockQuantity(shellTransport, {
     productId,
     quantity: quantityValue,
+    sessionId: guestStockSessionId(appState),
   });
   if (!reservationResult.ok) {
     return reservationResult;
@@ -181,11 +185,10 @@ async function addCartItemWithStockCheck(appState, productId, quantityToAdd) {
  */
 async function setCartItemQuantityWithStockCheck(appState, productId, quantity) {
   const quantityValue = Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
-  const reservationResult = await setStockQuantity({
-    mesh,
-    ...getStockHolderIdentity(appState),
+  const reservationResult = await setStockQuantity(shellTransport, {
     productId,
     quantity: quantityValue,
+    sessionId: guestStockSessionId(appState),
   });
   if (!reservationResult.ok) {
     return reservationResult;
@@ -199,29 +202,26 @@ async function setCartItemQuantityWithStockCheck(appState, productId, quantity) 
 }
 
 /**
- * Re-sends every guest cart line's absolute quantity when the guest mesh session (re)starts,
- * since a client that is not connected (including a guest tab that just reloaded or whose
- * socket dropped and reconnected) has no stock hold on the server.
+ * Re-sends every guest cart line's absolute quantity after the shared stock stream reconnects,
+ * since a dropped guest connection releases that session's holds on the server.
  *
  * @param {object} appState - Shell state holding cart items; a no-op for signed-in shoppers.
  * @returns {Promise<void>}
- * @sideEffects Publishes one absolute stock/release-or-reserve per guest cart line; removes
- *   lines the server can no longer reserve and shows the stock notification once when that
- *   happens.
+ * @sideEffects PUTs one absolute stock hold per guest cart line; removes lines the server can no
+ *   longer reserve and shows the stock notification once when that happens.
  */
 async function reReserveGuestCartLines(appState) {
   if (appState.authToken || appState.cartItems.length === 0) {
     return;
   }
 
-  const sessionId = getOrCreateGuestStockSessionId();
+  const guestSessionId = getOrCreateGuestStockSessionId();
   const cartItemsSnapshot = [...appState.cartItems];
   let anyLineRemoved = false;
 
   for (const cartItem of cartItemsSnapshot) {
-    const reservationResult = await setStockQuantity({
-      mesh,
-      sessionId,
+    const reservationResult = await setStockQuantity(shellTransport, {
+      sessionId: guestSessionId,
       productId: cartItem.productId,
       quantity: cartItem.quantity,
     });
@@ -246,6 +246,7 @@ export {
   getCartItemCount,
   calculateCartTotals,
   getCartDiscountedTotal,
+  dispatchAddToCartEvent,
   addCartItem,
   updateCartItem,
   removeCartItem,

@@ -26,6 +26,7 @@ export function mountSinglePost(containerElement, props) {
       authToken={props?.authToken}
       currentUserId={props?.currentUserId}
       canLike={props?.canLike}
+      transport={props?.transport}
     />,
   );
 

@@ -13,8 +13,8 @@ export {
   SIGN_OUT_EVERYWHERE_PATH,
 } from "./sessionEventsContracts.js";
 export {
-  startSessionLiveEvents,
-  stopSessionLiveEvents,
+  startSessionStream as startSessionLiveEvents,
+  stopSessionStream as stopSessionLiveEvents,
   subscribeToSessionRevoked,
 } from "./sessionEventsClient.js";
 export { requestSignOutEverywhere } from "./sessionRevocationCommands.js";

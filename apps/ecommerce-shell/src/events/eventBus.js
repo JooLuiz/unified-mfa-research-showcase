@@ -1,57 +1,190 @@
 /**
- * Publishes and subscribes to ecommerce Event Mesh messages.
- * Role: Hides cart, catalog-filter, catalog-intent, and checkout-intent mesh transport behind ecommerce operations.
- * Not in this file: Shared auth/navigation event internals, cart state mutations, or UI rendering.
- * Key dependencies: event-mesh/mesh; @shared/shell-events; @shared/catalog-events; @shared/checkout-events; src/events/eventContracts.js.
- * See also: src/main.js; src/pages/checkoutPage.js; src/utils/PLPFilterActions.js.
+ * Publishes and subscribes to ecommerce shell events.
+ * Role: Joins window events with the Event Mesh client and exposes the shell transport.
+ * Not in this file: Route rendering, cart mutation, or the command reply table (src/events/commandReplies.js).
+ * Key dependencies: event-mesh/mesh; @shared/shell-events; @shared/catalog-events; @shared/checkout-events; @shared/account-events.
+ * See also: src/main.js; src/events/commandReplies.js.
  */
 
 import mesh from "event-mesh/mesh";
-import { createShellEvents } from "@shared/shell-events";
-import { createCatalogEvents } from "@shared/catalog-events";
-import { createCheckoutEvents } from "@shared/checkout-events";
+import { configureMesh } from "event-mesh/mesh";
 import { createAccountEvents } from "@shared/account-events";
 import {
   CART_CHANGED_EVENT,
+  CART_ITEM_ADD_REQUESTED_EVENT,
   CART_TOPIC,
-  CATALOG_FILTERS_CHANGED_EVENT,
   CATALOG_TOPIC,
-  createCartSnapshot,
+  createCatalogEvents,
   createPlpFiltersSnapshot,
-} from "./eventContracts";
+} from "@shared/catalog-events";
+import { createCheckoutEvents } from "@shared/checkout-events";
+import { NOTIFICATION_RAISED_EVENT, NOTIFICATION_TOPIC } from "@shared/notifications";
 import {
-  CHECKOUT_COUPON_APPLIED_EVENT,
-  CHECKOUT_TOPIC,
-  isValidCouponAppliedRequest,
-} from "@shared/checkout-events";
+  AUTH_LOGOUT_REQUESTED_EVENT,
+  AUTH_SESSION_CHANGED_EVENT,
+  AUTH_TOPIC,
+  NAVIGATION_TOPIC,
+  NAVIGATION_RENDER_REQUESTED_EVENT,
+  createShellEvents,
+} from "@shared/shell-events";
+import { MOCK_API_BASE_URL } from "../utils/constants";
+import { CATALOG_FILTERS_CHANGED_EVENT } from "./eventContracts";
+import { resolveSubscribeTarget, runMeshCommand } from "./commandReplies";
 
-const sharedShellEvents = createShellEvents(mesh);
-const sharedCatalogEvents = createCatalogEvents(mesh);
-const sharedCheckoutEvents = createCheckoutEvents(mesh);
-const sharedAccountEvents = createAccountEvents(mesh);
-let cartChangedListenersStarted = false;
+const HOST_NAVIGATE_EVENT = "host:navigate";
+const HOST_LOGOUT_EVENT = "host:logout";
+
+const WINDOW_EVENT_BY_CONTRACT = {
+  [`${AUTH_TOPIC}.${AUTH_SESSION_CHANGED_EVENT}`]: "auth:changed",
+  [`${AUTH_TOPIC}.${AUTH_LOGOUT_REQUESTED_EVENT}`]: "auth:logout-request",
+  [`${NAVIGATION_TOPIC}.${NAVIGATION_RENDER_REQUESTED_EVENT}`]: "global:renderApp",
+  [`${CART_TOPIC}.${CART_ITEM_ADD_REQUESTED_EVENT}`]: "cart:add-item",
+  [`${CART_TOPIC}.${CART_CHANGED_EVENT}`]: "cart:updateGlobalCart",
+  [`${NOTIFICATION_TOPIC}.${NOTIFICATION_RAISED_EVENT}`]: "ecommerce-shell:notification",
+};
 
 /**
- * Publishes the current cart state as an immutable-by-convention snapshot.
+ * Configures the shell's Event Mesh connection.
  *
- * @param {unknown[]} [cartItems] - Cart items owned by the ecommerce shell.
+ * @param {object} meshOptions - Options forwarded to configureMesh.
  * @returns {void}
- * @sideEffects Publishes a local cart.changed message.
+ * @sideEffects Configures the shared mesh client. Call this before the first publish or subscribe.
  */
-function publishCartChanged(cartItems = []) {
-  sharedCatalogEvents.publishCartChanged(createCartSnapshot(cartItems));
+function configureShellMesh(meshOptions) {
+  configureMesh(meshOptions);
 }
 
 /**
- * Publishes the current PLP filter snapshot for local subscribers.
+ * Closes the shell's Event Mesh connection.
  *
- * @param {unknown} filters - PLP filter object owned by the ecommerce shell.
  * @returns {void}
- * @sideEffects Publishes a local catalog.filters-changed message.
- * @note localStorage remains the reload cache; this event is live coordination only.
+ * @sideEffects Closes the shared mesh client and drops its subscriptions.
  */
+function closeShellMesh() {
+  mesh.close();
+}
+
+function createBrowserTransport() {
+  function publish({ topic, event, payload }) {
+    const eventName = WINDOW_EVENT_BY_CONTRACT[`${topic}.${event}`];
+    if (!eventName) {
+      return;
+    }
+    window.dispatchEvent(new CustomEvent(eventName, { detail: payload }));
+  }
+
+  function subscribe(topic, event, callback) {
+    const eventName = WINDOW_EVENT_BY_CONTRACT[`${topic}.${event}`];
+    if (!eventName) {
+      return function unsubscribeUnmappedContract() {};
+    }
+    function handleWindowEvent(domEvent) {
+      callback({ payload: domEvent.detail });
+    }
+    window.addEventListener(eventName, handleWindowEvent);
+    return function unsubscribeFromWindowEvent() {
+      window.removeEventListener(eventName, handleWindowEvent);
+    };
+  }
+
+  return { publish, subscribe };
+}
+
+const browserTransport = createBrowserTransport();
+let readAuthToken = () => "";
+
+/**
+ * Points the shell adapter at the live session token.
+ *
+ * @param {() => string | null | undefined} readToken - Reads the current bearer token.
+ * @returns {void}
+ */
+function bindShellTransport(readToken) {
+  readAuthToken = readToken;
+}
+
+function createMeshGateway({ getAuthToken }) {
+  return {
+    publish(message) {
+      mesh.publish(message);
+    },
+    subscribe(topic, event, callback) {
+      const target = resolveSubscribeTarget(topic, event);
+      return mesh.subscribe(target.topic, target.event, callback);
+    },
+    request({ topic, event, payload }) {
+      return runMeshCommand({
+        mesh,
+        getAuthToken,
+        apiBaseUrl: MOCK_API_BASE_URL,
+        topic,
+        event,
+        payload,
+      });
+    },
+    whenConnected(options) {
+      return mesh.whenConnected(options);
+    },
+  };
+}
+
+function composeShellBus(meshGateway) {
+  function isWindowContract(topic, event) {
+    return Boolean(WINDOW_EVENT_BY_CONTRACT[`${topic}.${event}`]);
+  }
+
+  return {
+    publish(message) {
+      if (isWindowContract(message.topic, message.event)) {
+        browserTransport.publish(message);
+        return;
+      }
+      meshGateway.publish(message);
+    },
+    subscribe(topic, event, callback) {
+      if (isWindowContract(topic, event)) {
+        return browserTransport.subscribe(topic, event, callback);
+      }
+      return meshGateway.subscribe(topic, event, callback);
+    },
+    request: meshGateway.request,
+    whenConnected: meshGateway.whenConnected,
+  };
+}
+
+/**
+ * Builds the ecommerce event interface.
+ *
+ * @param {{ getAuthToken: () => string }} transportInput - Bearer token reader.
+ * @returns {{ publish: Function, subscribe: Function, request: Function, whenConnected: Function }} Window bus plus mesh gateway.
+ */
+function createShellTransport({ getAuthToken }) {
+  return composeShellBus(createMeshGateway({ getAuthToken }));
+}
+
+let shellTransport = createShellTransport({
+  getAuthToken: () => readAuthToken() || "",
+});
+
+/**
+ * Replaces the shell event interface used by later stock calls.
+ *
+ * @param {{ publish: Function, subscribe: Function, request: Function, whenConnected: Function }} nextTransport - Transport read from the shellTransport binding on the next call.
+ * @returns {void}
+ * @sideEffects Assigns the shellTransport binding. Adapters created at startup keep the transport they already captured.
+ */
+function installShellTransport(nextTransport) {
+  shellTransport = nextTransport;
+}
+
+const shellEvents = createShellEvents(shellTransport);
+const catalogEvents = createCatalogEvents(shellTransport);
+const checkoutEvents = createCheckoutEvents(shellTransport);
+const accountEvents = createAccountEvents(shellTransport);
+let cartChangedListenersStarted = false;
+
 function publishPlpFiltersChanged(filters) {
-  mesh.publish({
+  shellTransport.publish({
     topic: CATALOG_TOPIC,
     event: CATALOG_FILTERS_CHANGED_EVENT,
     payload: createPlpFiltersSnapshot(filters),
@@ -59,133 +192,98 @@ function publishPlpFiltersChanged(filters) {
   });
 }
 
-/**
- * Registers persistent cart.changed handlers after a mesh configuration change.
- *
- * @param {{ onCartChanged: () => void }} handlers - Cart orchestration handlers.
- * @returns {void}
- * @sideEffects Registers a local cart.changed mesh subscription.
- */
 function ensureCartEventListeners(handlers) {
   if (cartChangedListenersStarted) {
     return;
   }
-
   cartChangedListenersStarted = true;
-  mesh.subscribe(CART_TOPIC, CART_CHANGED_EVENT, () => {
+  shellTransport.subscribe(CART_TOPIC, CART_CHANGED_EVENT, () => {
     handlers.onCartChanged();
   });
 }
 
-/**
- * Marks cart.changed subscriptions for re-registration after mesh.close() clears them.
- *
- * @returns {void}
- */
 function resetCartEventListeners() {
   cartChangedListenersStarted = false;
 }
 
-/**
- * Subscribes a mounted remote to cart snapshots without exposing Event Mesh to it.
- *
- * @param {(cartItems: { productId: string, quantity: number }[]) => void} listener - Callback for each cart snapshot.
- * @returns {() => void} Removes the mesh subscription when the remote unmounts.
- * @sideEffects Registers a local cart.changed mesh subscription.
- */
-function subscribeToCartChanges(listener) {
-  return mesh.subscribe(CART_TOPIC, CART_CHANGED_EVENT, (message) => {
-    listener(createCartSnapshot(message.payload?.items));
+function subscribeToCartItemAddRequests(listener) {
+  return catalogEvents.subscribeToCartItemAddRequests((payload) => {
+    listener({ detail: payload });
   });
 }
 
-/**
- * Subscribes to PLP filter snapshots without exposing Event Mesh to the caller.
- *
- * @param {(filters: { searchQuery: string, minPrice: string, maxPrice: string, categoryIds: string[] }) => void} listener - Callback for each filter snapshot.
- * @returns {() => void} Removes the mesh subscription.
- * @sideEffects Registers a local catalog.filters-changed mesh subscription.
- */
-function subscribeToPlpFiltersChanges(listener) {
-  return mesh.subscribe(
-    CATALOG_TOPIC,
-    CATALOG_FILTERS_CHANGED_EVENT,
-    (message) => {
-      listener(createPlpFiltersSnapshot(message.payload));
-    },
-  );
+function subscribeToHeaderEvents(headerElement, handlers) {
+  const handleNavigate = (event) => {
+    handlers.onNavigate(event);
+  };
+  const handleLogout = () => {
+    handlers.onLogout();
+  };
+  headerElement.addEventListener(HOST_NAVIGATE_EVENT, handleNavigate);
+  headerElement.addEventListener(HOST_LOGOUT_EVENT, handleLogout);
+  return function unsubscribeFromHeaderEvents() {
+    headerElement.removeEventListener(HOST_NAVIGATE_EVENT, handleNavigate);
+    headerElement.removeEventListener(HOST_LOGOUT_EVENT, handleLogout);
+  };
 }
 
-/**
- * Subscribes the checkout page to coupon-applied so totals can refresh without host callbacks.
- *
- * @param {(coupon: { code: string, discountPercentage: number }) => void} listener - Callback for each applied coupon.
- * @returns {() => void} Removes the mesh subscription.
- * @sideEffects Registers a local checkout.coupon-applied mesh subscription.
- */
-function subscribeToCouponApplied(listener) {
-  return mesh.subscribe(
-    CHECKOUT_TOPIC,
-    CHECKOUT_COUPON_APPLIED_EVENT,
-    (message) => {
-      if (isValidCouponAppliedRequest(message.payload)) {
-        listener(message.payload);
-      }
-    },
-  );
-}
-
-/**
- * Parity no-op for header subscription on mesh branch.
- *
- * @param {unknown} _headerElement - Custom element target.
- * @param {unknown} _handlers - Header action handlers.
- * @returns {() => void} Unsubscribe no-op.
- */
-function subscribeToHeaderEvents(_headerElement, _handlers) {
-  return function unsubscribeFromHeaderEvents() {};
-}
-
-export {
-  ensureCartEventListeners,
-  publishCartChanged,
-  publishPlpFiltersChanged,
-  resetCartEventListeners,
-  subscribeToCartChanges,
-  subscribeToCouponApplied,
-  subscribeToHeaderEvents,
-  subscribeToPlpFiltersChanges,
-};
-export const {
-  ensureCatalogIntentListeners,
-  publishCartItemAddRequested,
-  publishCartItemRemoveRequested,
-  publishCartItemUpdateRequested,
-  publishFiltersApplyRequested,
-  publishProductOpenRequested,
-  publishPromotionApplied,
-  resetCatalogIntentListeners,
-} = sharedCatalogEvents;
-export const {
-  ensureCheckoutIntentListeners,
-  publishCouponApplied,
-  publishPlaceOrderRequested,
-  resetCheckoutIntentListeners,
-} = sharedCheckoutEvents;
-export const {
-  ensureAccountIntentListeners,
-  publishAddressSaveRequested,
-  publishProfileSaveRequested,
-  resetAccountIntentListeners,
-} = sharedAccountEvents;
-export const {
-  ensureShellEventListeners,
+const {
+  publishRenderRequested,
+  subscribeToRenderRequests,
   publishAuthSessionChanged,
+  subscribeToAuthSessionChanges,
   publishLogoutRequested,
   publishPostLoginRedirectChanged,
-  publishRenderRequested,
+  subscribeToLogoutRequests,
+  ensureShellEventListeners,
   resetShellEventListeners,
+} = shellEvents;
+
+const {
+  publishCartItemAddRequested,
+  publishCartChanged,
+  subscribeToCartChanges,
+  ensureCatalogIntentListeners,
+  resetCatalogIntentListeners,
+} = catalogEvents;
+
+const {
+  subscribeToCouponApplied,
+  ensureCheckoutIntentListeners,
+  resetCheckoutIntentListeners,
+} = checkoutEvents;
+
+const { ensureAccountIntentListeners, resetAccountIntentListeners } = accountEvents;
+
+export {
+  bindShellTransport,
+  closeShellMesh,
+  configureShellMesh,
+  createShellTransport,
+  ensureAccountIntentListeners,
+  ensureCartEventListeners,
+  ensureCatalogIntentListeners,
+  ensureCheckoutIntentListeners,
+  ensureShellEventListeners,
+  installShellTransport,
+  publishAuthSessionChanged,
+  publishCartChanged,
+  publishCartItemAddRequested,
+  publishLogoutRequested,
+  publishPostLoginRedirectChanged,
+  publishPlpFiltersChanged,
+  publishRenderRequested,
+  resetAccountIntentListeners,
+  resetCartEventListeners,
+  resetCatalogIntentListeners,
+  resetCheckoutIntentListeners,
+  resetShellEventListeners,
+  shellTransport,
   subscribeToAuthSessionChanges,
+  subscribeToCartChanges,
+  subscribeToCartItemAddRequests,
+  subscribeToCouponApplied,
+  subscribeToHeaderEvents,
   subscribeToLogoutRequests,
   subscribeToRenderRequests,
-} = sharedShellEvents;
+};

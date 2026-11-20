@@ -8,26 +8,42 @@
  */
 
 import "@shared/notifications/styles.css";
-import { mountNotificationCenter as mountSharedNotificationCenter } from "@shared/notifications";
-import mesh from "event-mesh/mesh";
+import {
+  createNotificationAdapter,
+  mountNotificationCenter as mountSharedNotificationCenter,
+} from "@shared/notifications";
 import { markNotificationRead } from "@shared/notification-inbox-events";
+import { shellTransport } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 
-/** @type {{ unmount: () => void, ensureNotificationDisplayListeners: () => void, resetNotificationDisplayListeners: () => void } | null} */
-let notificationCenterLifecycle = null;
+/** @type {HTMLElement | null} */
+let notificationContainer = null;
+/** @type {(() => void) | null} */
+let unsubscribeFromNotifications = null;
+
+const { subscribeToNotifications } = createNotificationAdapter(shellTransport);
 
 /**
  * Mounts the notification center in a persistent shell-level container.
  *
  * @param {HTMLElement} containerElement - Element that owns the rendered toast queue.
  * @returns {void}
- * @sideEffects Prepares the toast container; mesh subscription starts when ensure is called.
- *   A toast that carries a link navigates to that path. A toast raised from a persisted inbox
- *   row (it carries a notificationId) is also marked read on click.
+ * @sideEffects Subscribes to shell notification messages. A toast that carries a link navigates
+ *   to that path. A toast raised from a persisted inbox row is also marked read on click.
  */
 function mountNotificationCenter(containerElement) {
-  notificationCenterLifecycle = mountSharedNotificationCenter(containerElement, mesh, {
-    onOpenLink: (notification) => {
+  notificationContainer = containerElement;
+  resetNotificationDisplayListeners();
+  ensureNotificationDisplayListeners();
+}
+
+function ensureNotificationDisplayListeners() {
+  if (unsubscribeFromNotifications || !notificationContainer) {
+    return;
+  }
+  unsubscribeFromNotifications = mountSharedNotificationCenter(notificationContainer, {
+    subscribeToNotifications,
+    onOpenLink(notification) {
       if (notification.notificationId) {
         void markNotificationRead(notification.notificationId);
       }
@@ -38,12 +54,11 @@ function mountNotificationCenter(containerElement) {
   });
 }
 
-function ensureNotificationDisplayListeners() {
-  notificationCenterLifecycle?.ensureNotificationDisplayListeners();
-}
-
 function resetNotificationDisplayListeners() {
-  notificationCenterLifecycle?.resetNotificationDisplayListeners();
+  if (unsubscribeFromNotifications) {
+    unsubscribeFromNotifications();
+    unsubscribeFromNotifications = null;
+  }
 }
 
 export {

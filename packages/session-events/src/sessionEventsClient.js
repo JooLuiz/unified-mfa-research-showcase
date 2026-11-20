@@ -1,8 +1,7 @@
 /**
- * Singleton tab client for session event streaming over the Event Mesh gateway.
- * Role: Provides start, stop, and subscribe helpers for the tab's session/revoked mesh
- *   subscription, without exposing mesh timing constraints to callers.
- * Not in this file: Stream internals or the sign-out HTTP request.
+ * Singleton tab client for session event streaming.
+ * Role: Provides start, stop, local sign-out suppression, and subscribe helpers for the tab's session subscription.
+ * Not in this file: Stream URL selection or the sign-out command.
  * Key dependencies: src/createSessionSession.js.
  * See also: src/sessionRevocationCommands.js.
  */
@@ -12,30 +11,41 @@ import { createSessionStreamSession } from "./createSessionSession.js";
 const sessionStreamSession = createSessionStreamSession();
 
 /**
- * Starts the tab's session/revoked mesh subscription for the signed-in user.
+ * Starts the tab's session stream.
  *
- * @param {{ authToken?: string, userId?: string }} [input] - `authToken` gates the start; `userId` filters revokes.
+ * @param {{ subscribe: Function }} transport - Event interface.
  * @returns {void}
- * @sideEffects Subscribes to session/revoked on the local mesh client when none is open.
+ * @sideEffects Opens the tab's session subscription when none is open.
  */
-function startSessionLiveEvents(input) {
-  sessionStreamSession.start(input);
+function startSessionStream(transport) {
+  sessionStreamSession.start(transport);
 }
 
 /**
- * Stops the tab's session/revoked mesh subscription.
+ * Stops the tab's session stream.
  *
  * @returns {void}
- * @sideEffects Removes the mesh subscription without closing the mesh client.
+ * @sideEffects Closes the subscription. Does not clear local sign-out suppression.
  */
-function stopSessionLiveEvents() {
+function stopSessionStream() {
   sessionStreamSession.stop();
 }
 
 /**
- * Subscribes a listener to session.revoked notifications that match this tab's user.
+ * Ignores session.revoked on this tab until the next stream start.
+ * Used by the tab that is about to call sign-out-everywhere, so its own broadcast does not toast.
  *
- * @param {() => void} listener - Callback to trigger when a matching revocation arrives.
+ * @returns {void}
+ * @sideEffects Suppresses listener delivery and reconnect for the current stream.
+ */
+function markLocalSignOut() {
+  sessionStreamSession.markLocalSignOut();
+}
+
+/**
+ * Subscribes a listener to session.revoked notifications.
+ *
+ * @param {() => void} listener - Callback to trigger when a revocation arrives from another tab.
  * @returns {() => void} Unsubscribe function.
  * @sideEffects Registers the listener on this tab's session.
  */
@@ -43,4 +53,9 @@ function subscribeToSessionRevoked(listener) {
   return sessionStreamSession.subscribe(listener);
 }
 
-export { startSessionLiveEvents, stopSessionLiveEvents, subscribeToSessionRevoked };
+export {
+  startSessionStream,
+  stopSessionStream,
+  markLocalSignOut,
+  subscribeToSessionRevoked,
+};

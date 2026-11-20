@@ -1,36 +1,31 @@
 /**
  * Tab-scoped notification inbox state.
- * Role: Fetches the list, keeps it in sync with mesh changed events, and sends mark-read commands.
- * Not in this file: Mesh subscribe/publish details (src/notificationInboxMeshSession.js) or toast rendering.
- * Key dependencies: event-mesh/mesh; src/notificationInboxApi.js.
- * See also: apps/mock-data-service/src/inbound/notificationInboxHandler.js.
- *   On main this module opens an EventSource; this branch uses the gateway.
- *   Call start again after mesh.close(), because that drops these subscriptions.
+ * Role: Loads the inbox, applies live row changes, and sends mark-read commands.
+ * Not in this file: Toast rendering or the stream URL.
+ * Key dependencies: src/notificationInboxApi.js; src/contracts.js. The caller supplies the transport.
+ * See also: apps/ecommerce-shell/src/main.js.
  */
 
-import mesh from "event-mesh/mesh";
-import { fetchNotificationInbox } from "./notificationInboxApi.js";
+import { NOTIFICATION_INBOX_TOPIC } from "./contracts.js";
 import {
-  MESH_CONNECT_TIMEOUT_MS,
-  createNotificationInboxMeshSession,
-} from "./notificationInboxMeshSession.js";
+  fetchNotificationInbox,
+  markNotificationAsRead as apiMarkNotificationAsRead,
+  markAllNotificationsAsRead as apiMarkAllNotificationsAsRead,
+} from "./notificationInboxApi.js";
 
-/**
- * Holds one tab's inbox list and delegates the mesh session.
- */
+const INBOX_CHANGED_EVENT = "changed";
+const RESTART_DELAY_MS = 2000;
+
 class NotificationInboxManager {
   constructor() {
     this.listeners = new Set();
     this.newItemListeners = new Set();
     this.notifications = [];
-    this.sessionGeneration = 0;
-    this.isStarting = false;
-    this.apiBaseUrl = "";
-    this.authToken = "";
+    this.transport = null;
     this.shell = "";
-    this.meshSession = createNotificationInboxMeshSession({
-      onChanged: (notification) => this.handleInboxChanged(notification),
-    });
+    this.unsubscribeFromChanges = null;
+    this.restartTimer = null;
+    this.isStarting = false;
   }
 
   notifyListeners() {
@@ -61,13 +56,11 @@ class NotificationInboxManager {
       return;
     }
     const index = this.notifications.findIndex((item) => item.id === changedNotification.id);
-    const isNewNotification = index < 0;
+    const isNewNotification = index === -1;
     if (isNewNotification) {
       this.notifications = [changedNotification, ...this.notifications];
     } else {
-      const nextNotifications = [...this.notifications];
-      nextNotifications[index] = changedNotification;
-      this.notifications = nextNotifications;
+      this.notifications[index] = changedNotification;
     }
     this.notifyListeners();
     if (isNewNotification) {
@@ -75,26 +68,39 @@ class NotificationInboxManager {
     }
   }
 
-  async refetch() {
-    if (!this.authToken || !this.shell) {
-      return;
-    }
-    const items = await fetchNotificationInbox({
-      apiBaseUrl: this.apiBaseUrl,
-      authToken: this.authToken,
-      shell: this.shell,
-    }).catch(() => null);
-    if (items) {
-      this.notifications = items;
-      this.notifyListeners();
+  clearRestartTimer() {
+    if (this.restartTimer) {
+      window.clearTimeout(this.restartTimer);
+      this.restartTimer = null;
     }
   }
 
-  async start({ apiBaseUrl, authToken, shell }) {
-    this.apiBaseUrl = apiBaseUrl;
-    this.authToken = authToken;
+  closeSubscription() {
+    if (this.unsubscribeFromChanges) {
+      this.unsubscribeFromChanges();
+      this.unsubscribeFromChanges = null;
+    }
+  }
+
+  scheduleRestart() {
+    this.clearRestartTimer();
+    this.restartTimer = window.setTimeout(() => {
+      if (this.transport && this.shell) {
+        void this.start(this.transport, { shell: this.shell });
+      }
+    }, RESTART_DELAY_MS);
+  }
+
+  /**
+   * @param {{ request: Function, subscribe: Function }} transport
+   * @param {{ shell: string }} input
+   * @returns {Promise<void>}
+   * @sideEffects Replaces inbox state and subscribes to notification-inbox/changed.
+   */
+  async start(transport, { shell }) {
+    this.transport = transport;
     this.shell = shell;
-    if (!authToken || !shell) {
+    if (!shell) {
       this.stop();
       return;
     }
@@ -102,34 +108,30 @@ class NotificationInboxManager {
       return;
     }
     this.isStarting = true;
-    const generation = ++this.sessionGeneration;
+    this.closeSubscription();
     try {
-      const items = await fetchNotificationInbox({ apiBaseUrl, authToken, shell });
-      if (generation !== this.sessionGeneration) {
-        return;
-      }
+      const items = await fetchNotificationInbox(transport, { shell });
       this.notifications = items;
       this.notifyListeners();
-      await mesh.whenConnected({ timeoutMs: MESH_CONNECT_TIMEOUT_MS });
-      if (generation !== this.sessionGeneration) {
-        return;
-      }
-      this.meshSession.start(shell);
+      this.unsubscribeFromChanges = transport.subscribe(
+        NOTIFICATION_INBOX_TOPIC,
+        INBOX_CHANGED_EVENT,
+        (message) => {
+          this.handleInboxChanged(message.payload);
+        },
+      );
     } catch (error) {
       console.warn("NotificationInboxManager start - error");
       console.warn(error);
+      this.scheduleRestart();
     } finally {
-      if (generation === this.sessionGeneration) {
-        this.isStarting = false;
-      }
+      this.isStarting = false;
     }
   }
 
   stop() {
-    this.sessionGeneration += 1;
-    this.isStarting = false;
-    this.meshSession.stop();
-    this.authToken = "";
+    this.clearRestartTimer();
+    this.closeSubscription();
     this.shell = "";
     this.notifications = [];
     this.notifyListeners();
@@ -155,51 +157,61 @@ class NotificationInboxManager {
   }
 
   async markAsRead(notificationId) {
-    if (!notificationId || !this.authToken) {
+    if (!notificationId || !this.transport) {
       return;
     }
-    const existingItem = this.notifications.find((item) => item.id === notificationId);
-    if (existingItem?.read) {
+    const item = this.notifications.find((target) => target.id === notificationId);
+    if (item && item.read) {
       return;
     }
-    if (existingItem) {
-      this.handleInboxChanged({ ...existingItem, read: true });
+    if (item) {
+      item.read = true;
+      this.notifyListeners();
     }
     try {
-      const outcome = await this.meshSession.sendMarkRead(notificationId);
-      if (outcome.ok && outcome.notification) {
-        this.handleInboxChanged(outcome.notification);
-        return;
-      }
-      await this.refetch();
+      const updated = await apiMarkNotificationAsRead(this.transport, { notificationId });
+      this.handleInboxChanged(updated);
     } catch (error) {
       console.warn("NotificationInboxManager markAsRead - error");
       console.warn(error);
-      await this.refetch();
+      await this.refetchInbox();
     }
   }
 
   async markAllAsRead() {
-    if (!this.authToken || !this.shell) {
+    if (!this.transport || !this.shell) {
       return;
     }
-    if (!this.notifications.some((item) => !item.read)) {
+    const hasUnread = this.notifications.some((item) => !item.read);
+    if (!hasUnread) {
       return;
     }
-    this.notifications = this.notifications.map((item) => (item.read ? item : { ...item, read: true }));
+    this.notifications = this.notifications.map((item) =>
+      item.read ? item : { ...item, read: true },
+    );
     this.notifyListeners();
     try {
-      const outcome = await this.meshSession.sendMarkAllRead(this.shell);
-      if (outcome.ok) {
-        this.notifications = outcome.items;
-        this.notifyListeners();
-        return;
-      }
-      await this.refetch();
+      const items = await apiMarkAllNotificationsAsRead(this.transport, { shell: this.shell });
+      this.notifications = items;
+      this.notifyListeners();
     } catch (error) {
       console.warn("NotificationInboxManager markAllAsRead - error");
       console.warn(error);
-      await this.refetch();
+      await this.refetchInbox();
+    }
+  }
+
+  async refetchInbox() {
+    if (!this.transport || !this.shell) {
+      return;
+    }
+    try {
+      const items = await fetchNotificationInbox(this.transport, { shell: this.shell });
+      this.notifications = items;
+      this.notifyListeners();
+    } catch (error) {
+      console.warn("NotificationInboxManager refetchInbox - error");
+      console.warn(error);
     }
   }
 }
@@ -207,42 +219,47 @@ class NotificationInboxManager {
 const inboxManagerInstance = new NotificationInboxManager();
 
 /**
- * Loads the shell inbox and opens the mesh watching session.
+ * Loads the inbox for one shell and subscribes to later changes.
  *
- * @param {{ apiBaseUrl: string, authToken: string, shell: string }} input - API base, bearer token, and shell.
+ * @param {{ request: Function, subscribe: Function }} transport - Event interface.
+ * @param {{ shell: string }} input - Shell name.
  * @returns {Promise<void>}
- * @sideEffects Fetches GET /notifications and subscribes to notification-inbox/changed.
+ * @sideEffects Replaces the singleton inbox and opens its live subscription.
  */
-export function startNotificationInboxLiveEvents(input) {
-  return inboxManagerInstance.start(input);
+export function startNotificationInboxLiveEvents(transport, input) {
+  return inboxManagerInstance.start(transport, input);
 }
 
-/** Stops the mesh session and clears the in-memory list. */
+/**
+ * Clears the inbox and closes its subscription.
+ *
+ * @returns {void}
+ * @sideEffects Notifies listeners with an empty list.
+ */
 export function stopNotificationInboxLiveEvents() {
   inboxManagerInstance.stop();
 }
 
 /**
- * Subscribes to the full inbox list, including the current snapshot.
- *
- * @param {(items: object[]) => void} listener - Called with the current rows.
- * @returns {() => void} Unsubscribe function.
+ * @param {(notifications: object[]) => void} listener
+ * @returns {() => void}
+ * @sideEffects Calls the listener immediately with the current rows.
  */
 export function subscribeToNotificationInbox(listener) {
   return inboxManagerInstance.subscribe(listener);
 }
 
-/** @returns {object[]} Current inbox rows. */
+/**
+ * @returns {object[]} Current inbox rows.
+ */
 export function getNotificationInboxState() {
   return inboxManagerInstance.getState();
 }
 
 /**
- * Marks one row read over the gateway.
- *
- * @param {string} notificationId - Inbox row id.
+ * @param {string} notificationId
  * @returns {Promise<void>}
- * @sideEffects Publishes notification-inbox/mark-read.
+ * @sideEffects Marks the row read locally, then confirms with the server.
  */
 export function markNotificationRead(notificationId) {
   return inboxManagerInstance.markAsRead(notificationId);
@@ -251,8 +268,8 @@ export function markNotificationRead(notificationId) {
 /**
  * Subscribes to rows the live stream inserts. The initial fetch does not call this listener.
  *
- * @param {(notification: object) => void} listener - Called once per newly inserted row.
- * @returns {() => void} Unsubscribe function.
+ * @param {(notification: object) => void} listener
+ * @returns {() => void}
  */
 export function subscribeToNewInboxNotifications(listener) {
   return inboxManagerInstance.subscribeToNewItems(listener);
@@ -262,7 +279,7 @@ export function subscribeToNewInboxNotifications(listener) {
  * Marks every unread row in the active shell as read.
  *
  * @returns {Promise<void>}
- * @sideEffects Publishes notification-inbox/mark-all-read.
+ * @sideEffects Updates local rows, then confirms with the server.
  */
 export function markAllNotificationsRead() {
   return inboxManagerInstance.markAllAsRead();

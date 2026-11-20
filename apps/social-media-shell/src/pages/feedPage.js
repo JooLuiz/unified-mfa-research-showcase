@@ -1,25 +1,20 @@
 /**
  * Renders the social feed route.
  * Role: Composes the trending posts feed with the featured-products showcase web component,
- *   kept live by recomputing the trending list whenever a like is toggled anywhere, or
- *   whenever anyone publishes a new post.
+ *   kept live by patching likes/likedByCurrentUser and recomputing the trending list whenever
+ *   a like is toggled anywhere, or whenever anyone publishes a new post.
  * Not in this file: Post creation (src/pages/postsPage.js), post persistence
  *   (src/commands/postCommands.js), or the toggle write itself (src/commands/postLikeCommands.js).
- * Key dependencies: angular-product-showcase custom element; @shared/community-events
- *   publishPostLikesWatching; @shared/post-like-events.
- * See also: src/utils/renderActions.js (public barrel); MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Key dependencies: angular-product-showcase custom element; ecommerce shell base URL for
+ *   product redirects; @shared/post-like-events; src/commands/postLikeCommands.js.
+ * See also: src/utils/renderActions.js (public barrel).
  */
 
-import mesh from "event-mesh/mesh";
-import { createCommunityEvents } from "@shared/community-events";
-import {
-  subscribeToPostLikesChanged,
-  applyLikesChangeToPosts,
-  subscribeToPostCreated,
-} from "@shared/post-like-events";
+import { subscribeToPostLikesChanged, subscribeToPostCreated } from "@shared/post-like-events";
+import { ECOMMERCE_SHELL_BASE_URL } from "../utils/constants";
+import { shellTransport } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
-
-const { publishPostLikesWatching } = createCommunityEvents(mesh);
+import { toggleLikeForPost } from "../commands/postLikeCommands";
 
 const TRENDING_LIKES_THRESHOLD = 1;
 const EMPTY_TRENDING_MESSAGE = "No trending posts yet.";
@@ -46,6 +41,16 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
 
   const trendingPostsMount = pageMount.querySelector("#trendingPostsMount");
 
+  const handleLike = (postId) =>
+    toggleLikeForPost(appState, appState.posts.find((post) => post.id === postId));
+
+  const handleAuthorClick = (author) => {
+    if (author?.username) {
+      console.log("renderFeedPage - authorClicked");
+      console.log(author);
+    }
+  };
+
   const handlePostClick = (post) => {
     if (post?.id) {
       navigate(`/posts/${encodeURIComponent(post.id)}`);
@@ -58,6 +63,8 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
     posts: getTrendingPosts(appState.posts),
     currentUserId: appState.currentUser?.id,
     emptyStateMessage: EMPTY_TRENDING_MESSAGE,
+    onLike: handleLike,
+    onAuthorClick: handleAuthorClick,
     onPostClick: handlePostClick,
   });
   activeCleanupFunctions.push(trendingPostFeedHandle);
@@ -71,28 +78,29 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
       posts: getTrendingPosts(appState.posts),
       currentUserId: appState.currentUser?.id,
       emptyStateMessage: EMPTY_TRENDING_MESSAGE,
+      onLike: handleLike,
+      onAuthorClick: handleAuthorClick,
       onPostClick: handlePostClick,
     });
 
   activeCleanupFunctions.push(
-    subscribeToPostLikesChanged((likesChangedPayload) => {
-      appState.posts = applyLikesChangeToPosts(
-        appState.posts,
-        appState.currentUser?.id,
-        likesChangedPayload,
-      );
+    subscribeToPostLikesChanged(shellTransport, ({ postId, likes, likerId, liked }) => {
+      appState.posts = appState.posts.map((post) => {
+        if (post.id !== postId) {
+          return post;
+        }
+        const likedByCurrentUser =
+          likerId === appState.currentUser?.id ? liked : post.likedByCurrentUser;
+        return { ...post, likes, likedByCurrentUser };
+      });
       renderTrendingFeed();
     }),
   );
 
   // appState.posts was already prepended by the global subscription in main.js; this one only
-  // re-renders. A new post starts below the trending threshold, so this tab must watch it
-  // before the like arrives or the gateway will not deliver the count that promotes it.
+  // re-renders. New posts start at 0 likes, so they typically will not surface here until liked.
   activeCleanupFunctions.push(
-    subscribeToPostCreated((newPost) => {
-      publishPostLikesWatching(newPost?.id);
-      renderTrendingFeed();
-    }),
+    subscribeToPostCreated(shellTransport, renderTrendingFeed),
   );
 
   const firstShowcase = appState.showcases[0];
@@ -101,15 +109,23 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
     .filter(Boolean);
 
   if (showcaseProducts.length > 0) {
+    const redirectToProductDetails = (productId) =>
+      window.location.assign(
+        `${ECOMMERCE_SHELL_BASE_URL}/product?productId=${productId}`,
+      );
+
     const showcaseElement = document.createElement("angular-product-showcase");
     showcaseElement.config = {
       title: firstShowcase?.showcaseTitle || "Featured Products",
       products: showcaseProducts,
       actionLabel: "See More",
-      actionIntent: "open-product",
       hideQuantity: true,
       displayMode: "modal",
       defaultCollapsed: false,
+      onProductClick: redirectToProductDetails,
+      onAddToCart: (showcasePayload) => {
+        redirectToProductDetails(showcasePayload.productId);
+      },
     };
     pageMount.appendChild(showcaseElement);
 

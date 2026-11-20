@@ -5,24 +5,22 @@
  * Not in this file: Account HTTP updates (src/commands/accountCommands.js), post creation
  *   (src/pages/postsPage.js), or the toggle write itself (src/commands/postLikeCommands.js).
  * Key dependencies: account/AccountProfile and account/AccountAddress remotes;
- *   @shared/post-like-events.
+ *   @shared/post-like-events; src/commands/postLikeCommands.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
+import { subscribeToPostLikesChanged } from "@shared/post-like-events";
 import { requestSignOutEverywhere } from "@shared/session-events";
 import { navigate } from "../utils/navigate";
 import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
-import { publishLogoutRequested } from "../events/eventBus";
-import { MOCK_API_BASE_URL } from "../utils/constants";
+import { publishLogoutRequested, shellTransport } from "../events/eventBus";
+import { persistAccountUpdate } from "../commands/accountCommands";
 import { requestCsvExport } from "../exports/requestCsvExport";
 import { publishNotification } from "../notifications/notificationAdapter";
-import {
-  subscribeToPostLikesChanged,
-  applyLikesChangeToPosts,
-} from "@shared/post-like-events";
+import { toggleLikeForPost } from "../commands/postLikeCommands";
 
 /**
  * Renders the account page with profile, address, and "My Posts" sections.
@@ -65,10 +63,7 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
     signOutEverywhereButton.addEventListener("click", async () => {
       signOutEverywhereButton.disabled = true;
       try {
-        await requestSignOutEverywhere({
-          apiBaseUrl: MOCK_API_BASE_URL,
-          authToken: appState.authToken,
-        });
+        await requestSignOutEverywhere(shellTransport);
       } catch (error) {
         console.warn("signOutEverywhereButton - error");
         console.warn(error);
@@ -89,12 +84,16 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
   activeCleanupFunctions.push(
     accountProfileModule.mountAccountProfile(accountProfileMount, {
       user: appState.currentUser,
+      onSaveProfile: (profilePayload) =>
+        persistAccountUpdate(appState, profilePayload),
     }),
   );
 
   activeCleanupFunctions.push(
     accountAddressModule.mountAccountAddress(accountAddressMount, {
       address: appState.currentUser?.address,
+      onSaveAddress: (addressPayload) =>
+        persistAccountUpdate(appState, { address: addressPayload }),
     }),
   );
 
@@ -127,20 +126,7 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
   `;
   const exportPostsButton = accountPostsMount.querySelector("#exportPostsButton");
   const handlePostsExport = async () => {
-    exportPostsButton.disabled = true;
-    exportPostsButton.textContent = "Preparing export...";
-
-    const exportResult = await requestCsvExport({
-      kind: "posts",
-      fileName: "my-posts.csv",
-      authToken: appState.authToken,
-    });
-
-    if (exportPostsButton.isConnected) {
-      exportPostsButton.disabled = false;
-      exportPostsButton.textContent = "Export CSV";
-    }
-
+    const exportResult = await requestCsvExport(shellTransport, { kind: "posts" });
     publishNotification(
       exportResult.ok
         ? {
@@ -170,6 +156,15 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
     "#accountPostsFeedMount",
   );
 
+  const handleLike = (postId) =>
+    toggleLikeForPost(appState, appState.posts.find((post) => post.id === postId));
+  const handleAuthorClick = (author) => {
+    if (author?.username) {
+      console.log("renderAccountPage - authorClicked");
+      console.log(author);
+    }
+  };
+
   const handlePostClick = (post) => {
     if (post?.id) {
       navigate(`/posts/${encodeURIComponent(post.id)}`);
@@ -181,22 +176,29 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
     layoutMode: "grid",
     posts: currentUserPosts,
     currentUserId,
+    onLike: handleLike,
+    onAuthorClick: handleAuthorClick,
     onPostClick: handlePostClick,
   });
   activeCleanupFunctions.push(accountPostFeedHandle);
 
   activeCleanupFunctions.push(
-    subscribeToPostLikesChanged((likesChangedPayload) => {
-      appState.posts = applyLikesChangeToPosts(
-        appState.posts,
-        currentUserId,
-        likesChangedPayload,
-      );
+    subscribeToPostLikesChanged(shellTransport, ({ postId, likes, likerId, liked }) => {
+      appState.posts = appState.posts.map((post) => {
+        if (post.id !== postId) {
+          return post;
+        }
+        const likedByCurrentUser =
+          likerId === appState.currentUser?.id ? liked : post.likedByCurrentUser;
+        return { ...post, likes, likedByCurrentUser };
+      });
       accountPostFeedHandle.update({
         title: "",
         layoutMode: "grid",
         posts: appState.posts.filter((post) => post.authorId === currentUserId),
         currentUserId,
+        onLike: handleLike,
+        onAuthorClick: handleAuthorClick,
         onPostClick: handlePostClick,
       });
     }),

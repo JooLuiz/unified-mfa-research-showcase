@@ -1,154 +1,69 @@
 /**
- * One mesh subscription per tab for order status changes, with an optional watching announce.
- * Role: Opens the status-changed subscription (and, when configured, a recurring watching
- *   announce) once the mesh client is connected, and fans events out to listeners that may have
- *   registered before the socket opened.
- * Not in this file: Which topic/event names to use (the customer and admin clients pass that in)
- *   or the status write (src/requestOrderStatusChange.js).
- * Key dependencies: event-mesh/mesh; src/createOrderStatusEvents.js.
- * See also: src/customerOrderStatusClient.js; src/adminOrderStatusClient.js;
- *   apps/admin-shell/src/events/adminLiveEvents.js (same ensure/reset shape).
- *   On main this module opens a Server-Sent Events stream; this branch subscribes through the
- *   gateway.
+ * One order-status subscription per tab.
+ * Role: Starts and stops the orders/status-changed subscription and fans payloads out to listeners.
+ * Not in this file: The ticket URL (the shell endpoint map) or the status write.
+ * Key dependencies: src/orderStatusContracts.js. The caller supplies the transport.
+ * See also: src/customerOrderStatusClient.js; src/adminOrderStatusClient.js.
  */
 
-import mesh from "event-mesh/mesh";
-import { createOrderStatusEvents } from "./createOrderStatusEvents.js";
-
-const WATCHING_ANNOUNCE_INTERVAL_MS = 10_000;
-const MESH_CONNECT_TIMEOUT_MS = 5000;
+import { ORDERS_STATUS_CHANGED_EVENT, ORDERS_TOPIC } from "./orderStatusContracts.js";
 
 /**
- * Creates a tab-scoped order-status stream session. Call start once per signed-in session.
+ * Creates a tab-scoped order-status subscription. Call start once per signed-in session.
  *
- * @param {{ topic: string, watchingEvent?: string, statusChangedEvent: string, logName: string }} sessionInput -
- *   Mesh topic, the optional watching-announce event (the customer session announces
- *   orders/watching so the server's per-user registry can target it; the admin session passes
- *   no watchingEvent because it reuses the admin/watching announce already running in
- *   adminLiveEvents.js), the status event to subscribe to, and the name used in warning logs.
- * @returns {{ start: () => Promise<void>, stop: () => void, subscribe: (listener: (event: { orderId: string, status: string }) => void) => () => void }} Session controls.
+ * @returns {{ start: (transport: { subscribe: Function }) => void, stop: () => void, subscribe: (listener: (event: { orderId: string, status: string }) => void) => () => void }} Stream controls.
  */
-function createOrderStatusStreamSession({ topic, watchingEvent, statusChangedEvent, logName }) {
-  /** @type {Set<(message: { payload?: { orderId: string, status: string } }) => void>} */
-  const inboundCallbacks = new Set();
-  const orderStatusEvents = createOrderStatusEvents({
-    subscribe(_topic, _event, callback) {
-      inboundCallbacks.add(callback);
-      return function unsubscribeFromOrderStatus() {
-        inboundCallbacks.delete(callback);
-      };
-    },
-  });
-  let sessionGeneration = 0;
-  let unsubscribeFromMeshStatus = null;
-  let watchingIntervalId = null;
-  let isStartInFlight = false;
+function createOrderStatusStreamSession() {
+  /** @type {Set<(event: { orderId: string, status: string }) => void>} */
+  const listeners = new Set();
+  let unsubscribeFromTransport = null;
 
   /**
-   * Calls every registered listener with one pushed status change.
+   * Opens the tab's order-status subscription when none is open.
    *
-   * @param {{ orderId: string, status: string }} event - orders/status-changed or
-   *   admin/order_status_changed payload.
+   * @param {{ subscribe: Function }} transport - Event interface whose shell map selects the customer or admin stream.
    * @returns {void}
+   * @sideEffects Subscribes to orders/status-changed.
    */
-  function notifyListeners(event) {
-    inboundCallbacks.forEach((callback) => {
-      callback({ payload: event });
-    });
-  }
-
-  /**
-   * Tells the gateway this connection should receive this user's order status changes.
-   * A no-op session (admin) has no watchingEvent and never calls this.
-   *
-   * @returns {void}
-   * @sideEffects Publishes the watching event with distributed scope.
-   */
-  function publishWatchingAnnounce() {
-    if (!watchingEvent) {
+  function start(transport) {
+    if (unsubscribeFromTransport) {
       return;
     }
-    mesh.publish({
-      topic,
-      event: watchingEvent,
-      payload: {},
-      scope: "distributed",
-    });
+    unsubscribeFromTransport = transport.subscribe(
+      ORDERS_TOPIC,
+      ORDERS_STATUS_CHANGED_EVENT,
+      (message) => {
+        const statusEvent = message.payload || {};
+        listeners.forEach((listener) => listener(statusEvent));
+      },
+    );
   }
 
   /**
-   * Starts the mesh subscription, and the watching announce when configured, for this tab.
-   *
-   * @returns {Promise<void>}
-   * @sideEffects Subscribes to the status-changed event and, when watchingEvent is set, publishes
-   *   it immediately and then on an interval.
-   */
-  async function start() {
-    if (unsubscribeFromMeshStatus || isStartInFlight) {
-      return;
-    }
-
-    const generation = ++sessionGeneration;
-    isStartInFlight = true;
-    try {
-      await mesh.whenConnected({ timeoutMs: MESH_CONNECT_TIMEOUT_MS });
-      if (generation !== sessionGeneration) {
-        return;
-      }
-
-      publishWatchingAnnounce();
-      unsubscribeFromMeshStatus = mesh.subscribe(topic, statusChangedEvent, (message) => {
-        notifyListeners(message.payload);
-      });
-
-      if (watchingEvent) {
-        watchingIntervalId = window.setInterval(
-          publishWatchingAnnounce,
-          WATCHING_ANNOUNCE_INTERVAL_MS,
-        );
-      }
-    } catch (error) {
-      console.warn(`${logName} - error`);
-      console.warn(error);
-    } finally {
-      if (generation === sessionGeneration) {
-        isStartInFlight = false;
-      }
-    }
-  }
-
-  /**
-   * Stops the mesh subscription and cancels any pending watching announce.
+   * Closes the subscription.
    *
    * @returns {void}
-   * @sideEffects Clears the watching interval and removes the mesh subscription.
+   * @sideEffects Unsubscribes from the transport.
    */
   function stop() {
-    sessionGeneration += 1;
-    isStartInFlight = false;
-
-    if (watchingIntervalId) {
-      window.clearInterval(watchingIntervalId);
-      watchingIntervalId = null;
-    }
-
-    if (unsubscribeFromMeshStatus) {
-      unsubscribeFromMeshStatus();
-      unsubscribeFromMeshStatus = null;
+    if (unsubscribeFromTransport) {
+      unsubscribeFromTransport();
+      unsubscribeFromTransport = null;
     }
   }
 
   /**
-   * Registers a listener for the status-changed event. Safe to call before start: this only
-   * adds to an in-memory registry and never touches the mesh client directly, so it cannot
-   * trigger EventMesh's lazy singleton ahead of configureMesh().
+   * Registers a listener. Safe to call before start.
    *
    * @param {(event: { orderId: string, status: string }) => void} listener - Called with each pushed status.
    * @returns {() => void} Unsubscribe function.
-   * @sideEffects Registers the listener on createOrderStatusEvents. Mesh subscribe stays in start.
+   * @sideEffects Registers the listener.
    */
   function subscribe(listener) {
-    return orderStatusEvents.subscribeToOrderStatusChanged(listener);
+    listeners.add(listener);
+    return function unsubscribeFromOrderStatus() {
+      listeners.delete(listener);
+    };
   }
 
   return { start, stop, subscribe };

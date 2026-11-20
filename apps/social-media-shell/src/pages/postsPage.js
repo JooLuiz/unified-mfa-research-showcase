@@ -5,31 +5,82 @@
  *   whenever anyone publishes a new post.
  * Not in this file: Post persistence (src/commands/postCommands.js), trending selection
  *   (src/pages/feedPage.js), or the toggle write itself (src/commands/postLikeCommands.js).
- * Key dependencies: Banner remotes publish promotion intents; social main handles ecommerce
- *   redirect; @shared/post-like-events.
- * See also: src/utils/renderActions.js (public barrel); MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Key dependencies: Ecommerce shell base URL for banner redirects;
+ *   src/notifications/notificationAdapter.js; @shared/post-like-events;
+ *   src/commands/postLikeCommands.js.
+ * See also: src/utils/renderActions.js (public barrel).
  */
 
+import { createPostMessageTransport } from "@shared/iframe-bridge";
+import { subscribeToPostLikesChanged, subscribeToPostCreated } from "@shared/post-like-events";
+import { publishRenderRequested, shellTransport } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
-import {
-  subscribeToPostLikesChanged,
-  applyLikesChangeToPosts,
-  subscribeToPostCreated,
-} from "@shared/post-like-events";
+import { ECOMMERCE_SHELL_BASE_URL } from "../utils/constants";
+import { publishNotification } from "../notifications/notificationAdapter";
+import { persistNewPost } from "../commands/postCommands";
+import { toggleLikeForPost } from "../commands/postLikeCommands";
 
 const POSTS_PER_BANNER_GROUP = 4;
 
+function buildBannerEcommerceUrl(banner) {
+  const filters = banner?.filters || {};
+  const queryParams = new URLSearchParams();
+  if (filters.searchQuery) {
+    queryParams.set("searchQuery", filters.searchQuery);
+  }
+  if (filters.minPrice) {
+    queryParams.set("minPrice", filters.minPrice);
+  }
+  if (filters.maxPrice) {
+    queryParams.set("maxPrice", filters.maxPrice);
+  }
+  if (Array.isArray(filters.categoryIds) && filters.categoryIds.length > 0) {
+    queryParams.set("categoryIds", filters.categoryIds.join(","));
+  }
+  const querySuffix = queryParams.toString();
+  return querySuffix
+    ? `${ECOMMERCE_SHELL_BASE_URL}/products?${querySuffix}`
+    : `${ECOMMERCE_SHELL_BASE_URL}/products`;
+}
+
+function redirectToEcommerceForBanner(banner) {
+  window.location.href = buildBannerEcommerceUrl(banner);
+}
+
 function mountNewPostFormularyWithProps(containerElement, appState, modules) {
   const currentUser = appState.currentUser;
-  return modules.mountNewPostFormulary(containerElement, {
-    userName: currentUser?.fullName || currentUser?.username || "",
-    userEmail: currentUser?.email || "",
-    authorId: currentUser?.id || "",
-  });
+  return modules.mountNewPostFormulary(
+    containerElement,
+    {
+      userName: currentUser?.fullName || currentUser?.username || "",
+      userEmail: currentUser?.email || "",
+      authorId: currentUser?.id || "",
+      onFormSubmitted: (payload) => {
+        if (!isAuthenticated(appState)) {
+          return;
+        }
+        void persistNewPost(appState, {
+          content: payload.content,
+          imageUrl: payload.imageUrl,
+          authorId: appState.currentUser?.id,
+        }).then((postResult) => {
+          if (postResult.ok) {
+            publishNotification({
+              type: "success",
+              title: "Post published",
+              message: "Your post is now visible in the community feed.",
+            });
+            publishRenderRequested();
+          }
+        });
+      },
+    },
+    createPostMessageTransport(),
+  );
 }
 
 function mountLoginPromptForNewPost(containerElement) {
@@ -93,6 +144,15 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
   const allPosts = appState.posts || [];
   const banners = appState.banners || [];
 
+  const handleLike = (postId) =>
+    toggleLikeForPost(appState, appState.posts.find((post) => post.id === postId));
+  const handleAuthorClick = (author) => {
+    if (author?.username) {
+      console.log("renderPostsPage - authorClicked");
+      console.log(author);
+    }
+  };
+
   const handlePostClick = (post) => {
     if (post?.id) {
       navigate(`/posts/${encodeURIComponent(post.id)}`);
@@ -116,6 +176,8 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
       title: groupTitle,
       posts: allPosts.slice(groupStartIndex, groupEndIndex),
       currentUserId: appState.currentUser?.id,
+      onLike: handleLike,
+      onAuthorClick: handleAuthorClick,
       onPostClick: handlePostClick,
     });
     activeCleanupFunctions.push(groupFeedHandle);
@@ -139,6 +201,7 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
     activeCleanupFunctions.push(
       modules.mountPromotionalBanner(bannerContainer, {
         banner,
+        onApplyPromotion: () => redirectToEcommerceForBanner(banner),
       }),
     );
   }
@@ -155,25 +218,30 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
         title: groupTitle,
         posts: appState.posts.slice(groupStartIndex, groupEndIndex),
         currentUserId: appState.currentUser?.id,
+        onLike: handleLike,
+        onAuthorClick: handleAuthorClick,
         onPostClick: handlePostClick,
       });
     });
   };
 
   activeCleanupFunctions.push(
-    subscribeToPostLikesChanged((likesChangedPayload) => {
-      appState.posts = applyLikesChangeToPosts(
-        appState.posts,
-        appState.currentUser?.id,
-        likesChangedPayload,
-      );
+    subscribeToPostLikesChanged(shellTransport, ({ postId, likes, likerId, liked }) => {
+      appState.posts = appState.posts.map((post) => {
+        if (post.id !== postId) {
+          return post;
+        }
+        const likedByCurrentUser =
+          likerId === appState.currentUser?.id ? liked : post.likedByCurrentUser;
+        return { ...post, likes, likedByCurrentUser };
+      });
       renderAllGroups();
     }),
   );
 
   // appState.posts was already prepended by the global subscription in main.js; this one only
   // re-renders (see renderAllGroups' doc comment for the accepted trade-off).
-  activeCleanupFunctions.push(subscribeToPostCreated(renderAllGroups));
+  activeCleanupFunctions.push(subscribeToPostCreated(shellTransport, renderAllGroups));
 }
 
 export { renderPostsPage };

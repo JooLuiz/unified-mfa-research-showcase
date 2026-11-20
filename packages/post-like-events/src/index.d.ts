@@ -24,23 +24,15 @@ export type CreatedPost = {
   author: { id: string; username?: string; fullName?: string; avatarUrl?: string } | null;
 };
 
-export declare function startPostLikesLiveEvents(): Promise<void>;
-
-export declare function stopPostLikesLiveEvents(): void;
-
 export declare function subscribeToPostLikesChanged(
+  transport: { subscribe: PostLikeTransport["subscribe"] },
   listener: (event: PostLikesChangedEvent) => void,
 ): () => void;
 
 export declare function subscribeToPostCreated(
+  transport: { subscribe: PostLikeTransport["subscribe"] },
   listener: (post: CreatedPost) => void,
 ): () => void;
-
-export declare function applyLikesChangeToPosts(
-  posts: CreatedPost[],
-  viewerUserId: string | null | undefined,
-  payload: { postId: string; likes: number; likerId: string; liked: boolean },
-): CreatedPost[];
 
 export type PostLikeTransport = {
   subscribe: (
@@ -57,10 +49,13 @@ export type PostLikeEvents = {
 
 export declare function createPostLikeEvents(transport: PostLikeTransport): PostLikeEvents;
 
-export declare function togglePostLike(input: {
-  apiBaseUrl?: string;
-  authToken: string;
-  postId: string;
-}): Promise<{ ok: true; liked: boolean; likes: number } | { ok: false; code: string }>;
-
-export declare function resetToggleListeners(): void;
+export declare function togglePostLike(
+  transport: {
+    request(message: {
+      topic: string;
+      event: string;
+      payload?: { postId?: string };
+    }): Promise<{ ok: true; liked: boolean; likes: number } | { ok: false; code: string }>;
+  },
+  input: { postId: string },
+): Promise<{ ok: true; liked: boolean; likes: number } | { ok: false; code: string }>;

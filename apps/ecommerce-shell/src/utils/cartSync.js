@@ -1,20 +1,25 @@
 /**
  * Keeps the ecommerce shell cart aligned with the saved user cart.
- * Role: Hydrates and saves the signed-in cart, merges a guest cart at login, and applies carts pushed over Event Mesh.
- * Not in this file: Mesh publish details (src/commands/cartCommands.js) or cart math (src/utils/cartActions.js).
- * Key dependencies: localStorage auth key; src/commands/cartCommands.js; src/events/cartLiveEvents.js; src/utils/cartPersist.js.
+ * Role: Hydrates and saves the signed-in cart, merges a guest cart at login, and applies carts from other tabs and the live stream.
+ * Not in this file: HTTP request details (src/commands/cartCommands.js) or cart math (src/utils/cartActions.js).
+ * Key dependencies: BroadcastChannel; localStorage auth key; src/commands/cartCommands.js; src/utils/cartPersist.js; src/utils/cartSnapshot.js.
  * See also: src/main.js; src/commands/placeCheckoutOrder.js.
  */
 
 import { getOrCreateGuestStockSessionId } from "@shared/stock-events";
 import { fetchSavedCart, saveSavedCart } from "../commands/cartCommands";
+import { shellTransport } from "../events/eventBus";
 import { subscribeToCartLiveEvents } from "../events/cartLiveEvents";
 import { publishCartChanged } from "../events/eventBus";
 import { clearAuthSession } from "./authActions";
-import { flushCartPersist, isCartPersistBusy, resumeCartPersist, runWithoutCartPersist, scheduleCartPersist, suspendCartPersist } from "./cartPersist";
+import { flushCartPersist, isCartPersistBusy, resumeCartPersist, runWithoutCartPersist, scheduleCartPersist, setCartSavedNotifier, suspendCartPersist } from "./cartPersist";
 import { cloneAppliedCoupon, cloneCartItems, mergeCartItems } from "./cartSnapshot";
 import { AUTH_TOKEN_STORAGE_KEY } from "./constants";
 
+const CART_BROADCAST_CHANNEL_NAME = "ecommerce-shell:cart";
+const cartTabId = `cart-tab-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+let cartChannel = null;
 let storageListenerAttached = false;
 let liveCartListenerAttached = false;
 let lastAppliedCartUpdatedAt = null;
@@ -25,13 +30,14 @@ let lastAppliedCartUpdatedAt = null;
  * @param {object} appState - Shell state holding cart items and the applied coupon.
  * @param {{ items: unknown, appliedCoupon: unknown }} cartSnapshot - Next cart contents.
  * @returns {void}
- * @sideEffects Mutates appState and publishes a local cart change.
+ * @sideEffects Mutates appState, window.__APP_SHELL_CART__, and publishes a cart change.
  */
 function applyLocalCart(appState, cartSnapshot) {
   runWithoutCartPersist(() => {
     appState.cartItems = cloneCartItems(cartSnapshot.items);
     appState.appliedCoupon = cloneAppliedCoupon(cartSnapshot.appliedCoupon);
-    publishCartChanged(appState.cartItems);
+    window.__APP_SHELL_CART__ = appState.cartItems;
+    publishCartChanged();
   });
 }
 
@@ -39,7 +45,7 @@ function applyLocalCart(appState, cartSnapshot) {
  * Applies a server cart when it is newer than the last one this tab accepted.
  *
  * @param {object} appState - Shell state for this tab.
- * @param {object | null | undefined} cart - Cart payload from GET /api/cart or cart-sync/changed.
+ * @param {object | null | undefined} cart - Cart payload from GET /api/cart or cart_changed.
  * @returns {void}
  * @sideEffects May replace the local cart. Drops the payload while a local save is in progress.
  */
@@ -64,6 +70,50 @@ function applyServerCart(appState, cart) {
 
 function forgetAppliedCartVersion() {
   lastAppliedCartUpdatedAt = null;
+}
+
+/**
+ * Posts a cart snapshot to other ecommerce shell tabs.
+ *
+ * @param {object} message - Broadcast payload, including the source tab id.
+ * @returns {void}
+ * @sideEffects Posts on the cart BroadcastChannel when the channel is open.
+ */
+function postCartMessage(message) {
+  if (!cartChannel) {
+    return;
+  }
+  cartChannel.postMessage(message);
+}
+
+/**
+ * Applies a cart or session message from another tab.
+ *
+ * @param {object} appState - Shell state for this tab.
+ * @param {object | null} message - Broadcast payload.
+ * @returns {void}
+ * @sideEffects May replace the local cart or clear the in-memory session.
+ */
+function handleRemoteCartMessage(appState, message) {
+  if (!message || message.sourceTabId === cartTabId) {
+    return;
+  }
+  if (message.type === "session-ended") {
+    if (!message.userId || message.userId !== appState.currentUser?.id) {
+      return;
+    }
+    forgetAppliedCartVersion();
+    applyLocalCart(appState, { items: [], appliedCoupon: null });
+    clearAuthSession(appState);
+    return;
+  }
+  if (message.type !== "cart-replaced" || message.userId !== appState.currentUser?.id) {
+    return;
+  }
+  applyLocalCart(appState, {
+    items: message.items,
+    appliedCoupon: message.appliedCoupon,
+  });
 }
 
 /**
@@ -92,7 +142,7 @@ function listenForLoggedOutStorage(appState) {
 }
 
 /**
- * Applies cart-sync/changed payloads from this user's live stream.
+ * Applies cart_changed payloads from this user's live stream.
  *
  * @param {object} appState - Shell state for this tab.
  * @returns {void}
@@ -108,30 +158,31 @@ function listenForLiveCartChanges(appState) {
   });
 }
 
-/**
- * Starts logout and live-cart listeners for this shell tab.
- *
- * @param {object} appState - Shell state that remote carts replace.
- * @returns {void}
- * @sideEffects Subscribes to storage events and cart-sync/changed.
- */
 function startCartTabSync(appState) {
   listenForLoggedOutStorage(appState);
   listenForLiveCartChanges(appState);
+  if (cartChannel || typeof BroadcastChannel === "undefined") {
+    return;
+  }
+  cartChannel = new BroadcastChannel(CART_BROADCAST_CHANNEL_NAME);
+  cartChannel.onmessage = (channelEvent) => {
+    handleRemoteCartMessage(appState, channelEvent.data);
+  };
 }
 
 /**
  * Loads the saved cart into the shell before the first render.
  *
  * @param {object} appState - Shell state with an auth token, when the user is signed in.
+ * @param {{ request: Function }} [transport] - Event interface. Defaults to the shell singleton.
  * @returns {Promise<void>}
  * @sideEffects Replaces local cart state when the read succeeds.
  */
-async function hydrateSavedCart(appState) {
+async function hydrateSavedCart(appState, transport = shellTransport) {
   if (!appState.authToken) {
     return;
   }
-  const fetchedCart = await fetchSavedCart(appState.authToken);
+  const fetchedCart = await fetchSavedCart(transport, appState.authToken);
   if (!fetchedCart.ok) {
     return;
   }
@@ -142,18 +193,19 @@ async function hydrateSavedCart(appState) {
  * Merges this tab's guest cart into the user's saved cart.
  *
  * @param {object} appState - Shell state whose cart may hold guest lines.
- * @param {string} authToken - Token from the login response. The mesh credential must already match this user.
- * @param {string | null} _userId - Signed-in user id. Other tabs learn the merge from cart-sync/changed.
+ * @param {string} authToken - Token from the login response, not yet stored on appState.
+ * @param {string | null} userId - Signed-in user id used to address other tabs.
+ * @param {{ request: Function }} [transport] - Event interface. Defaults to the shell singleton.
  * @returns {Promise<{ needsPersist: boolean }>} Whether the caller should save again after the session is stored.
- * @sideEffects Replaces local cart state. Publishes the merged cart over mesh when the guest tab
- *   contributed lines, telling the server to release this tab's guest stock session in the same
- *   cart-sync/upsert (its held quantities are now folded into the saved cart).
+ * @sideEffects Replaces local cart state. Sends cart/save when the guest tab contributed
+ *   lines, telling the server to release this tab's guest stock session in the same request
+ *   (its held quantities are now folded into the saved cart).
  * Note: A failed cart read leaves the guest lines in memory and does not overwrite the saved cart.
  */
-async function mergeGuestCartOnLogin(appState, authToken, _userId) {
+async function mergeGuestCartOnLogin(appState, authToken, userId, transport = shellTransport) {
   const guestItems = cloneCartItems(appState.cartItems);
   const guestCoupon = cloneAppliedCoupon(appState.appliedCoupon);
-  const fetchedCart = await fetchSavedCart(authToken);
+  const fetchedCart = await fetchSavedCart(transport, authToken);
   if (!fetchedCart.ok) {
     return { needsPersist: false };
   }
@@ -164,45 +216,76 @@ async function mergeGuestCartOnLogin(appState, authToken, _userId) {
 
   const guestContributed = guestItems.length > 0 || Boolean(guestCoupon);
   if (!guestContributed) {
-    if (typeof fetchedCart.cart.updatedAt === "string") {
-      lastAppliedCartUpdatedAt = fetchedCart.cart.updatedAt;
-    }
     return { needsPersist: false };
   }
 
   const saveResult = await saveSavedCart(
-    authToken,
+    transport,
     { items: mergedItems, appliedCoupon },
     getOrCreateGuestStockSessionId(),
+    authToken,
   );
   if (!saveResult.ok) {
     return { needsPersist: true };
   }
+  postCartMessage({
+    type: "cart-replaced",
+    sourceTabId: cartTabId,
+    userId,
+    items: mergedItems,
+    appliedCoupon,
+  });
   return { needsPersist: false };
 }
 
 /**
- * Clears the cart in this tab after an order removes the saved row.
+ * Clears the cart in this tab and tells other tabs the saved cart is gone.
  *
  * @param {object} appState - Shell state for the signed-in user.
  * @returns {void}
- * @sideEffects Does not publish cart-sync/upsert. The order handler already broadcasts the empty cart.
+ * @sideEffects Does not PUT an empty cart. The order write already removed the server row.
  */
 function clearLocalCart(appState) {
+  const userId = appState.currentUser?.id || null;
   applyLocalCart(appState, { items: [], appliedCoupon: null });
+  postCartMessage({
+    type: "cart-replaced",
+    sourceTabId: cartTabId,
+    userId,
+    items: [],
+    appliedCoupon: null,
+  });
 }
 
 /**
- * Clears the in-memory cart when this user signs out.
+ * Clears the in-memory cart and tells other tabs this user signed out.
  *
  * @param {object} appState - Shell state for the user who is signing out.
  * @returns {void}
- * @sideEffects Does not delete the saved cart row. Other tabs notice the removed auth token.
+ * @sideEffects Does not delete the saved cart row.
  */
 function endCartSession(appState) {
+  const userId = appState.currentUser?.id || null;
   forgetAppliedCartVersion();
   applyLocalCart(appState, { items: [], appliedCoupon: null });
+  postCartMessage({
+    type: "session-ended",
+    sourceTabId: cartTabId,
+    userId,
+    items: [],
+    appliedCoupon: null,
+  });
 }
+
+setCartSavedNotifier((savedCart) => {
+  postCartMessage({
+    type: "cart-replaced",
+    sourceTabId: cartTabId,
+    userId: savedCart.userId,
+    items: savedCart.items,
+    appliedCoupon: savedCart.appliedCoupon,
+  });
+});
 
 export {
   clearLocalCart,

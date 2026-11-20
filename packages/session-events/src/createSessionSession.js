@@ -1,125 +1,82 @@
 /**
- * One mesh subscription per tab for session events (such as session.revoked).
- * Role: Manages a tab-scoped session/revoked subscription on the local Event Mesh client,
- *   delivering matching revocations to registered listeners.
- * Not in this file: UI toasts, shell navigation, or the sign-out-everywhere HTTP write
- *   (src/sessionRevocationCommands.js).
- * Key dependencies: event-mesh/mesh; src/createSessionEvents.js; src/sessionEventsContracts.js.
+ * One session subscription per tab.
+ * Role: Starts and stops the session/revoked subscription and suppresses the tab that is signing itself out.
+ * Not in this file: The sign-out HTTP command (src/sessionRevocationCommands.js).
+ * Key dependencies: src/sessionEventsContracts.js. The caller supplies the transport.
  * See also: src/sessionEventsClient.js.
- *   On main this module opens a Server-Sent Events connection; this branch subscribes through
- *   the gateway. The server broadcasts session/revoked to every open socket; this module drops
- *   events whose userId is not the one passed to start.
  */
 
-import mesh from "event-mesh/mesh";
-import { createSessionEvents } from "./createSessionEvents.js";
-import { SESSION_TOPIC, SESSION_REVOKED_EVENT } from "./sessionEventsContracts.js";
+import { SESSION_REVOKED_EVENT, SESSION_TOPIC } from "./sessionEventsContracts.js";
 
 /**
- * Creates a tab-scoped session stream session backed by the local mesh client.
+ * Creates a tab-scoped session subscription.
  *
- * @returns {{
- *   start: (input: { authToken?: string, userId?: string }) => void,
- *   stop: () => void,
- *   subscribe: (listener: () => void) => () => void
- * }} Stream controls.
+ * @returns {{ start: (transport: { subscribe: Function }) => void, stop: () => void, markLocalSignOut: () => void, subscribe: (listener: () => void) => () => void }} Session controls.
  */
 function createSessionStreamSession() {
-  /** @type {Set<(message: { payload?: object }) => void>} */
-  const inboundCallbacks = new Set();
-  const sessionEvents = createSessionEvents({
-    subscribe(_topic, _event, callback) {
-      inboundCallbacks.add(callback);
-      return function unsubscribeFromSessionRevoked() {
-        inboundCallbacks.delete(callback);
-      };
-    },
-  });
-
-  let unsubscribeFromMeshRevocation = null;
-  let watchedUserId = null;
+  /** @type {Set<() => void>} */
+  const listeners = new Set();
+  let unsubscribeFromTransport = null;
+  let ignoreIncomingRevocation = false;
 
   /**
-   * Calls every registered listener once for a pushed session/revoked that matches this tab.
+   * Opens the session subscription when a previous one is not already open.
    *
+   * @param {{ subscribe: Function }} transport - Event interface.
    * @returns {void}
+   * @sideEffects Subscribes to session/revoked and clears a previous local sign-out suppression.
    */
-  function notifyListeners() {
-    inboundCallbacks.forEach((callback) => {
-      try {
-        callback({ payload: {} });
-      } catch (error) {
-        console.warn("createSessionStreamSession - listener error");
-        console.warn(error);
+  function start(transport) {
+    if (unsubscribeFromTransport) {
+      return;
+    }
+    ignoreIncomingRevocation = false;
+    unsubscribeFromTransport = transport.subscribe(SESSION_TOPIC, SESSION_REVOKED_EVENT, () => {
+      if (ignoreIncomingRevocation) {
+        return;
       }
+      listeners.forEach((listener) => listener());
     });
   }
 
   /**
-   * Starts the mesh subscription for this tab's signed-in user.
-   *
-   * Subscribes immediately. Waiting for the socket first drops a revoke that arrives in the
-   * gap, and a whenConnected timeout used to leave the tab unsubscribed for the rest of the
-   * session.
-   *
-   * @param {{ authToken?: string, userId?: string }} [startInput] - `authToken` gates the start.
-   *   `userId` is the signed-in user; revokes for any other user are ignored.
-   * @returns {void}
-   * @sideEffects Subscribes to session/revoked on the local mesh client.
-   */
-  function start(startInput) {
-    if (!startInput?.authToken || !startInput.userId || unsubscribeFromMeshRevocation) {
-      return;
-    }
-
-    watchedUserId = startInput.userId;
-    unsubscribeFromMeshRevocation = mesh.subscribe(
-      SESSION_TOPIC,
-      SESSION_REVOKED_EVENT,
-      (message) => {
-        if (message.payload?.userId !== watchedUserId) {
-          return;
-        }
-        notifyListeners();
-      },
-    );
-  }
-
-  /**
-   * Stops the mesh subscription without closing the mesh client.
-   *
-   * Calling this just before POSTing sign-out-everywhere removes this tab's own session/revoked
-   * handler synchronously, so the server's broadcast arrives with nothing registered to receive
-   * it — the clicking tab never sees its own "ended on another device" notice.
+   * Closes the subscription. Does not clear a local sign-out suppression.
    *
    * @returns {void}
-   * @sideEffects Removes the mesh subscription and forgets the watched user id.
+   * @sideEffects Unsubscribes from the transport.
    */
   function stop() {
-    watchedUserId = null;
-
-    if (unsubscribeFromMeshRevocation) {
-      unsubscribeFromMeshRevocation();
-      unsubscribeFromMeshRevocation = null;
+    if (unsubscribeFromTransport) {
+      unsubscribeFromTransport();
+      unsubscribeFromTransport = null;
     }
   }
 
   /**
-   * Subscribes a listener to session.revoked notifications that match this tab's user.
+   * Ignores session.revoked on this tab until the next start.
    *
-   * Safe to call at any time, including before the mesh session starts: this only adds
-   * to an in-memory registry and never touches the mesh client directly, so it cannot
-   * trigger EventMesh's lazy singleton ahead of configureMesh().
-   *
-   * @param {() => void} listener - Called once per matching session/revoked push.
-   * @returns {() => void} Removes this listener from the registry.
-   * @sideEffects Registers the listener on createSessionEvents. Mesh subscribe stays in start.
+   * @returns {void}
+   * @sideEffects Suppresses listener delivery for the current subscription.
    */
-  function subscribe(listener) {
-    return sessionEvents.subscribeToSessionRevoked(listener);
+  function markLocalSignOut() {
+    ignoreIncomingRevocation = true;
   }
 
-  return { start, stop, subscribe };
+  /**
+   * Subscribes a listener to session.revoked.
+   *
+   * @param {() => void} listener - Called when a revocation arrives from another tab.
+   * @returns {() => void} Unsubscribe function.
+   * @sideEffects Registers the listener.
+   */
+  function subscribe(listener) {
+    listeners.add(listener);
+    return function unsubscribeFromSessionRevoked() {
+      listeners.delete(listener);
+    };
+  }
+
+  return { start, stop, markLocalSignOut, subscribe };
 }
 
 export { createSessionStreamSession };

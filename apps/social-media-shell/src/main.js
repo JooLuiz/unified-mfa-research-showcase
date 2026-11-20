@@ -37,8 +37,10 @@ import {
   setAuthenticatedMeshActive,
   clearMeshSessionFlags,
 } from "./notifications/sessionState";
-import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
 import {
+  bindShellTransport,
+  closeShellMesh,
+  configureShellMesh,
   ensureAccountIntentListeners,
   ensureCatalogIntentListeners,
   ensureCommunityIntentListeners,
@@ -49,13 +51,14 @@ import {
   resetCatalogIntentListeners,
   resetCommunityIntentListeners,
   resetShellEventListeners,
+  shellTransport,
+  subscribeToAuthSessionChanges,
+  subscribeToLogoutRequests,
+  subscribeToRenderRequests,
 } from "./events/eventBus";
 import {
-  startPostLikesLiveEvents,
-  stopPostLikesLiveEvents,
   subscribeToPostLikesChanged,
   subscribeToPostCreated,
-  resetToggleListeners,
 } from "@shared/post-like-events";
 import { toggleLikeForPost } from "./commands/postLikeCommands";
 import {
@@ -79,8 +82,6 @@ import {
 import { persistAccountUpdate } from "./commands/accountCommands";
 import { persistNewPost } from "./commands/postCommands";
 import { publishNotification } from "./notifications/notificationAdapter";
-import { configureMesh } from "event-mesh/mesh";
-import mesh from "event-mesh/mesh";
 
 const appState = {
   posts: [],
@@ -91,6 +92,8 @@ const appState = {
   authToken: null,
   currentUser: null,
 };
+
+bindShellTransport(() => appState.authToken);
 
 const HEADER_APP_NAME = "@social-media/header";
 const FOOTER_APP_NAME = "@social-media/footer";
@@ -111,7 +114,7 @@ const PAGE_APP_NAMES = [
 ];
 
 function configureGuestApplicationMesh() {
-  configureMesh({
+  configureShellMesh({
     gatewayUrl: "ws://localhost",
     gatewayPort: 3004,
     enableWebSocket: true,
@@ -119,7 +122,7 @@ function configureGuestApplicationMesh() {
 }
 
 function configureAuthenticatedApplicationMesh() {
-  configureMesh({
+  configureShellMesh({
     gatewayUrl: "ws://localhost",
     gatewayPort: 3004,
     enableWebSocket: true,
@@ -148,7 +151,6 @@ function startLocalMeshSession() {
   ensureCatalogIntentListeners(catalogIntentHandlers);
   ensureAccountIntentListeners(accountIntentHandlers);
   ensureCommunityIntentListeners(communityIntentHandlers);
-  void startPostLikesLiveEvents();
 }
 
 function startAuthenticatedMeshSession() {
@@ -158,60 +160,44 @@ function startAuthenticatedMeshSession() {
 
   if (isAuthenticatedMeshActive()) {
     ensureNotificationDisplayListeners();
-    ensureCsvExportListeners();
     ensureShellEventListeners(shellEventHandlers);
     ensureCatalogIntentListeners(catalogIntentHandlers);
     ensureAccountIntentListeners(accountIntentHandlers);
     ensureCommunityIntentListeners(communityIntentHandlers);
-    void startPostLikesLiveEvents();
-    void startSessionLiveEvents({
-      authToken: appState.authToken,
-      userId: appState.currentUser?.id,
-    });
+    void startSessionLiveEvents(shellTransport);
     syncNotificationInboxWithSession();
     return;
   }
 
   resetNotificationDisplayListeners();
-  resetCsvExportListeners();
   resetShellEventListeners();
   resetCatalogIntentListeners();
   resetAccountIntentListeners();
   resetCommunityIntentListeners();
-  resetToggleListeners();
-  stopPostLikesLiveEvents();
   stopNotificationInboxLiveEvents();
-  mesh.close();
+  closeShellMesh();
   clearMeshSessionFlags();
 
   configureAuthenticatedApplicationMesh();
   setAuthenticatedMeshActive(true);
   ensureNotificationDisplayListeners();
-  ensureCsvExportListeners();
   ensureShellEventListeners(shellEventHandlers);
   ensureCatalogIntentListeners(catalogIntentHandlers);
   ensureAccountIntentListeners(accountIntentHandlers);
   ensureCommunityIntentListeners(communityIntentHandlers);
-  void startPostLikesLiveEvents();
-  void startSessionLiveEvents({
-    authToken: appState.authToken,
-    userId: appState.currentUser?.id,
-  });
+  void startSessionLiveEvents(shellTransport);
   syncNotificationInboxWithSession();
 }
 
 function downgradeToLocalMeshSession() {
-  resetCsvExportListeners();
   resetNotificationDisplayListeners();
   resetShellEventListeners();
   resetCatalogIntentListeners();
   resetAccountIntentListeners();
   resetCommunityIntentListeners();
-  resetToggleListeners();
-  stopPostLikesLiveEvents();
   stopSessionLiveEvents();
   stopNotificationInboxLiveEvents();
-  mesh.close();
+  closeShellMesh();
   clearMeshSessionFlags();
   startLocalMeshSession();
 }
@@ -432,11 +418,7 @@ const communityIntentHandlers = {
 
 function syncNotificationInboxWithSession() {
   if (appState.authToken) {
-    void startNotificationInboxLiveEvents({
-      apiBaseUrl: MOCK_API_BASE_URL,
-      authToken: appState.authToken,
-      shell: "social",
-    });
+    void startNotificationInboxLiveEvents(shellTransport, { shell: "social" });
   } else {
     stopNotificationInboxLiveEvents();
   }
@@ -526,9 +508,7 @@ subscribeToSessionRevoked(() => {
 
 // Global for the life of the tab (signed-in or guest), independent of which page is mounted:
 // keeps appState.posts correct for the next render. The author's "liked your post" toast comes
-// from the inbox stream. The liker's own "Post Liked" toast is fired separately, from the
-// accepted reply in src/commands/postLikeCommands.js.
-subscribeToPostLikesChanged(({ postId, likes, likerId, liked }) => {
+subscribeToPostLikesChanged(shellTransport, ({ postId, likes, likerId, liked }) => {
   appState.posts = appState.posts.map((post) => {
     if (post.id !== postId) {
       return post;
@@ -546,7 +526,7 @@ subscribeToPostLikesChanged(({ postId, likes, likerId, liked }) => {
 // a raw prepend) because the server broadcasts this push to every open tab including the post's
 // own author, whose tab may have already inserted it optimistically from the HTTP response in
 // src/commands/postCommands.js.
-subscribeToPostCreated((newPost) => {
+subscribeToPostCreated(shellTransport, (newPost) => {
   addPostIfMissing(appState, { ...newPost, likedByCurrentUser: false });
 });
 

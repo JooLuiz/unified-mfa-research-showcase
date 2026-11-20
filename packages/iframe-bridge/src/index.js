@@ -13,4 +13,11 @@ export {
   IFRAME_MESSAGE_EVENT,
   createIframeBridge,
   createIframeChannel,
+  createPostMessageTransport,
 } from "./createIframeBridge.js";
+export {
+  FAQ_SUBMITTED_EVENT,
+  GO_SHOPPING_EVENT,
+  POST_SUBMITTED_EVENT,
+  RESIZED_EVENT,
+} from "./iframeBridgeContracts.js";

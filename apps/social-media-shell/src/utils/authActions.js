@@ -1,7 +1,5 @@
-import {
-  publishAuthSessionChanged,
-  publishPostLoginRedirectChanged,
-} from "../events/eventBus";
+import { publishAuthSessionChanged, publishPostLoginRedirectChanged, shellTransport } from "../events/eventBus";
+import { startSessionLiveEvents, stopSessionLiveEvents } from "@shared/session-events";
 import {
   readStoredAuthRecord,
   storePostLoginRedirect,
@@ -14,6 +12,9 @@ function readStoredAuth(appState) {
   const storedAuth = readStoredAuthRecord();
   appState.authToken = storedAuth?.token || null;
   appState.currentUser = storedAuth?.user || null;
+  if (appState.authToken) {
+    startSessionLiveEvents(shellTransport);
+  }
 }
 
 function persistAuth(appState) {
@@ -24,6 +25,11 @@ function setAuthSession(appState, sessionPayload) {
   appState.authToken = sessionPayload.token || null;
   appState.currentUser = sessionPayload.user || null;
   persistAuth(appState);
+  if (appState.authToken) {
+    startSessionLiveEvents(shellTransport);
+  } else {
+    stopSessionLiveEvents();
+  }
   publishAuthSessionChanged();
 }
 

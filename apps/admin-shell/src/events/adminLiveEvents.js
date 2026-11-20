@@ -1,159 +1,67 @@
 /**
- * Manages the admin shell's live-notifications mesh subscription.
- * Role: Announces this admin connection to the gateway and fans admin/order_created,
- *   admin/post_created, and admin/post_likes_changed out to any number of local listeners,
- *   without exposing mesh timing constraints to callers.
- * Not in this file: Mesh session open/close (src/main.js) or toast/page rendering.
- * Key dependencies: event-mesh/mesh; src/utils/authActions.js; src/events/adminLiveEventsContracts.js.
- * See also: src/main.js (start from the authenticated mesh session, stop on downgrade);
- *   packages/shell-events/src/createShellEvents.js (same ensure/reset shape).
+ * Fans the admin shell's live order and post events into local listeners.
+ * Role: Subscribes to the admin live frames and keeps the listener list the admin pages already use.
+ * Not in this file: Toast or page rendering, or the ticket exchange.
+ * Key dependencies: The shell event interface.
+ * See also: src/main.js; src/events/eventEndpoints.js.
  */
-
-import mesh from "event-mesh/mesh";
-import { isAdminAuthenticated } from "../utils/authActions";
-import {
-  ADMIN_TOPIC,
-  ADMIN_WATCHING_EVENT,
-  ORDER_CREATED_EVENT_TYPE,
-  POST_CREATED_EVENT_TYPE,
-  POST_LIKES_CHANGED_EVENT_TYPE,
-} from "./adminLiveEventsContracts";
-
-const WATCHING_ANNOUNCE_INTERVAL_MS = 10_000;
-const MESH_CONNECT_TIMEOUT_MS = 5000;
-
-let liveEventsGeneration = 0;
-let unsubscribeFromMeshActivity = null;
-let watchingIntervalId = null;
-let isStartInFlight = false;
 
 /** @type {Set<(event: { type: string, data: object }) => void>} */
-const listeners = new Set();
+const adminListeners = new Set();
+let unsubscribeFromAdmin = null;
+
+const ADMIN_LIVE_FRAMES = [
+  { event: "order-created", type: "order_created" },
+  { event: "post-created", type: "post_created" },
+  { event: "likes-changed", type: "community.post-likes-changed" },
+];
 
 /**
- * Calls every registered listener with one live admin event.
+ * Starts the admin live subscription when this tab is not already listening.
  *
- * @param {{ type: string, data: object }} event - Order or post activity to fan out.
+ * @param {{ subscribe: Function }} transport - Event interface.
  * @returns {void}
+ * @sideEffects Subscribes to admin-live order, post, and like frames.
  */
-function notifyListeners(event) {
-  listeners.forEach((listener) => listener(event));
-}
-
-/**
- * Tells the gateway this WebSocket belongs to an admin so later activity is targeted here.
- *
- * @returns {void}
- * @sideEffects Publishes admin/watching with distributed scope.
- */
-function publishWatchingAnnounce() {
-  mesh.publish({
-    topic: ADMIN_TOPIC,
-    event: ADMIN_WATCHING_EVENT,
-    payload: {},
-    scope: "distributed",
-  });
-}
-
-/**
- * Starts the watching announce and the mesh subscription when this session is an authenticated admin.
- *
- * @param {object} appState - Shell state holding the authenticated admin session.
- * @returns {Promise<void>}
- * @sideEffects Publishes admin/watching on an interval and subscribes to order/post activity.
- */
-async function startAdminLiveEvents(appState) {
-  if (!isAdminAuthenticated(appState) || unsubscribeFromMeshActivity || isStartInFlight) {
+function startAdminLiveEvents(transport) {
+  if (unsubscribeFromAdmin) {
     return;
   }
-
-  const generation = ++liveEventsGeneration;
-  isStartInFlight = true;
-  try {
-    await mesh.whenConnected({ timeoutMs: MESH_CONNECT_TIMEOUT_MS });
-    if (generation !== liveEventsGeneration) {
-      return;
-    }
-
-    publishWatchingAnnounce();
-
-    const unsubscribeFromOrders = mesh.subscribe(
-      ADMIN_TOPIC,
-      ORDER_CREATED_EVENT_TYPE,
-      (message) => {
-        notifyListeners({ type: ORDER_CREATED_EVENT_TYPE, data: message.payload });
-      },
-    );
-    const unsubscribeFromPosts = mesh.subscribe(
-      ADMIN_TOPIC,
-      POST_CREATED_EVENT_TYPE,
-      (message) => {
-        notifyListeners({ type: POST_CREATED_EVENT_TYPE, data: message.payload });
-      },
-    );
-    const unsubscribeFromPostLikes = mesh.subscribe(
-      ADMIN_TOPIC,
-      POST_LIKES_CHANGED_EVENT_TYPE,
-      (message) => {
-        notifyListeners({ type: POST_LIKES_CHANGED_EVENT_TYPE, data: message.payload });
-      },
-    );
-    unsubscribeFromMeshActivity = function unsubscribeFromAdminActivity() {
-      unsubscribeFromOrders();
-      unsubscribeFromPosts();
-      unsubscribeFromPostLikes();
-    };
-
-    watchingIntervalId = window.setInterval(
-      publishWatchingAnnounce,
-      WATCHING_ANNOUNCE_INTERVAL_MS,
-    );
-  } catch (error) {
-    console.warn("startAdminLiveEvents - error");
-    console.warn(error);
-  } finally {
-    if (generation === liveEventsGeneration) {
-      isStartInFlight = false;
-    }
-  }
+  const unsubscribers = ADMIN_LIVE_FRAMES.map((frame) =>
+    transport.subscribe("admin-live", frame.event, (message) => {
+      const liveEvent = { type: frame.type, data: message.payload };
+      adminListeners.forEach((listener) => listener(liveEvent));
+    }),
+  );
+  unsubscribeFromAdmin = () => {
+    unsubscribers.forEach((unsubscribe) => unsubscribe());
+  };
 }
 
 /**
- * Stops the watching announce and the mesh subscription without closing the mesh client.
+ * Stops the admin live subscription.
  *
  * @returns {void}
- * @sideEffects Clears the watching interval and removes the mesh subscription.
+ * @sideEffects Unsubscribes from the transport.
  */
 function stopAdminLiveEvents() {
-  liveEventsGeneration += 1;
-  isStartInFlight = false;
-
-  if (watchingIntervalId) {
-    window.clearInterval(watchingIntervalId);
-    watchingIntervalId = null;
-  }
-
-  if (unsubscribeFromMeshActivity) {
-    unsubscribeFromMeshActivity();
-    unsubscribeFromMeshActivity = null;
+  if (unsubscribeFromAdmin) {
+    unsubscribeFromAdmin();
+    unsubscribeFromAdmin = null;
   }
 }
 
 /**
- * Registers a local listener for live admin events (order_created, post_created).
- *
- * Safe to call at any time, including before the mesh session starts: this only adds
- * to an in-memory registry and never touches the mesh client directly, so it cannot
- * trigger EventMesh's lazy singleton ahead of configureMesh().
+ * Subscribes to live admin events.
  *
  * @param {(event: { type: string, data: object }) => void} listener - Called with each live event.
- * @returns {() => void} Removes this listener from the registry.
- * @sideEffects Mutates the module-local listener registry.
+ * @returns {() => void} Unsubscribe function.
+ * @sideEffects Registers the listener.
  */
 function subscribeToAdminLiveEvents(listener) {
-  listeners.add(listener);
+  adminListeners.add(listener);
   return function unsubscribeFromAdminLiveEvents() {
-    listeners.delete(listener);
+    adminListeners.delete(listener);
   };
 }
 

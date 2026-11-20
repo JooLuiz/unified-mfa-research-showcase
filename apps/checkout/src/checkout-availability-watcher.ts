@@ -4,11 +4,10 @@
  *   removing subscriptions as the rendered line set changes, and reporting each line's live
  *   "available" count back through a callback.
  * Not in this file: Component state or rendering (src/checkout-items.ts).
- * Key dependencies: @shared/stock-events; event-mesh/mesh.
+ * Key dependencies: @shared/stock-events. The caller supplies the transport.
  * See also: src/checkout-items.ts.
  */
 
-import mesh from "event-mesh/mesh";
 import { createStockWatchClient } from "@shared/stock-events";
 
 export type AvailabilityByProductIdChangeCallback = (
@@ -16,12 +15,18 @@ export type AvailabilityByProductIdChangeCallback = (
   nextAvailable: number,
 ) => void;
 
+type StockWatchTransport = {
+  subscribe: Function;
+  publish: Function;
+};
+
 export class CheckoutAvailabilityWatcher {
   private readonly stopWatchingByProductId = new Map<string, () => void>();
 
-  private readonly stockClient = createStockWatchClient({ mesh });
-
-  constructor(private readonly onAvailableChange: AvailabilityByProductIdChangeCallback) {}
+  constructor(
+    private readonly onAvailableChange: AvailabilityByProductIdChangeCallback,
+    private readonly transport: StockWatchTransport | null = null,
+  ) {}
 
   /**
    * Starts watching any newly-rendered product ids and stops watching ones no longer rendered.
@@ -29,6 +34,10 @@ export class CheckoutAvailabilityWatcher {
    * @param productIds - The product ids currently rendered as checkout lines.
    */
   syncWatchedProductIds(productIds: string[]): void {
+    if (!this.transport) {
+      return;
+    }
+
     const nextProductIds = new Set(productIds);
 
     for (const [productId, stopWatching] of this.stopWatchingByProductId) {
@@ -38,11 +47,12 @@ export class CheckoutAvailabilityWatcher {
       }
     }
 
+    const stockClient = createStockWatchClient(this.transport);
     for (const productId of nextProductIds) {
       if (this.stopWatchingByProductId.has(productId)) {
         continue;
       }
-      const stopWatching = this.stockClient.watchProduct(productId, (nextAvailable) => {
+      const stopWatching = stockClient.watchProduct(productId, (nextAvailable) => {
         this.onAvailableChange(productId, nextAvailable);
       });
       this.stopWatchingByProductId.set(productId, stopWatching);

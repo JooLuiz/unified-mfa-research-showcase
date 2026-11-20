@@ -16,8 +16,6 @@ import {
   fetchConnectionTicket,
 } from "./utils/authActions";
 import { AUTH_TOKEN_STORAGE_KEY } from "./utils/constants";
-import { configureMesh } from "event-mesh/mesh";
-import mesh from "event-mesh/mesh";
 
 import loadRemoteModules from "./utils/loadRemoteModules";
 import loadMockData from "./utils/loadData";
@@ -34,9 +32,10 @@ import {
   setAuthenticatedMeshActive,
   clearMeshSessionFlags,
 } from "./notifications/sessionState";
-import { ensureCsvExportListeners, resetCsvExportListeners } from "./exports/requestCsvExport";
-import { resetCartSaveListeners } from "./commands/cartCommands";
 import {
+  bindShellTransport,
+  closeShellMesh,
+  configureShellMesh,
   ensureAccountIntentListeners,
   ensureCartEventListeners,
   ensureCatalogIntentListeners,
@@ -50,6 +49,11 @@ import {
   resetCatalogIntentListeners,
   resetCheckoutIntentListeners,
   resetShellEventListeners,
+  shellTransport,
+  subscribeToAuthSessionChanges,
+  subscribeToCartChanges,
+  subscribeToLogoutRequests,
+  subscribeToRenderRequests,
 } from "./events/eventBus";
 
 import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
@@ -69,7 +73,6 @@ import {
   stopNotificationInboxLiveEvents,
   subscribeToNewInboxNotifications,
 } from "@shared/notification-inbox-events";
-import { MOCK_API_BASE_URL } from "./utils/constants";
 import { startStockGating } from "./events/stockGating";
 import { endCartSession, hydrateSavedCart, mergeGuestCartOnLogin, scheduleCartPersist, startCartTabSync } from "./utils/cartSync";
 import { navigate } from "./utils/navigate";
@@ -113,6 +116,8 @@ const appState = {
   currentUser: null,
 };
 
+bindShellTransport(() => appState.authToken);
+
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
 let activeHeaderElement = null;
@@ -120,7 +125,7 @@ let lastRenderedUserId = null;
 const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
 
 function configureGuestApplicationMesh() {
-  configureMesh({
+  configureShellMesh({
     gatewayUrl: "ws://localhost",
     gatewayPort: 3004,
     enableWebSocket: true,
@@ -128,7 +133,7 @@ function configureGuestApplicationMesh() {
 }
 
 function configureAuthenticatedApplicationMesh() {
-  configureMesh({
+  configureShellMesh({
     gatewayUrl: "ws://localhost",
     gatewayPort: 3004,
     enableWebSocket: true,
@@ -144,20 +149,10 @@ function configureAuthenticatedApplicationMesh() {
 
 function syncCartLiveEventsWithSession() {
   if (appState.authToken) {
-    void startCartLiveEvents(appState);
-    void startCustomerOrderStatusStream({
-      apiBaseUrl: MOCK_API_BASE_URL,
-      authToken: appState.authToken,
-    });
-    void startSessionLiveEvents({
-      authToken: appState.authToken,
-      userId: appState.currentUser?.id,
-    });
-    void startNotificationInboxLiveEvents({
-      apiBaseUrl: MOCK_API_BASE_URL,
-      authToken: appState.authToken,
-      shell: "ecommerce",
-    });
+    void startCartLiveEvents(shellTransport);
+    void startCustomerOrderStatusStream(shellTransport);
+    void startSessionLiveEvents(shellTransport);
+    void startNotificationInboxLiveEvents(shellTransport, { shell: "ecommerce" });
   } else {
     stopCartLiveEvents();
     stopCustomerOrderStatusStream();
@@ -196,7 +191,6 @@ function startAuthenticatedMeshSession() {
 
   if (isAuthenticatedMeshActive()) {
     ensureNotificationDisplayListeners();
-    ensureCsvExportListeners();
     ensureShellEventListeners(shellEventHandlers);
     ensureCatalogIntentListeners(catalogIntentHandlers);
     ensureCheckoutIntentListeners(checkoutIntentHandlers);
@@ -207,22 +201,19 @@ function startAuthenticatedMeshSession() {
   }
 
   resetNotificationDisplayListeners();
-  resetCsvExportListeners();
   resetShellEventListeners();
   resetCatalogIntentListeners();
   resetCheckoutIntentListeners();
   resetAccountIntentListeners();
   resetCartEventListeners();
-  resetCartSaveListeners();
   stopCartLiveEvents();
   stopNotificationInboxLiveEvents();
-  mesh.close();
+  closeShellMesh();
   clearMeshSessionFlags();
 
   configureAuthenticatedApplicationMesh();
   setAuthenticatedMeshActive(true);
   ensureNotificationDisplayListeners();
-  ensureCsvExportListeners();
   ensureShellEventListeners(shellEventHandlers);
   ensureCatalogIntentListeners(catalogIntentHandlers);
   ensureCheckoutIntentListeners(checkoutIntentHandlers);
@@ -232,18 +223,16 @@ function startAuthenticatedMeshSession() {
 }
 
 function downgradeToLocalMeshSession() {
-  resetCsvExportListeners();
   resetNotificationDisplayListeners();
   resetShellEventListeners();
   resetCatalogIntentListeners();
   resetCheckoutIntentListeners();
   resetAccountIntentListeners();
   resetCartEventListeners();
-  resetCartSaveListeners();
   stopCartLiveEvents();
   stopSessionLiveEvents();
   stopNotificationInboxLiveEvents();
-  mesh.close();
+  closeShellMesh();
   clearMeshSessionFlags();
   startLocalMeshSession();
 }

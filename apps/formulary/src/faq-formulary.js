@@ -1,30 +1,23 @@
 /**
- * Mounts the FAQ iframe and publishes community.faq-submitted on the host mesh.
- * Role: Provides the reusable FAQ iframe host adapter without outbound callbacks.
- * Not in this file: FAQ persistence or Event Mesh gateway relay validation.
- * Key dependencies: event-mesh/mesh; @shared/iframe-bridge; @shared/community-events.
- * See also: apps/ecommerce-shell/src/pages/homePage.js; MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Mounts the FAQ formulary iframe and applies host bridge messages.
+ * Role: Builds the FAQ iframe URL and resizes it from iframe bridge events.
+ * Not in this file: The child form page or FAQ persistence.
+ * Key dependencies: @shared/iframe-bridge.
+ * See also: src/new-post-formulary.js.
  */
 
-import mesh from "event-mesh/mesh";
 import {
+  FAQ_SUBMITTED_EVENT,
+  RESIZED_EVENT,
   createIframeBridge,
-  createIframeChannel,
 } from "@shared/iframe-bridge";
-import { createCommunityEvents } from "@shared/community-events";
 
 const FAQ_FORMULARY_HTML_PATH = "faq-formulary.html";
 const FAQ_FRAME_ID = "faq-formulary";
 
-const { publishFaqSubmitted } = createCommunityEvents(mesh);
-
-function buildFaqFormularyUrl(props, channelId) {
+function buildFaqFormularyUrl(props) {
   const baseUrl = new URL(FAQ_FORMULARY_HTML_PATH, __webpack_public_path__);
-  const queryParameters = new URLSearchParams({
-    type: "faq",
-    channelId,
-    frameId: FAQ_FRAME_ID,
-  });
+  const queryParameters = new URLSearchParams({ type: "faq" });
 
   if (props.userName) {
     queryParameters.set("name", props.userName);
@@ -37,10 +30,37 @@ function buildFaqFormularyUrl(props, channelId) {
   return baseUrl.toString();
 }
 
-export function mountFaqFormulary(containerElement, props = {}) {
-  const iframeBridge = createIframeBridge(mesh);
-  const channelId = createIframeChannel();
-  const iframeSource = buildFaqFormularyUrl(props, channelId);
+function applyFaqIframeHeight(payload) {
+  if (!payload || typeof payload !== "object") {
+    return;
+  }
+
+  const frameId = payload.frameId;
+  const rawHeight = Number(payload.height);
+
+  if (frameId !== FAQ_FRAME_ID || !Number.isFinite(rawHeight)) {
+    return;
+  }
+
+  const frameElement = document.querySelector(
+    `iframe[data-frame-id="${FAQ_FRAME_ID}"]`,
+  );
+  if (frameElement) {
+    frameElement.style.height = `${Math.max(rawHeight, 80)}px`;
+  }
+}
+
+/**
+ * Mounts the FAQ iframe and listens for resize and submit messages on the given transport.
+ *
+ * @param {HTMLElement} containerElement - Host element that receives the iframe.
+ * @param {{ userName?: string, userEmail?: string, onFormSubmitted?: (payload: object) => void }} props - Prefill values and the submit callback.
+ * @param {{ publish: Function, subscribe: Function }} transport - PostMessage adapter created by the host entry.
+ * @returns {() => void} Removes the listeners and clears the container.
+ * @sideEffects Writes iframe markup and subscribes to iframe bridge events.
+ */
+export function mountFaqFormulary(containerElement, props = {}, transport) {
+  const iframeSource = buildFaqFormularyUrl(props);
 
   containerElement.innerHTML = `
     <section class="frame-container">
@@ -58,30 +78,23 @@ export function mountFaqFormulary(containerElement, props = {}) {
     iframeElement.style.height = "0px";
   }
 
-  iframeBridge.registerIframeChannel({ channelId, frameId: FAQ_FRAME_ID });
-  const unsubscribeFromIframeChannel = iframeBridge.subscribeToIframeChannel({
-    channelId,
-    frameId: FAQ_FRAME_ID,
-    onMessage: ({ event, payload }) => {
-      if (event === "resized") {
-        const frameElement = containerElement.querySelector(
-          `iframe[data-frame-id="${FAQ_FRAME_ID}"]`,
-        );
-        if (frameElement && Number.isFinite(Number(payload.height))) {
-          frameElement.style.height = `${Math.max(Number(payload.height), 80)}px`;
-        }
-        return;
-      }
-
-      if (event === "faq-submitted") {
-        publishFaqSubmitted(payload);
+  const iframeBridge = createIframeBridge(transport);
+  const unsubscribeFromResize = iframeBridge.subscribeToIframeEvent(
+    RESIZED_EVENT,
+    applyFaqIframeHeight,
+  );
+  const unsubscribeFromSubmit = iframeBridge.subscribeToIframeEvent(
+    FAQ_SUBMITTED_EVENT,
+    (payload) => {
+      if (props.onFormSubmitted) {
+        props.onFormSubmitted(payload);
       }
     },
-  });
+  );
 
   return () => {
-    unsubscribeFromIframeChannel();
-    iframeBridge.unregisterIframeChannel({ channelId, frameId: FAQ_FRAME_ID });
+    unsubscribeFromResize();
+    unsubscribeFromSubmit();
     containerElement.innerHTML = "";
   };
 }

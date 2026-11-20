@@ -1,6 +1,6 @@
 /**
- * Installs a small document so React views can mount during a unit test.
- * Role: Provides createElement, text, attributes, and bubbling clicks without a browser.
+ * Installs a small document so React and Vue views can mount during a unit test.
+ * Role: Provides createElement, comments, text, attributes, and bubbling clicks without a browser.
  * Not in this file: Assertions or a particular view.
  * Key dependencies: test/support/createDomNode.js.
  * See also: apps/notifications/src/NotificationItemRow.test.js.
@@ -27,7 +27,14 @@ function installDomDocument() {
   documentNode.createTextNode = (text) => {
     const textNode = createNode(TEXT_NODE, "#text", documentNode);
     textNode.text = String(text);
+    textNode.nodeValue = String(text);
     return textNode;
+  };
+  documentNode.createComment = (text) => {
+    const commentNode = createNode(8, "#comment", documentNode);
+    commentNode.text = String(text);
+    commentNode.nodeValue = String(text);
+    return commentNode;
   };
   documentNode.querySelector = () => null;
   documentNode.querySelectorAll = () => [];
@@ -43,10 +50,12 @@ function installDomDocument() {
   globalThis.document = documentNode;
   globalThis.HTMLElement = class HTMLElement {};
   globalThis.HTMLIFrameElement = class HTMLIFrameElement {};
+  globalThis.SVGElement = class SVGElement {};
   globalThis.Element = class Element {};
   globalThis.Node = class Node {};
   globalThis.window.HTMLElement = globalThis.HTMLElement;
   globalThis.window.HTMLIFrameElement = globalThis.HTMLIFrameElement;
+  globalThis.window.SVGElement = globalThis.SVGElement;
   globalThis.window.Element = globalThis.Element;
   globalThis.window.Node = globalThis.Node;
   globalThis.window.document = documentNode;

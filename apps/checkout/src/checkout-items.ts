@@ -20,6 +20,7 @@ import {
 import { CommonModule } from "@angular/common";
 import "./styles.css";
 import { CheckoutAvailabilityWatcher } from "./checkout-availability-watcher";
+import mesh from "event-mesh/mesh";
 
 type Product = {
   id: string;
@@ -156,6 +157,7 @@ export class CheckoutItemsComponent implements OnChanges, OnDestroy {
     (productId, nextAvailable) => {
       this.applyAvailable(productId, nextAvailable);
     },
+    mesh,
   );
 
   constructor(private readonly changeDetectorRef: ChangeDetectorRef) {}

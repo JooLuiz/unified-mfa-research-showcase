@@ -1,7 +1,7 @@
 /**
  * Names the ecommerce shell's saved-cart mesh events.
  * Role: Holds the cart-sync topic and event names shared with the gateway.
- * Not in this file: The mesh subscription or cart state updates.
+ * Not in this file: The subscription or cart state updates.
  * Key dependencies: None.
  * See also: src/events/cartLiveEvents.js; apps/mock-data-service/src/inbound/cartUpsertHandler.js.
  */

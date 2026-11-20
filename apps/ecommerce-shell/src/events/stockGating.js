@@ -1,27 +1,72 @@
 /**
- * Re-establishes a guest shopper's stock holds when the local (unauthenticated) mesh session
- * starts.
- * Role: Called once each time the shell opens a guest mesh connection — on first load and after
- *   logout — to re-send every guest cart line's stock hold, since a client that has not yet
- *   connected (or whose socket just reconnected) has no hold recorded on the server.
- * Not in this file: The reservation mesh calls themselves (src/utils/cartActions.js) or
- *   add-to-cart gating, which the mesh catalog intent handler in src/main.js owns directly by
- *   calling addCartItemWithStockCheck.
- * Key dependencies: src/utils/cartActions.js.
+ * Wires the shell's one persistent stock watch stream and the stock-gated add-to-cart flow.
+ * Role: Opens the tab's stock stream eagerly for the whole tab session, re-reserves guest cart
+ *   lines after a reconnect, and gates add-to-cart requests behind a stock reservation call.
+ * Not in this file: The reservation HTTP calls themselves (src/utils/cartActions.js) or the
+ *   watch client/stream mechanics (@shared/stock-events).
+ * Key dependencies: @shared/stock-events; src/utils/cartActions.js; src/events/eventBus.js.
  * See also: src/main.js.
  */
 
-import { reReserveGuestCartLines } from "../utils/cartActions";
+import { createStockWatchClient } from "@shared/stock-events";
+import {
+  STOCK_ISSUE_NOTIFICATION_MESSAGE,
+  addCartItemWithStockCheck,
+  reReserveGuestCartLines,
+} from "../utils/cartActions";
+import { shellTransport, subscribeToCartItemAddRequests } from "./eventBus";
+import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
- * Re-sends every guest cart line's stock hold for the newly (re)started local mesh session.
+ * Starts the shell's persistent stock stream and gates add-to-cart requests behind it.
  *
- * @param {object} appState - Shell state holding cart items; a no-op for signed-in shoppers.
+ * @param {object} appState - Shell state holding cart items, products, and an optional auth token.
+ * @param {{ subscribe: Function, publish: Function }} [transport] - Event interface. Defaults to the shell singleton.
  * @returns {void}
- * @sideEffects See reReserveGuestCartLines.
+ * @sideEffects Opens the tab's stock stream and subscribes to cart-item-add requests for the
+ *   lifetime of the tab; neither is ever torn down, matching the stream's own lifetime.
  */
-function startStockGating(appState) {
-  void reReserveGuestCartLines(appState);
+function startStockGating(appState, transport = shellTransport) {
+  // Opened once, eagerly, independent of any component mount: a guest's hold is released
+  // specifically when this tab's stock stream connection drops, so the stream must outlive
+  // every page render.
+  const stockWatchClient = createStockWatchClient(transport);
+  stockWatchClient.subscribeToReconnect(() => {
+    void reReserveGuestCartLines(appState);
+  });
+
+  subscribeToCartItemAddRequests(async (event) => {
+    const payload = event.detail;
+    if (!payload || !payload.productId) {
+      return;
+    }
+
+    const incomingQuantity = Number(payload.quantity);
+    const quantityValue =
+      Number.isFinite(incomingQuantity) && incomingQuantity > 0
+        ? incomingQuantity
+        : 1;
+    const reservationResult = await addCartItemWithStockCheck(
+      appState,
+      payload.productId,
+      quantityValue,
+    );
+    if (!reservationResult.ok) {
+      publishNotification({
+        type: "error",
+        title: "Stock issue",
+        message: STOCK_ISSUE_NOTIFICATION_MESSAGE,
+      });
+      return;
+    }
+
+    const productName = appState.productsById[payload.productId]?.name || "Item";
+    publishNotification({
+      type: "success",
+      title: "Item added",
+      message: `${productName} was added to your cart.`,
+    });
+  });
 }
 
 export { startStockGating };

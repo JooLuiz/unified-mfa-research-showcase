@@ -1,7 +1,7 @@
 /**
  * Defines the admin shell's live-notifications event contract.
  * Role: Names the admin topic and event names shared with the mock data service gateway.
- * Not in this file: The mesh subscription (src/events/adminLiveEvents.js).
+ * Not in this file: The subscription (src/events/adminLiveEvents.js).
  * Key dependencies: None.
  * See also: apps/mock-data-service/src/infrastructure/adminEvents.js.
  */

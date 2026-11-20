@@ -1,12 +1,13 @@
 /**
  * Queues signed-in cart writes so a newer edit replaces one still waiting.
- * Role: Coalesces PUT /api/cart and reports each successful save.
+ * Role: Coalesces cart/save and reports each successful save.
  * Not in this file: Cross-tab delivery (src/utils/cartSync.js) or cart math.
  * Key dependencies: src/commands/cartCommands.js; src/utils/cartSnapshot.js.
  * See also: src/utils/cartSync.js; src/commands/placeCheckoutOrder.js.
  */
 
 import { saveSavedCart } from "../commands/cartCommands";
+import { shellTransport } from "../events/eventBus";
 import { cloneAppliedCoupon, cloneCartItems } from "./cartSnapshot";
 
 let applyingRemoteCart = false;
@@ -64,7 +65,7 @@ function resumeCartPersist() {
  * Writes the newest queued cart, then notifies the cart sync module.
  *
  * @returns {Promise<void>}
- * @sideEffects PUTs /api/cart when a snapshot is waiting.
+ * @sideEffects Sends cart/save when a snapshot is waiting.
  */
 async function sendPendingCart() {
   if (!pendingSnapshot) {
@@ -74,10 +75,15 @@ async function sendPendingCart() {
   pendingSnapshot = null;
   persistWritesInFlight += 1;
   try {
-    const saveResult = await saveSavedCart(snapshot.authToken, {
-      items: snapshot.items,
-      appliedCoupon: snapshot.appliedCoupon,
-    });
+    const saveResult = await saveSavedCart(
+      snapshot.transport,
+      {
+        items: snapshot.items,
+        appliedCoupon: snapshot.appliedCoupon,
+      },
+      "",
+      snapshot.authToken,
+    );
     if (!saveResult.ok) {
       return;
     }
@@ -104,10 +110,11 @@ function isCartPersistBusy() {
  * Queues a full-cart save for the signed-in user. A newer edit replaces one still waiting.
  *
  * @param {object} appState - Shell state holding the token, cart, and coupon.
+ * @param {{ request: Function }} [transport] - Event interface. Defaults to the shell singleton.
  * @returns {void}
- * @sideEffects Schedules PUT /api/cart. Guest carts are not written.
+ * @sideEffects Schedules cart/save. Guest carts are not written.
  */
-function scheduleCartPersist(appState) {
+function scheduleCartPersist(appState, transport = shellTransport) {
   if (cartPersistSuspended || applyingRemoteCart || !appState.authToken) {
     return;
   }
@@ -116,6 +123,7 @@ function scheduleCartPersist(appState) {
     userId: appState.currentUser?.id || null,
     items: cloneCartItems(appState.cartItems),
     appliedCoupon: cloneAppliedCoupon(appState.appliedCoupon),
+    transport,
   };
   persistTail = persistTail.then(sendPendingCart).catch((error) => {
     console.warn("scheduleCartPersist - error");

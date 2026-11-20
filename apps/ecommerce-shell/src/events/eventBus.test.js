@@ -16,8 +16,11 @@ const {
   publishAuthSessionChanged,
   publishLogoutRequested,
   publishRenderRequested,
+  shellTransport,
   subscribeToAuthSessionChanges,
+  subscribeToCartChanges,
   subscribeToHeaderEvents,
+  subscribeToLogoutRequests,
   subscribeToRenderRequests,
 } = await loadAppModule(new URL("./eventBus.js", import.meta.url).href);
 
@@ -35,13 +38,41 @@ test("a subscriber hears a render request, then stops hearing it after unsubscri
   assert.deepEqual(renderRequests, ["render"]);
 });
 
-test("an auth subscription can be removed, and publishing auth or logout leaves the caller intact", () => {
-  const unsubscribe = subscribeToAuthSessionChanges(() => {});
+test("an auth subscription can be removed, and a logout subscriber hears one request", () => {
+  const logoutRequests = [];
+  const unsubscribeSession = subscribeToAuthSessionChanges(() => {});
+  const unsubscribeLogout = subscribeToLogoutRequests(() => {
+    logoutRequests.push("logout");
+  });
   publishAuthSessionChanged();
   publishLogoutRequested();
+  unsubscribeSession();
+  unsubscribeLogout();
+  publishLogoutRequested();
+  assert.deepEqual(logoutRequests, ["logout"]);
+});
+
+test("subscribeToCartChanges hears a cart change and receives no cart payload", () => {
+  const receivedArguments = [];
+  const unsubscribe = subscribeToCartChanges((...listenerArguments) => {
+    receivedArguments.push(listenerArguments);
+  });
+
+  shellTransport.publish({
+    topic: "cart",
+    event: "changed",
+    payload: { items: [{ productId: "p-01" }] },
+    scope: "local",
+  });
   unsubscribe();
-  publishAuthSessionChanged();
-  assert.equal(typeof unsubscribe, "function");
+  shellTransport.publish({
+    topic: "cart",
+    event: "changed",
+    payload: {},
+    scope: "local",
+  });
+
+  assert.deepEqual(receivedArguments, [[]]);
 });
 
 test("unsubscribing from the header returns a cleanup the caller can run", () => {
@@ -53,4 +84,23 @@ test("unsubscribing from the header returns a cleanup the caller can run", () =>
   assert.equal(typeof unsubscribe, "function");
   unsubscribe();
   unsubscribe();
+});
+
+test("header navigate and logout call the handlers they were given", () => {
+  const { root: headerElement } = installDomDocument();
+  const outcomes = [];
+  const unsubscribe = subscribeToHeaderEvents(headerElement, {
+    onNavigate() {
+      outcomes.push("navigate");
+    },
+    onLogout() {
+      outcomes.push("logout");
+    },
+  });
+
+  headerElement.dispatchEvent({ type: "host:navigate" });
+  headerElement.dispatchEvent({ type: "host:logout" });
+  unsubscribe();
+
+  assert.deepEqual(outcomes, ["navigate", "logout"]);
 });

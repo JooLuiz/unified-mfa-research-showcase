@@ -1,79 +1,57 @@
 /**
- * Publishes formulary iframe messages on the guest Event Mesh bridge.
- * Role: Maps the shared mount's resize and form-submitted calls onto iframe channel events.
- * Not in this file: Form rendering, parent subscriptions, or gateway message validation.
- * Key dependencies: event-mesh/mesh; @shared/iframe-bridge; src/mountAgnosticFormulary.js.
+ * Posts formulary iframe messages to the host window.
+ * Role: Owns resize and form-submitted calls for the FAQ and new-post iframe.
+ * Not in this file: Form rendering or host-side message listeners.
+ * Key dependencies: @shared/iframe-bridge.
  * See also: public/faq-formulary.html; src/mountAgnosticFormulary.js.
  */
 
-import { configureMesh } from "event-mesh/mesh";
-import mesh from "event-mesh/mesh";
-import { createIframeBridge } from "@shared/iframe-bridge";
+import {
+  FAQ_SUBMITTED_EVENT,
+  POST_SUBMITTED_EVENT,
+  RESIZED_EVENT,
+  createIframeBridge,
+} from "@shared/iframe-bridge";
 
-configureMesh({
-  gatewayUrl: "ws://localhost",
-  gatewayPort: 3004,
-  enableWebSocket: true,
-});
-
-const MESH_EVENT_BY_MESSAGE_TYPE = {
-  "faq:form-submitted": "faq-submitted",
-  "post:form-submitted": "post-submitted",
+const EVENT_BY_SUBMITTED_MESSAGE_TYPE = {
+  "faq:form-submitted": FAQ_SUBMITTED_EVENT,
+  "post:form-submitted": POST_SUBMITTED_EVENT,
 };
 
-const iframeBridge = createIframeBridge(mesh);
-
-function getBridgeContext() {
-  const queryParameters = new URLSearchParams(window.location.search);
-  return {
-    channelId: queryParameters.get("channelId"),
-    frameId: queryParameters.get("frameId"),
-  };
-}
-
 /**
- * Publishes document height to the host iframe bridge channel.
+ * Posts the current document height for one formulary frame.
  *
- * @param {string} [frameId] - Host iframe identifier, such as faq-formulary.
+ * @param {{ publish: Function, subscribe: Function }} transport - PostMessage adapter created by the iframe entry.
+ * @param {string} frameId - Host iframe identifier, such as faq-formulary.
  * @returns {void}
- * @sideEffects Publishes an iframe resized message on the formulary channel.
+ * @sideEffects Publishes an iframe resized message to the parent window.
  */
-function publishIframeResize(frameId) {
-  const context = getBridgeContext();
+function publishIframeResize(transport, frameId) {
   const contentHeight = Math.max(
     document.documentElement.scrollHeight,
     document.body.scrollHeight,
   );
-  iframeBridge.publishIframeMessage({
-    channelId: context.channelId,
-    frameId: frameId || context.frameId,
-    event: "resized",
-    payload: {
-      height: contentHeight,
-    },
+  createIframeBridge(transport).publishIframeMessage(RESIZED_EVENT, {
+    frameId,
+    height: contentHeight,
   });
 }
 
 /**
- * Publishes a completed formulary payload on the host iframe channel.
+ * Posts a completed formulary payload to the host.
  *
+ * @param {{ publish: Function, subscribe: Function }} transport - PostMessage adapter created by the iframe entry.
  * @param {string} messageType - faq:form-submitted or post:form-submitted.
  * @param {object} payload - Trimmed field values from the form.
  * @returns {void}
- * @sideEffects Publishes faq-submitted or post-submitted when messageType is known.
+ * @sideEffects Publishes the submit message to the parent window.
  */
-function publishFormularySubmitted(messageType, payload) {
-  const eventName = MESH_EVENT_BY_MESSAGE_TYPE[messageType];
+function publishFormularySubmitted(transport, messageType, payload) {
+  const eventName = EVENT_BY_SUBMITTED_MESSAGE_TYPE[messageType];
   if (!eventName) {
     return;
   }
-  const context = getBridgeContext();
-  iframeBridge.publishIframeMessage({
-    channelId: context.channelId,
-    frameId: context.frameId,
-    event: eventName,
-    payload,
-  });
+  createIframeBridge(transport).publishIframeMessage(eventName, payload);
 }
 
 export { publishIframeResize, publishFormularySubmitted };

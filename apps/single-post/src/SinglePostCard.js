@@ -1,22 +1,8 @@
-/**
- * Renders one post with a like button.
- * Role: Publishes the local like intent and community-likes/watching, and patches the count
- *   from community-likes/changed. The host shell performs the gateway toggle.
- * Not in this file: The toggle request/reply (the host's postLikeCommands) or post loading
- *   (src/SinglePostView.js).
- * Key dependencies: event-mesh/mesh; @shared/community-events; @shared/post-like-events.
- * See also: apps/social-media-posts/src/post-card.js.
- */
-
 import React, { useState, useEffect } from "react";
-import mesh from "event-mesh/mesh";
-import { createCommunityEvents } from "@shared/community-events";
 import {
-  COMMUNITY_LIKES_CHANGED_EVENT,
-  COMMUNITY_LIKES_TOPIC,
+  togglePostLike,
+  subscribeToPostLikesChanged,
 } from "@shared/post-like-events";
-
-const { publishPostLiked, publishPostLikesWatching } = createCommunityEvents(mesh);
 
 function formatPostDate(isoDateString) {
   if (!isoDateString) {
@@ -29,13 +15,14 @@ function formatPostDate(isoDateString) {
   return dateValue.toLocaleString();
 }
 
-/**
- * Renders a single post card.
- *
- * @param {{ post: object, currentUserId?: string, canLike?: boolean }} cardProps - Post data, the viewer id, and whether this host allows likes.
- * @returns {import("react").ReactElement} The post card.
- */
-export function SinglePostCard({ post, currentUserId, canLike = true }) {
+export function SinglePostCard({
+  post,
+  apiBaseUrl,
+  authToken,
+  currentUserId,
+  canLike = true,
+  transport = null,
+}) {
   const author = post.author || {};
   const authorName = author.fullName || author.username || "Unknown Author";
 
@@ -43,6 +30,7 @@ export function SinglePostCard({ post, currentUserId, canLike = true }) {
     likes: post.likes || 0,
     liked: Boolean(post.likedByCurrentUser),
   });
+  const [isToggling, setIsToggling] = useState(false);
 
   useEffect(() => {
     setLikeState({
@@ -52,36 +40,42 @@ export function SinglePostCard({ post, currentUserId, canLike = true }) {
   }, [post.likes, post.likedByCurrentUser]);
 
   useEffect(() => {
-    publishPostLikesWatching(post.id);
-    const unsubscribe = mesh.subscribe(
-      COMMUNITY_LIKES_TOPIC,
-      COMMUNITY_LIKES_CHANGED_EVENT,
-      (message) => {
-        const event = message.payload;
-        if (!event || event.postId !== post.id) {
-          return;
-        }
-        setLikeState((previousState) => ({
-          likes: typeof event.likes === "number" ? event.likes : previousState.likes,
-          liked: event.likerId === currentUserId ? Boolean(event.liked) : previousState.liked,
+    if (!transport) {
+      return undefined;
+    }
+    const unsubscribe = subscribeToPostLikesChanged(transport, (event) => {
+      if (event && event.postId === post.id) {
+        setLikeState((prev) => ({
+          likes: typeof event.likes === "number" ? event.likes : prev.likes,
+          liked:
+            event.likerId === currentUserId ? Boolean(event.liked) : prev.liked,
         }));
-      },
-    );
-    return () => {
-      if (typeof unsubscribe === "function") {
-        unsubscribe();
       }
+    });
+    return () => {
+      unsubscribe();
     };
-  }, [post.id, currentUserId]);
+  }, [post.id, currentUserId, transport]);
 
   const isOwnPost = Boolean(currentUserId) && currentUserId === author.id;
-  const isLikeDisabled = !currentUserId || isOwnPost || !canLike;
+  const isLikeDisabled = !currentUserId || isOwnPost || isToggling || !canLike;
 
-  const handleLike = () => {
-    if (isLikeDisabled) {
+  const handleLike = async () => {
+    if (isLikeDisabled || !apiBaseUrl || !authToken || !transport) {
       return;
     }
-    publishPostLiked(post.id);
+    setIsToggling(true);
+    try {
+      const result = await togglePostLike(transport, { postId: post.id });
+      if (result.ok) {
+        setLikeState({
+          likes: result.likes,
+          liked: result.liked,
+        });
+      }
+    } finally {
+      setIsToggling(false);
+    }
   };
 
   return (

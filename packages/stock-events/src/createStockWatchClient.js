@@ -1,52 +1,31 @@
 /**
- * Public per-product stock watch client.
- * Role: Lets any mounted component register interest in a product's live availability over
- *   Event Mesh, announcing stock/watching immediately and on a repeating interval while at
- *   least one listener cares, and fanning stock/changed out through createStockWatchEvents.
- * Not in this file: Reservation request/reply (src/stockReservationCommands.js) or mesh
- *   configuration (owned by the host shell).
- * Key dependencies: An Event Mesh client supplied by the caller; src/createStockWatchEvents.js.
- * See also: apps/product-card/src/useProductAvailability.js;
- *   apps/product-details-page/src/product-availability-watcher.ts;
- *   apps/checkout/src/checkout-availability-watcher.ts.
+ * Public per-tab stock watch client.
+ * Role: Shares one stock subscription for the page and publishes the watched product set after the stream is ready.
+ * Not in this file: Guest session id creation (src/guestStockSession.js) or reservation commands.
+ * Key dependencies: src/createStockWatchEvents.js; src/stockEventsContracts.js. The caller supplies the transport.
+ * See also: apps/product-card/src/useProductAvailability.js; apps/ecommerce-shell/src/events/stockGating.js.
  */
 
 import { createStockWatchEvents } from "./createStockWatchEvents.js";
-import { STOCK_TOPIC, STOCK_WATCHING_EVENT } from "./stockEventsContracts.js";
+import { STOCK_TOPIC } from "./stockEventsContracts.js";
 
-const WATCHING_ANNOUNCE_INTERVAL_MS = 10_000;
-const MESH_CONNECT_TIMEOUT_MS = 5000;
+const STOCK_READY_EVENT = "ready";
+const STOCK_WATCHING_EVENT = "watching";
+const WATCH_SYNC_DEBOUNCE_MS = 150;
+
+/** @type {{ transport: object, stockWatchEvents: ReturnType<typeof createStockWatchEvents>, watcherCountByProductId: Map<string, number>, subscribeToReconnect: (listener: () => void) => () => void } | null} */
+let sharedWatch = null;
 
 /**
- * Creates a stock watch client bound to one Event Mesh client.
+ * Returns the page's stock watch client. The first caller opens the stream and keeps it open.
  *
- * @param {{ mesh: { publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void, whenConnected: (input: { timeoutMs: number }) => Promise<void> } }} clientInput - Configured mesh client for the owning shell or remote.
- * @returns {{ watchProduct: (productId: string, onAvailableChange: (available: number) => void) => () => void }} The watch client.
+ * @param {{ subscribe: Function, publish: Function }} transport - Shell or MFE event interface.
+ * @returns {{ watchProduct: (productId: string, onAvailableChange: (available: number) => void) => () => void, subscribeToReconnect: (listener: () => void) => () => void }} The watch client.
+ * @sideEffects Subscribes to stock/changed and stock/ready, and publishes stock/watching.
  */
-function createStockWatchClient({ mesh }) {
-  const stockWatchEvents = createStockWatchEvents(mesh);
-  /** @type {Map<string, number>} */
-  const watchIntervalIdsByProductId = new Map();
-  /** @type {Map<string, number>} */
-  const watcherCountByProductId = new Map();
-
-  function publishWatchingAnnounce(productId) {
-    // Awaits the connection instead of requiring the caller to sequence watchProduct after
-    // mesh session start: a product card can mount before the shell finishes configuring the
-    // mesh session, and the next 10s interval tick retries if this attempt is dropped.
-    mesh
-      .whenConnected({ timeoutMs: MESH_CONNECT_TIMEOUT_MS })
-      .then(() => {
-        mesh.publish({
-          topic: STOCK_TOPIC,
-          event: STOCK_WATCHING_EVENT,
-          payload: { productId },
-          scope: "distributed",
-        });
-      })
-      .catch(() => {
-        // Not connected within the timeout; the next interval tick retries.
-      });
+function createStockWatchClient(transport) {
+  if (!sharedWatch) {
+    sharedWatch = openSharedWatch(transport);
   }
 
   /**
@@ -54,40 +33,94 @@ function createStockWatchClient({ mesh }) {
    *
    * @param {string} productId - Catalog product id.
    * @param {(available: number) => void} onAvailableChange - Called with every pushed count.
-   * @returns {() => void} Unwatch function; call it on unmount or when the product id changes.
-   * @sideEffects Publishes stock/watching immediately and every 10s while this is the first
-   *   listener for that product. createStockWatchEvents subscribes to stock/changed per watcher.
+   * @returns {() => void} Unwatch function.
+   * @sideEffects Publishes the watched id set when this is the first or last listener for that product.
    */
   function watchProduct(productId, onAvailableChange) {
-    const currentCount = watcherCountByProductId.get(productId) || 0;
-    watcherCountByProductId.set(productId, currentCount + 1);
+    const currentCount = sharedWatch.watcherCountByProductId.get(productId) || 0;
+    sharedWatch.watcherCountByProductId.set(productId, currentCount + 1);
     if (currentCount === 0) {
-      publishWatchingAnnounce(productId);
-      const intervalId = window.setInterval(
-        () => publishWatchingAnnounce(productId),
-        WATCHING_ANNOUNCE_INTERVAL_MS,
-      );
-      watchIntervalIdsByProductId.set(productId, intervalId);
+      sharedWatch.syncWatchedProductIds();
     }
-    const unwatchEvents = stockWatchEvents.watchProduct(productId, onAvailableChange);
+    const unwatchEvents = sharedWatch.stockWatchEvents.watchProduct(productId, onAvailableChange);
 
     return function unwatchProduct() {
       unwatchEvents();
-      const nextCount = (watcherCountByProductId.get(productId) || 1) - 1;
+      const nextCount = (sharedWatch.watcherCountByProductId.get(productId) || 1) - 1;
       if (nextCount <= 0) {
-        watcherCountByProductId.delete(productId);
-        const intervalId = watchIntervalIdsByProductId.get(productId);
-        if (intervalId) {
-          window.clearInterval(intervalId);
-          watchIntervalIdsByProductId.delete(productId);
-        }
+        sharedWatch.watcherCountByProductId.delete(productId);
+        sharedWatch.syncWatchedProductIds();
         return;
       }
-      watcherCountByProductId.set(productId, nextCount);
+      sharedWatch.watcherCountByProductId.set(productId, nextCount);
     };
   }
 
-  return { watchProduct };
+  return {
+    watchProduct,
+    subscribeToReconnect: sharedWatch.subscribeToReconnect,
+  };
+}
+
+/**
+ * Opens the tab-lifetime stock subscription once.
+ *
+ * @param {{ subscribe: Function, publish: Function }} transport
+ * @returns {{ stockWatchEvents: ReturnType<typeof createStockWatchEvents>, watcherCountByProductId: Map<string, number>, subscribeToReconnect: (listener: () => void) => () => void, syncWatchedProductIds: () => void }}
+ * @sideEffects Subscribes immediately so a guest hold survives navigation between product pages.
+ */
+function openSharedWatch(transport) {
+  let streamId = "";
+  let hasConnectedBefore = false;
+  let watchSyncTimeoutId = null;
+  /** @type {Set<() => void>} */
+  const reconnectListeners = new Set();
+  /** @type {Map<string, number>} */
+  const watcherCountByProductId = new Map();
+
+  function publishWatchedProductIds() {
+    if (!streamId) {
+      return;
+    }
+    transport.publish({
+      topic: STOCK_TOPIC,
+      event: STOCK_WATCHING_EVENT,
+      payload: {
+        streamId,
+        productIds: Array.from(watcherCountByProductId.keys()),
+      },
+      scope: "distributed",
+    });
+  }
+
+  function syncWatchedProductIds() {
+    if (watchSyncTimeoutId) {
+      window.clearTimeout(watchSyncTimeoutId);
+    }
+    watchSyncTimeoutId = window.setTimeout(publishWatchedProductIds, WATCH_SYNC_DEBOUNCE_MS);
+  }
+
+  const stockWatchEvents = createStockWatchEvents({
+    subscribe: transport.subscribe.bind(transport),
+  });
+
+  transport.subscribe(STOCK_TOPIC, STOCK_READY_EVENT, (message) => {
+    streamId = message.payload?.streamId || "";
+    publishWatchedProductIds();
+    if (hasConnectedBefore) {
+      reconnectListeners.forEach((listener) => listener());
+    }
+    hasConnectedBefore = true;
+  });
+
+  function subscribeToReconnect(listener) {
+    reconnectListeners.add(listener);
+    return function unsubscribeFromReconnect() {
+      reconnectListeners.delete(listener);
+    };
+  }
+
+  return { stockWatchEvents, watcherCountByProductId, subscribeToReconnect, syncWatchedProductIds };
 }
 
 export { createStockWatchClient };

@@ -14,6 +14,7 @@ const {
   applyOrderStatusChange,
   resolveOrderStatus,
 } = require("./orderStatus");
+const { STOCK_PERSISTENCE_FAILED_CODE } = require("./stock");
 
 /**
  * Creates a JSON store whose files live in memory.
@@ -146,6 +147,25 @@ test("applyOrderStatusChange restores stock when an admin cancels a placed order
   assert.equal(changeResult.order.status, "cancelled");
   assert.deepEqual(changeResult.stockAvailability, [{ productId: "p-01", available: 3 }]);
   assert.equal(jsonStore.files["products.json"][0].stock, 3);
+});
+
+test("applyOrderStatusChange leaves a placed order unchanged when stock cannot be restored", async () => {
+  const jsonStore = createStoreWithOrder(placedOrder("placed"));
+  jsonStore.writeJsonFile = async function failWrite() {
+    throw new Error("disk full");
+  };
+  const order = jsonStore.files["orders.json"][0];
+
+  const changeResult = await applyOrderStatusChange({
+    jsonStore,
+    order,
+    nextStatus: "cancelled",
+    actor: "admin",
+  });
+
+  assert.deepEqual(changeResult, { ok: false, code: STOCK_PERSISTENCE_FAILED_CODE });
+  assert.equal(order.status, "placed");
+  assert.equal(jsonStore.files["products.json"][0].stock, 2);
 });
 
 test("applyOrderStatusChange restores stock when an admin accepts a cancellation request", async () => {

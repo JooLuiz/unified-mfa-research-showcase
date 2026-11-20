@@ -7,6 +7,7 @@ import {
 } from "./renderActions";
 import { MOCK_API_BASE_URL } from "./constants";
 import { navigate } from "./navigate";
+import { shellTransport } from "../events/eventBus";
 
 function createPageApp(renderPage) {
   let cleanupFunctions = [];
@@ -75,6 +76,7 @@ const singlePostPageApp = createPageApp(async (appState, domElement, modules, cl
       currentUserId: appState.currentUser?.id,
       navigate,
       canLike: true,
+      transport: shellTransport,
     });
     if (typeof cleanup === "function") {
       cleanupFunctions.push(cleanup);

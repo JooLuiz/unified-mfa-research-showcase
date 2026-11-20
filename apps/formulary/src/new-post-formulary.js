@@ -1,31 +1,23 @@
 /**
- * Mounts the new-post iframe and publishes community.post-submitted on the host mesh.
- * Role: Provides the reusable create-post iframe host adapter without outbound callbacks.
- * Not in this file: Post persistence or Event Mesh gateway relay validation.
- * Key dependencies: event-mesh/mesh; @shared/iframe-bridge; @shared/community-events.
- * See also: apps/social-media-shell/src/pages/postsPage.js; MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Mounts the new-post formulary iframe and applies host bridge messages.
+ * Role: Builds the post iframe URL and resizes it from iframe bridge events.
+ * Not in this file: The child form page or post persistence.
+ * Key dependencies: @shared/iframe-bridge.
+ * See also: src/faq-formulary.js.
  */
 
-import mesh from "event-mesh/mesh";
 import {
+  POST_SUBMITTED_EVENT,
+  RESIZED_EVENT,
   createIframeBridge,
-  createIframeChannel,
 } from "@shared/iframe-bridge";
-import { createCommunityEvents, createPostSubmittedRequest } from "@shared/community-events";
 
 const NEW_POST_FORMULARY_HTML_PATH = "faq-formulary.html";
 const NEW_POST_FRAME_ID = "new-post-formulary";
-const NEW_POST_IFRAME_FALLBACK_HEIGHT_PX = 220;
 
-const { publishPostSubmitted } = createCommunityEvents(mesh);
-
-function buildNewPostFormularyUrl(props, channelId) {
+function buildNewPostFormularyUrl(props) {
   const baseUrl = new URL(NEW_POST_FORMULARY_HTML_PATH, __webpack_public_path__);
-  const queryParameters = new URLSearchParams({
-    type: "post",
-    channelId,
-    frameId: NEW_POST_FRAME_ID,
-  });
+  const queryParameters = new URLSearchParams({ type: "post" });
 
   if (props.userName) {
     queryParameters.set("name", props.userName);
@@ -41,18 +33,37 @@ function buildNewPostFormularyUrl(props, channelId) {
   return baseUrl.toString();
 }
 
+function applyNewPostIframeHeight(payload) {
+  if (!payload || typeof payload !== "object") {
+    return;
+  }
+
+  const frameId = payload.frameId;
+  const rawHeight = Number(payload.height);
+
+  if (frameId !== NEW_POST_FRAME_ID || !Number.isFinite(rawHeight)) {
+    return;
+  }
+
+  const frameElement = document.querySelector(
+    `iframe[data-frame-id="${NEW_POST_FRAME_ID}"]`,
+  );
+  if (frameElement) {
+    frameElement.style.height = `${Math.max(rawHeight, 80)}px`;
+  }
+}
+
 /**
- * Mounts the create-post iframe and relays post-submitted to the host mesh.
+ * Mounts the new-post iframe and listens for resize and submit messages on the given transport.
  *
  * @param {HTMLElement} containerElement - Host element that receives the iframe.
- * @param {object} [props] - Optional name, email, and authorId query values.
- * @returns {() => void} Removes the bridge subscription and the iframe.
- * @sideEffects Registers an iframe-bridge channel. The iframe starts at a fallback height until resized arrives.
+ * @param {{ userName?: string, userEmail?: string, authorId?: string, onFormSubmitted?: (payload: object) => void }} props - Prefill values and the submit callback.
+ * @param {{ publish: Function, subscribe: Function }} transport - PostMessage adapter created by the host entry.
+ * @returns {() => void} Removes the listeners and clears the container.
+ * @sideEffects Writes iframe markup and subscribes to iframe bridge events.
  */
-export function mountNewPostFormulary(containerElement, props = {}) {
-  const iframeBridge = createIframeBridge(mesh);
-  const channelId = createIframeChannel();
-  const iframeSource = buildNewPostFormularyUrl(props, channelId);
+export function mountNewPostFormulary(containerElement, props = {}, transport) {
+  const iframeSource = buildNewPostFormularyUrl(props);
 
   containerElement.innerHTML = `
     <section class="frame-container">
@@ -67,40 +78,26 @@ export function mountNewPostFormulary(containerElement, props = {}) {
 
   const iframeElement = containerElement.querySelector("iframe");
   if (iframeElement) {
-    iframeElement.style.height = `${NEW_POST_IFRAME_FALLBACK_HEIGHT_PX}px`;
+    iframeElement.style.height = "0px";
   }
 
-  iframeBridge.registerIframeChannel({ channelId, frameId: NEW_POST_FRAME_ID });
-  const unsubscribeFromIframeChannel = iframeBridge.subscribeToIframeChannel({
-    channelId,
-    frameId: NEW_POST_FRAME_ID,
-    onMessage: ({ event, payload }) => {
-      if (event === "resized") {
-        const frameElement = containerElement.querySelector(
-          `iframe[data-frame-id="${NEW_POST_FRAME_ID}"]`,
-        );
-        if (frameElement && Number.isFinite(Number(payload.height))) {
-          frameElement.style.height = `${Math.max(Number(payload.height), 80)}px`;
-        }
-        return;
-      }
-
-      if (event === "post-submitted") {
-        const postRequest = createPostSubmittedRequest(payload);
-        if (!postRequest) {
-          return;
-        }
-        publishPostSubmitted(postRequest);
+  const iframeBridge = createIframeBridge(transport);
+  const unsubscribeFromResize = iframeBridge.subscribeToIframeEvent(
+    RESIZED_EVENT,
+    applyNewPostIframeHeight,
+  );
+  const unsubscribeFromSubmit = iframeBridge.subscribeToIframeEvent(
+    POST_SUBMITTED_EVENT,
+    (payload) => {
+      if (props.onFormSubmitted) {
+        props.onFormSubmitted(payload);
       }
     },
-  });
+  );
 
   return () => {
-    unsubscribeFromIframeChannel();
-    iframeBridge.unregisterIframeChannel({
-      channelId,
-      frameId: NEW_POST_FRAME_ID,
-    });
+    unsubscribeFromResize();
+    unsubscribeFromSubmit();
     containerElement.innerHTML = "";
   };
 }

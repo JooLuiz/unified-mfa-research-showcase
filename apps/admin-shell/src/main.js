@@ -7,9 +7,6 @@
  */
 
 import "./styles.css";
-import { configureMesh } from "event-mesh/mesh";
-import mesh from "event-mesh/mesh";
-
 import {
   readStoredAuth,
   clearAuthSession,
@@ -27,7 +24,21 @@ import {
   ensureNotificationDisplayListeners,
   resetNotificationDisplayListeners,
 } from "./notifications/notificationCenter";
-import { publishLogoutRequested } from "./events/eventBus";
+import {
+  bindShellTransport,
+  closeShellMesh,
+  configureShellMesh,
+  ensureAccountIntentListeners,
+  ensureShellEventListeners,
+  publishLogoutRequested,
+  publishRenderRequested,
+  resetAccountIntentListeners,
+  resetShellEventListeners,
+  shellTransport,
+  subscribeToAuthSessionChanges,
+  subscribeToLogoutRequests,
+  subscribeToRenderRequests,
+} from "./events/eventBus";
 import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
 import { navigate } from "./utils/navigate";
 import { publishNotification } from "./notifications/notificationAdapter";
@@ -54,13 +65,6 @@ import {
   clearMeshSessionFlags,
 } from "./notifications/sessionState";
 import {
-  ensureAccountIntentListeners,
-  ensureShellEventListeners,
-  publishRenderRequested,
-  resetAccountIntentListeners,
-  resetShellEventListeners,
-} from "./events/eventBus";
-import {
   startAdminLiveEvents,
   stopAdminLiveEvents,
 } from "./events/adminLiveEvents";
@@ -78,6 +82,8 @@ const appState = {
   authToken: null,
   currentUser: null,
 };
+
+bindShellTransport(() => appState.authToken);
 
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
@@ -116,20 +122,10 @@ subscribeToNewInboxNotifications((notification) => {
  */
 function syncAdminLiveEventsWithSession() {
   if (isAdminAuthenticated(appState)) {
-    void startAdminLiveEvents(appState);
-    void startAdminOrderStatusStream({
-      apiBaseUrl: MOCK_API_BASE_URL,
-      authToken: appState.authToken,
-    });
-    void startSessionLiveEvents({
-      authToken: appState.authToken,
-      userId: appState.currentUser?.id,
-    });
-    void startNotificationInboxLiveEvents({
-      apiBaseUrl: MOCK_API_BASE_URL,
-      authToken: appState.authToken,
-      shell: "admin",
-    });
+    void startAdminLiveEvents(shellTransport);
+    void startAdminOrderStatusStream(shellTransport);
+    void startSessionLiveEvents(shellTransport);
+    void startNotificationInboxLiveEvents(shellTransport, { shell: "admin" });
   } else {
     stopAdminLiveEvents();
     stopAdminOrderStatusStream();
@@ -145,7 +141,7 @@ function syncAdminLiveEventsWithSession() {
  * @sideEffects Configures the mesh client without opening a WebSocket connection.
  */
 function configureLocalApplicationMesh() {
-  configureMesh({
+  configureShellMesh({
     gatewayUrl: "ws://localhost",
     gatewayPort: 3004,
     enableWebSocket: false,
@@ -159,7 +155,7 @@ function configureLocalApplicationMesh() {
  * @sideEffects Configures the browser WebSocket client for the local mesh gateway.
  */
 function configureAuthenticatedApplicationMesh() {
-  configureMesh({
+  configureShellMesh({
     gatewayUrl: "ws://localhost",
     gatewayPort: 3004,
     enableWebSocket: true,
@@ -205,7 +201,7 @@ function startAuthenticatedMeshSession() {
   resetShellEventListeners();
   resetAccountIntentListeners();
   stopNotificationInboxLiveEvents();
-  mesh.close();
+  closeShellMesh();
   clearMeshSessionFlags();
 
   configureAuthenticatedApplicationMesh();
@@ -223,7 +219,7 @@ function downgradeToLocalMeshSession() {
   resetNotificationDisplayListeners();
   resetShellEventListeners();
   resetAccountIntentListeners();
-  mesh.close();
+  closeShellMesh();
   clearMeshSessionFlags();
   startLocalMeshSession();
 }

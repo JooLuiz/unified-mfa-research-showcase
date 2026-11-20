@@ -24,7 +24,7 @@ function isValidNavigationPath(path) {
  * Creates a shell-scoped local event adapter for auth and navigation messages.
  *
  * @param {{ publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void }} transport - Mesh client or recording transport. Both expose publish and subscribe.
- * @returns {{ publishRenderRequested: () => void, publishPathRequested: (path: string) => void, publishPostLoginRedirectChanged: (path: string | null) => void, publishAuthSessionChanged: () => void, publishLogoutRequested: () => void, ensureShellEventListeners: (handlers: object) => void, resetShellEventListeners: () => void, subscribeToAuthSessionChanges: (listener: () => void) => () => void, subscribeToRenderRequests: (listener: () => void) => () => void }} Shell event adapter.
+ * @returns {{ publishRenderRequested: () => void, publishPathRequested: (path: string) => void, publishPostLoginRedirectChanged: (path: string | null) => void, publishAuthSessionChanged: () => void, publishLogoutRequested: () => void, ensureShellEventListeners: (handlers: object) => void, resetShellEventListeners: () => void, subscribeToAuthSessionChanges: (listener: () => void) => () => void, subscribeToLogoutRequests: (listener: () => void) => () => void, subscribeToRenderRequests: (listener: () => void) => () => void }} Shell event adapter.
  * @note Signal publishes (render, session-changed, logout) always include payload: {} so every transport receives a record.
  */
 function createShellEvents(transport) {
@@ -173,11 +173,22 @@ function createShellEvents(transport) {
    * @sideEffects Mutates the adapter's auth observer registry.
    */
   function subscribeToAuthSessionChanges(listener) {
-    authSessionListeners.add(listener);
+    return transport.subscribe(AUTH_TOPIC, AUTH_SESSION_CHANGED_EVENT, () => {
+      listener();
+    });
+  }
 
-    return () => {
-      authSessionListeners.delete(listener);
-    };
+  /**
+   * Subscribes to logout requests until the returned function runs.
+   *
+   * @param {() => void} listener - Called for each logout request.
+   * @returns {() => void} Removes the subscription.
+   * @sideEffects Registers a local auth subscription.
+   */
+  function subscribeToLogoutRequests(listener) {
+    return transport.subscribe(AUTH_TOPIC, AUTH_LOGOUT_REQUESTED_EVENT, () => {
+      listener();
+    });
   }
 
   return {
@@ -189,6 +200,7 @@ function createShellEvents(transport) {
     ensureShellEventListeners,
     resetShellEventListeners,
     subscribeToAuthSessionChanges,
+    subscribeToLogoutRequests,
     subscribeToRenderRequests,
   };
 }

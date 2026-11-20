@@ -146,12 +146,21 @@ app.use(
   createPostRouter(jsonStore, adminEventStream, communityPostEventStream, notificationInboxEventStream),
 );
 app.use("/api", createFaqRouter(jsonStore));
-app.use("/api", createOrderRouter(jsonStore));
-app.use("/api", createCartRouter(jsonStore));
+app.use(
+  "/api",
+  createOrderRouter(
+    jsonStore,
+    adminEventStream,
+    cartEventStream,
+    stockEventStream,
+    notificationInboxEventStream,
+  ),
+);
+app.use("/api", createCartRouter(jsonStore, cartEventStream));
 app.use("/api", createExportRouter(jsonStore));
 app.use("/api", createAdminRouter(jsonStore));
 app.use("/api", createSessionRouter(jsonStore, sessionEventStream));
-app.use("/api", createNotificationInboxRouter(jsonStore));
+app.use("/api", createNotificationInboxRouter(jsonStore, notificationInboxEventStream));
 
 async function startServer() {
   await configureAndStartEventGateway();

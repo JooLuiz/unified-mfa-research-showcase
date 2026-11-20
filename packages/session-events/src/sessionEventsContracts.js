@@ -1,10 +1,9 @@
 /**
- * Shared names for the session Event Mesh contract and the sign-out-everywhere HTTP route.
- * Role: Keeps the mesh client and the SSE session on the same topic, event, and path as the mock API.
- * Not in this file: The mesh publish/subscribe lifecycle or the HTTP write.
+ * Shared contracts and event names for the session stream.
+ * Role: Centralizes topic/event names and endpoints across shells.
+ * Not in this file: The stream connection or shell state. Both live behind the injected transport.
  * Key dependencies: None.
- * See also: apps/mock-data-service/src/inbound/sessionEvents.js;
- *   apps/mock-data-service/src/routes/sessionRoutes.js.
+ * See also: src/createSessionSession.js, src/sessionRevocationCommands.js.
  */
 
 const SESSION_TOPIC = "session";
@@ -14,9 +13,9 @@ const SESSION_STREAM_PATH = "/auth/session-stream";
 const SIGN_OUT_EVERYWHERE_PATH = "/auth/sign-out-everywhere";
 
 export {
+  SESSION_TOPIC,
   SESSION_REVOKED_EVENT,
   SESSION_REVOKED_EVENT_NAME,
   SESSION_STREAM_PATH,
-  SESSION_TOPIC,
   SIGN_OUT_EVERYWHERE_PATH,
 };

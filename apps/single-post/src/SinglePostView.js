@@ -7,6 +7,7 @@ export function SinglePostView({
   authToken,
   currentUserId,
   canLike,
+  transport = null,
 }) {
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -76,6 +77,7 @@ export function SinglePostView({
         authToken={authToken}
         currentUserId={currentUserId}
         canLike={canLike}
+        transport={transport}
       />
     </div>
   );

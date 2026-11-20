@@ -1,16 +1,10 @@
 /**
  * Renders and manages a persistent toast queue for a shell.
- * Role: Subscribes to mesh notification events and renders accessible, auto-dismissing toasts.
- * Not in this file: Business outcome decisions, mesh configuration, or route-specific UI.
- * Key dependencies: event-mesh/mesh client; notificationPayload validation helpers.
- * See also: src/notificationPayload.js; src/createMeshNotificationAdapter.js.
+ * Role: Converts page-local notification requests into accessible, auto-dismissing toast elements.
+ * Not in this file: Business outcome decisions, backend transport, or route-specific UI.
+ * Key dependencies: A notification adapter created by createNotificationAdapter.
+ * See also: src/createNotificationAdapter.js.
  */
-
-import {
-  NOTIFICATION_TOPIC,
-  NOTIFICATION_RAISED_EVENT,
-  isValidNotificationPayload,
-} from "./notificationPayload.js";
 
 const DEFAULT_DURATION_MS = 5000;
 
@@ -18,14 +12,12 @@ const DEFAULT_DURATION_MS = 5000;
  * Mounts the notification center in a persistent shell-level container.
  *
  * @param {HTMLElement} containerElement - Element that owns the rendered toast queue.
- * @param {{ subscribe: (topic: string, event: string, callback: (message: object) => void) => void }} mesh - Mesh client for notification display subscription.
- * @param {{ onOpenLink?: (notification: { link?: string, notificationId?: string }) => void }} [options] - Optional click handler for toasts that carry a link. When the toast was raised from a persisted inbox row, `notification.notificationId` is also present so the host can mark it read.
- * @returns {{ unmount: () => void, ensureNotificationDisplayListeners: () => void, resetNotificationDisplayListeners: () => void }} Lifecycle API for toast display and mesh subscription management.
- * @sideEffects Mutates the supplied container; registers mesh listeners when ensure is called.
+ * @param {{ subscribeToNotifications: (listener: (notification: object) => void) => () => void, onOpenLink?: (notification: { link?: string, notificationId?: string }) => void }} notificationBus - Bus that delivers notification requests, plus an optional click handler for toasts that carry a link. When the toast was raised from a persisted inbox row, `notification.notificationId` is also present so the host can mark it read.
+ * @returns {() => void} Function that clears pending timers, subscriptions, and rendered toasts.
+ * @sideEffects Subscribes to notification events and mutates the supplied container.
  */
-function mountNotificationCenter(containerElement, mesh, { onOpenLink } = {}) {
+function mountNotificationCenter(containerElement, notificationBus) {
   const dismissalTimers = new Set();
-  let notificationDisplayListenersStarted = false;
 
   containerElement.className = "notification-center";
   containerElement.setAttribute("aria-live", "polite");
@@ -39,7 +31,7 @@ function mountNotificationCenter(containerElement, mesh, { onOpenLink } = {}) {
     notificationElement.remove();
   }
 
-  function renderNotification(notification) {
+  const unsubscribe = notificationBus.subscribeToNotifications((notification) => {
     const notificationElement = document.createElement("section");
     notificationElement.className = `notification-toast notification-toast--${notification.type}`;
     notificationElement.setAttribute(
@@ -73,53 +65,22 @@ function mountNotificationCenter(containerElement, mesh, { onOpenLink } = {}) {
       dismissNotification(notificationElement, timerId);
     });
 
-    const hasDetailLink = typeof notification.link === "string" && notification.link.length > 0;
-    if (hasDetailLink && typeof onOpenLink === "function") {
+    const hasDetailLink =
+      typeof notification.link === "string" && notification.link.length > 0;
+    if (hasDetailLink && typeof notificationBus.onOpenLink === "function") {
       notificationElement.classList.add("notification-toast--linked");
       notificationElement.addEventListener("click", () => {
-        onOpenLink(notification);
+        notificationBus.onOpenLink(notification);
         dismissNotification(notificationElement, timerId);
       });
     }
-  }
+  });
 
-  function handleNotificationRaised(message) {
-    const notificationPayload = message.payload;
-    if (!isValidNotificationPayload(notificationPayload)) {
-      return;
-    }
-
-    renderNotification(notificationPayload);
-  }
-
-  function ensureNotificationDisplayListeners() {
-    if (notificationDisplayListenersStarted) {
-      return;
-    }
-
-    notificationDisplayListenersStarted = true;
-    mesh.subscribe(
-      NOTIFICATION_TOPIC,
-      NOTIFICATION_RAISED_EVENT,
-      handleNotificationRaised,
-    );
-  }
-
-  function resetNotificationDisplayListeners() {
-    notificationDisplayListenersStarted = false;
-  }
-
-  function unmount() {
-    resetNotificationDisplayListeners();
+  return () => {
+    unsubscribe();
     dismissalTimers.forEach((timerId) => window.clearTimeout(timerId));
     dismissalTimers.clear();
     containerElement.replaceChildren();
-  }
-
-  return {
-    unmount,
-    ensureNotificationDisplayListeners,
-    resetNotificationDisplayListeners,
   };
 }
 

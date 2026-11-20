@@ -3,38 +3,45 @@
  * Role: Starts and stops a subscription to the shared stock client for the currently loaded
  *   product, reporting the live "available" count back through a callback.
  * Not in this file: Component state or rendering (src/product-details.component.ts).
- * Key dependencies: @shared/stock-events; event-mesh/mesh.
+ * Key dependencies: @shared/stock-events. The caller supplies the transport.
  * See also: src/product-details.component.ts.
  */
 
-import mesh from "event-mesh/mesh";
 import { createStockWatchClient } from "@shared/stock-events";
 import type { Product } from "./product-details.types";
 
 export type AvailabilityChangeCallback = (nextAvailable: number) => void;
 
-export class ProductAvailabilityWatcher {
-  private readonly stockClient = createStockWatchClient({ mesh });
+type StockWatchTransport = {
+  subscribe: Function;
+  publish: Function;
+};
 
+export class ProductAvailabilityWatcher {
   private stopWatchingAvailability: (() => void) | null = null;
 
-  constructor(private readonly onAvailableChange: AvailabilityChangeCallback) {}
+  constructor(
+    private readonly onAvailableChange: AvailabilityChangeCallback,
+    private readonly transport: StockWatchTransport | null = null,
+  ) {}
 
   /**
    * Starts watching the given product's live availability, replacing any previous subscription.
    *
    * @param product - The currently loaded product, or null when nothing is loaded.
+   * @param apiBaseUrl - The mock-data-service base url, or null when unknown.
    * @returns The product's initial available count, or null when it is not yet known.
    */
-  startWatching(product: Product | null): number | null {
+  startWatching(product: Product | null, apiBaseUrl: string | null = null): number | null {
     this.stopWatching();
 
     const initialAvailable = typeof product?.available === "number" ? product.available : null;
-    if (!product) {
+    if (!product || !this.transport || apiBaseUrl === "") {
       return initialAvailable;
     }
 
-    this.stopWatchingAvailability = this.stockClient.watchProduct(product.id, this.onAvailableChange);
+    const stockClient = createStockWatchClient(this.transport);
+    this.stopWatchingAvailability = stockClient.watchProduct(product.id, this.onAvailableChange);
     return initialAvailable;
   }
 
