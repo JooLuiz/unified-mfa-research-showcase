@@ -40,3 +40,24 @@ test("subscribeToRenderRequests delivers until unsubscribe", () => {
 
   assert.deepEqual(deliveries, ["rendered"]);
 });
+
+test("subscribeToAuthSessionChanges and subscribeToLogoutRequests each hear one publish", () => {
+  const transport = createRecordingTransport();
+  const shellEvents = createShellEvents(transport);
+  const deliveries = [];
+  const unsubscribeSession = shellEvents.subscribeToAuthSessionChanges(() => {
+    deliveries.push("session");
+  });
+  const unsubscribeLogout = shellEvents.subscribeToLogoutRequests(() => {
+    deliveries.push("logout");
+  });
+
+  shellEvents.publishAuthSessionChanged();
+  shellEvents.publishLogoutRequested();
+  unsubscribeSession();
+  unsubscribeLogout();
+  shellEvents.publishAuthSessionChanged();
+  shellEvents.publishLogoutRequested();
+
+  assert.deepEqual(deliveries, ["session", "logout"]);
+});

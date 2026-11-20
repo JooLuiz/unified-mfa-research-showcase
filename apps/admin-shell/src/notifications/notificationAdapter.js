@@ -1,47 +1,15 @@
 /**
  * Provides the admin shell's page-local notification transport.
- * Role: Binds the shared notification adapter to this shell's namespaced event channel.
- * Not in this file: Toast rendering, notification state, backend delivery, or cross-tab communication.
- * Key dependencies: @shared/notifications.
+ * Role: Binds the shared notification adapter to the shell event interface.
+ * Not in this file: Toast rendering or backend notification delivery.
+ * Key dependencies: @shared/notifications; src/events/eventBus.js.
  * See also: src/notifications/notificationCenter.js.
  */
 
 import { createNotificationAdapter } from "@shared/notifications";
+import { shellTransport } from "../events/eventBus";
 
-const NOTIFICATION_EVENT_NAME = "admin-shell:notification";
-
-/**
- * Creates a window transport for this shell's notification channel.
- *
- * @returns {{ publish: (message: { payload: object }) => void, subscribe: (topic: string, event: string, callback: (message: { payload: object }) => void) => () => void }} Notification transport.
- * @sideEffects Dispatches and listens for the admin notification CustomEvent.
- */
-function createNotificationTransport() {
-  function publish({ payload }) {
-    window.dispatchEvent(
-      new CustomEvent(NOTIFICATION_EVENT_NAME, {
-        detail: payload,
-      }),
-    );
-  }
-
-  function subscribe(_topic, _event, callback) {
-    function handleNotification(domEvent) {
-      callback({ payload: domEvent.detail });
-    }
-
-    window.addEventListener(NOTIFICATION_EVENT_NAME, handleNotification);
-    return function unsubscribeFromNotifications() {
-      window.removeEventListener(NOTIFICATION_EVENT_NAME, handleNotification);
-    };
-  }
-
-  return { publish, subscribe };
-}
-
-const { notify, subscribeToNotifications } = createNotificationAdapter(
-  createNotificationTransport(),
-);
+const { notify, subscribeToNotifications } = createNotificationAdapter(shellTransport);
 
 const publishNotification = notify;
 

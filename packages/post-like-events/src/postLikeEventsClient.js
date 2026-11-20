@@ -1,52 +1,45 @@
 /**
  * Public per-tab post-like and post-created stream client.
- * Role: Module-level singleton (one per apiBaseUrl) that lets any page share the tab's single
- *   social stream without each one opening its own connection.
- * Not in this file: The underlying EventSource/reconnect mechanics (src/createPostLikesSession.js)
- *   or the toggle write (src/togglePostLike.js).
+ * Role: Lets callers share one posts subscription for the first transport they pass.
+ * Not in this file: Toggle writes (src/togglePostLike.js).
  * Key dependencies: src/createPostLikesSession.js.
- * See also: apps/social-media-shell/src/main.js; apps/social-media-shell/src/pages/feedPage.js;
- *   apps/social-media-shell/src/pages/postsPage.js.
+ * See also: apps/social-media-shell/src/main.js.
  */
 
 import { createPostLikesStream } from "./createPostLikesSession.js";
 
-/** @type {Map<string, ReturnType<typeof createPostLikesStream>>} */
-const streamsByApiBaseUrl = new Map();
+/** @type {ReturnType<typeof createPostLikesStream> | null} */
+let sharedStream = null;
 
-function getOrCreateStream(apiBaseUrl) {
-  const existingStream = streamsByApiBaseUrl.get(apiBaseUrl);
-  if (existingStream) {
-    return existingStream;
+function getOrCreateStream(transport) {
+  if (!sharedStream) {
+    sharedStream = createPostLikesStream(transport);
   }
-  const stream = createPostLikesStream({ apiBaseUrl });
-  streamsByApiBaseUrl.set(apiBaseUrl, stream);
-  return stream;
+  return sharedStream;
 }
 
 /**
- * Subscribes to this tab's shared post-likes stream for one API base url, opening it (if not
- * already opened by an earlier caller) on first use. The stream stays open for the life of the
- * tab, independent of any one subscriber's lifetime.
+ * Subscribes to live like counts.
  *
- * @param {string} apiBaseUrl - Mock API base URL.
+ * @param {{ subscribe: Function }} transport - Event interface.
  * @param {(event: { postId: string, likes: number, ownerId: string, likerId: string, likerName: string, liked: boolean }) => void} listener - Called for every push.
- * @returns {() => void} Unsubscribe function; call it on page unmount.
+ * @returns {() => void} Unsubscribe function.
+ * @sideEffects Subscribes to community-likes/changed.
  */
-function subscribeToPostLikesChanged(apiBaseUrl, listener) {
-  return getOrCreateStream(apiBaseUrl).subscribe(listener);
+function subscribeToPostLikesChanged(transport, listener) {
+  return getOrCreateStream(transport).subscribe(listener);
 }
 
 /**
- * Subscribes to this tab's shared social stream for newly created posts, opening it (if not
- * already opened by an earlier caller, likes or otherwise) on first use.
+ * Subscribes to newly created posts.
  *
- * @param {string} apiBaseUrl - Mock API base URL.
+ * @param {{ subscribe: Function }} transport - Event interface.
  * @param {(post: object) => void} listener - Called with each newly created post.
- * @returns {() => void} Unsubscribe function; call it on page unmount.
+ * @returns {() => void} Unsubscribe function.
+ * @sideEffects Subscribes to community-posts/created.
  */
-function subscribeToPostCreated(apiBaseUrl, listener) {
-  return getOrCreateStream(apiBaseUrl).subscribeToPostCreated(listener);
+function subscribeToPostCreated(transport, listener) {
+  return getOrCreateStream(transport).subscribeToPostCreated(listener);
 }
 
 export { subscribeToPostLikesChanged, subscribeToPostCreated };

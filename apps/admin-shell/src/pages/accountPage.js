@@ -8,8 +8,7 @@
 
 import { persistAccountUpdate } from "../commands/accountCommands";
 import { requestSignOutEverywhere } from "@shared/session-events";
-import { publishLogoutRequested } from "../events/eventBus";
-import { MOCK_API_BASE_URL } from "../utils/constants";
+import { publishLogoutRequested, shellTransport } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 
 /**
@@ -48,10 +47,7 @@ async function renderAccountPage(appState, pageMount, activeCleanupFunctions) {
     signOutEverywhereButton.addEventListener("click", async () => {
       signOutEverywhereButton.disabled = true;
       try {
-        await requestSignOutEverywhere({
-          apiBaseUrl: MOCK_API_BASE_URL,
-          authToken: appState.authToken,
-        });
+        await requestSignOutEverywhere(shellTransport);
       } catch (error) {
         console.warn("signOutEverywhereButton - error");
         console.warn(error);

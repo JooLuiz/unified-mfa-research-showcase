@@ -11,10 +11,10 @@ import { getOrCreateGuestStockSessionId, reserveStockQuantity, setStockQuantity 
 import {
   publishCartChanged,
   publishCartItemAddRequested,
+  shellTransport,
 } from "../events/eventBus";
 import { publishNotification } from "../notifications/notificationAdapter";
 import { scheduleCartPersist } from "./cartSync";
-import { MOCK_API_BASE_URL } from "./constants";
 
 const STOCK_ISSUE_NOTIFICATION_MESSAGE =
   "Looks like there's a stock issue with this product, please try again later.";
@@ -137,16 +137,16 @@ function removeCartItem(appState, productId) {
 }
 
 /**
- * Returns the stock caller identity for the current shopper.
+ * Returns the guest stock session id when the shopper is signed out.
  *
  * @param {object} appState - Shell state holding an optional auth token.
- * @returns {{ authToken: string } | { guestSessionId: string }} Exactly one identity field.
+ * @returns {string} Guest session id, or an empty string for a signed-in shopper.
  */
-function getStockHolderIdentity(appState) {
+function guestStockSessionId(appState) {
   if (appState.authToken) {
-    return { authToken: appState.authToken };
+    return "";
   }
-  return { guestSessionId: getOrCreateGuestStockSessionId() };
+  return getOrCreateGuestStockSessionId();
 }
 
 /**
@@ -161,11 +161,10 @@ function getStockHolderIdentity(appState) {
 async function addCartItemWithStockCheck(appState, productId, quantityToAdd) {
   const quantityValue =
     Number.isFinite(quantityToAdd) && quantityToAdd > 0 ? quantityToAdd : 1;
-  const reservationResult = await reserveStockQuantity({
-    apiBaseUrl: MOCK_API_BASE_URL,
-    ...getStockHolderIdentity(appState),
+  const reservationResult = await reserveStockQuantity(shellTransport, {
     productId,
     quantity: quantityValue,
+    sessionId: guestStockSessionId(appState),
   });
   if (!reservationResult.ok) {
     return reservationResult;
@@ -186,11 +185,10 @@ async function addCartItemWithStockCheck(appState, productId, quantityToAdd) {
  */
 async function setCartItemQuantityWithStockCheck(appState, productId, quantity) {
   const quantityValue = Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
-  const reservationResult = await setStockQuantity({
-    apiBaseUrl: MOCK_API_BASE_URL,
-    ...getStockHolderIdentity(appState),
+  const reservationResult = await setStockQuantity(shellTransport, {
     productId,
     quantity: quantityValue,
+    sessionId: guestStockSessionId(appState),
   });
   if (!reservationResult.ok) {
     return reservationResult;
@@ -222,9 +220,8 @@ async function reReserveGuestCartLines(appState) {
   let anyLineRemoved = false;
 
   for (const cartItem of cartItemsSnapshot) {
-    const reservationResult = await setStockQuantity({
-      apiBaseUrl: MOCK_API_BASE_URL,
-      guestSessionId,
+    const reservationResult = await setStockQuantity(shellTransport, {
+      sessionId: guestSessionId,
       productId: cartItem.productId,
       quantity: cartItem.quantity,
     });

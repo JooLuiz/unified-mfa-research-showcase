@@ -3,38 +3,30 @@
  * Role: Opens the all-orders status stream and sends ship, deliver, cancel, accept, and decline writes.
  * Not in this file: Customer cancellation requests (src/customerOrderStatusClient.js) or table markup.
  * Key dependencies: src/createOrderStatusSession.js; src/requestOrderStatusChange.js.
- * See also: apps/admin-shell/src/main.js; apps/admin-shell/src/pages/ordersPage.js.
+ * See also: apps/admin-shell/src/main.js; apps/order-details/src/useOrderDetails.js.
  */
 
-import {
-  ADMIN_ORDER_STATUS_STREAM_PATH,
-  ADMIN_ORDER_STATUS_TICKET_PATH,
-} from "./orderStatusContracts.js";
 import { createOrderStatusStreamSession } from "./createOrderStatusSession.js";
 import { requestOrderStatusChange } from "./requestOrderStatusChange.js";
 
-const adminOrderStatusSession = createOrderStatusStreamSession({
-  ticketPath: ADMIN_ORDER_STATUS_TICKET_PATH,
-  streamPath: ADMIN_ORDER_STATUS_STREAM_PATH,
-  logName: "startAdminOrderStatusStream",
-});
+const adminOrderStatusSession = createOrderStatusStreamSession();
 
 /**
  * Opens this tab's admin order-status stream. A second call while it is open does nothing.
  *
- * @param {{ apiBaseUrl: string, authToken: string }} startInput - Mock API base and the admin bearer token.
- * @returns {Promise<void>}
- * @sideEffects Opens one EventSource for this tab.
+ * @param {{ subscribe: Function }} transport - Admin event interface.
+ * @returns {void}
+ * @sideEffects Subscribes to orders/status-changed.
  */
-function startAdminOrderStatusStream(startInput) {
-  return adminOrderStatusSession.start(startInput);
+function startAdminOrderStatusStream(transport) {
+  adminOrderStatusSession.start(transport);
 }
 
 /**
  * Closes this tab's admin order-status stream.
  *
  * @returns {void}
- * @sideEffects Closes the EventSource.
+ * @sideEffects Unsubscribes from the transport.
  */
 function stopAdminOrderStatusStream() {
   adminOrderStatusSession.stop();
@@ -54,13 +46,13 @@ function subscribeToAdminOrderStatusChanged(listener) {
 /**
  * Asks the server to apply an admin status transition.
  *
- * @param {{ apiBaseUrl: string, authToken: string, orderId: string, status: string }} changeInput - API base, admin bearer token, order id, and the next status.
+ * @param {{ request: Function }} transport - Event interface.
+ * @param {{ orderId: string, status: string }} changeInput - Order id and the next status.
  * @returns {Promise<{ ok: true, order: object } | { ok: false, code: string }>} Updated order, or a rejection code.
- * @sideEffects PUTs the requested status, claiming the admin actor. The server requires the caller
- *   to hold the admin role for this claim to be granted.
+ * @sideEffects Sends orders/status-change with the admin actor.
  */
-function requestAdminOrderStatusChange(changeInput) {
-  return requestOrderStatusChange({ ...changeInput, actor: "admin" });
+function requestAdminOrderStatusChange(transport, { orderId, status }) {
+  return requestOrderStatusChange(transport, { orderId, status, actor: "admin" });
 }
 
 export {

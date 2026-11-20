@@ -1,20 +1,21 @@
 /**
- * Verifies session revocation delivery on an injected transport.
- * Role: Locks that a subscriber receives one revocation and nothing after unsubscribe.
- * Not in this file: The live connection or local sign-out suppression.
+ * Verifies session revocation delivery and the sign-out command on an injected transport.
+ * Role: Locks that a subscriber receives one revocation, and that sign-out returns the transport outcome.
+ * Not in this file: The HTTP adapter that produces a sign-out status.
  * Key dependencies: node:test; src/createSessionEvents.js; src/sessionRevocationCommands.js; test/support/createRecordingTransport.js.
  * See also: src/createSessionEvents.js.
  */
 
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createRecordingTransport } from "../../../test/support/createRecordingTransport.js";
 import {
   createSessionEvents,
   SESSION_REVOKED_EVENT,
   SESSION_TOPIC,
 } from "./createSessionEvents.js";
+import { createSessionStreamSession } from "./createSessionSession.js";
 import { requestSignOutEverywhere } from "./sessionRevocationCommands.js";
-import { createRecordingTransport } from "../../../test/support/createRecordingTransport.js";
 
 test("subscribeToSessionRevoked delivers one revocation until unsubscribe", () => {
   const transport = createRecordingTransport();
@@ -31,41 +32,65 @@ test("subscribeToSessionRevoked delivers one revocation until unsubscribe", () =
   assert.deepEqual(deliveries, ["revoked"]);
 });
 
-test("sign-out everywhere without a token stays unauthorized", async () => {
-  const result = await requestSignOutEverywhere({
-    apiBaseUrl: "http://localhost:4000/api",
-    authToken: "",
+test("createSessionStreamSession delivers a revocation, stops, and ignores one after a local sign-out", () => {
+  const transport = createRecordingTransport();
+  const session = createSessionStreamSession();
+  const deliveries = [];
+  const unsubscribe = session.subscribe(() => {
+    deliveries.push("revoked");
   });
+
+  session.start(transport);
+  transport.deliver("session", "revoked", {});
+  session.markLocalSignOut();
+  transport.deliver("session", "revoked", {});
+  assert.deepEqual(deliveries, ["revoked"]);
+
+  session.stop();
+  transport.deliver("session", "revoked", {});
+  assert.deepEqual(deliveries, ["revoked"]);
+
+  session.start(transport);
+  transport.deliver("session", "revoked", {});
+  unsubscribe();
+  session.stop();
+  assert.deepEqual(deliveries, ["revoked", "revoked"]);
+});
+
+/**
+ * Runs sign-out everywhere and locks the recorded request.
+ *
+ * @param {object} requestReply - Outcome the transport resolves.
+ * @returns {Promise<object>} Command result.
+ * @sideEffects Asserts the recorded session request.
+ */
+async function runSignOut(requestReply) {
+  const transport = createRecordingTransport({ requestReply });
+  const result = await requestSignOutEverywhere(transport);
+  assert.deepEqual(transport.published, [
+    {
+      topic: "session",
+      event: "sign-out-everywhere",
+      payload: {},
+    },
+  ]);
+  return result;
+}
+
+test("sign-out everywhere returns the transport's unauthorized outcome", async () => {
+  const result = await runSignOut({ ok: false, status: 401 });
 
   assert.deepEqual(result, { ok: false, status: 401 });
 });
 
-test("sign-out everywhere with a token reports the server status", async () => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => ({ ok: true, status: 204 });
+test("sign-out everywhere returns the transport's accepted status", async () => {
+  const signedOut = await runSignOut({ ok: true, status: 204 });
 
-  try {
-    const signedOut = await requestSignOutEverywhere({
-      apiBaseUrl: "http://localhost:4000/api",
-      authToken: "token-01",
-    });
-    assert.deepEqual(signedOut, { ok: true, status: 204 });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  assert.deepEqual(signedOut, { ok: true, status: 204 });
 });
 
-test("sign-out everywhere reports the HTTP status when the server rejects the token", async () => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => ({ ok: false, status: 503 });
+test("sign-out everywhere returns the transport's rejected status", async () => {
+  const result = await runSignOut({ ok: false, status: 503 });
 
-  try {
-    const result = await requestSignOutEverywhere({
-      apiBaseUrl: "http://localhost:4000/api",
-      authToken: "token-01",
-    });
-    assert.deepEqual(result, { ok: false, status: 503 });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  assert.deepEqual(result, { ok: false, status: 503 });
 });

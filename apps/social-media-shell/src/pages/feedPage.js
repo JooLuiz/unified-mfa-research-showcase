@@ -11,7 +11,8 @@
  */
 
 import { subscribeToPostLikesChanged, subscribeToPostCreated } from "@shared/post-like-events";
-import { ECOMMERCE_SHELL_BASE_URL, MOCK_API_BASE_URL } from "../utils/constants";
+import { ECOMMERCE_SHELL_BASE_URL } from "../utils/constants";
+import { shellTransport } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 import { toggleLikeForPost } from "../commands/postLikeCommands";
 
@@ -83,7 +84,7 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
     });
 
   activeCleanupFunctions.push(
-    subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes, likerId, liked }) => {
+    subscribeToPostLikesChanged(shellTransport, ({ postId, likes, likerId, liked }) => {
       appState.posts = appState.posts.map((post) => {
         if (post.id !== postId) {
           return post;
@@ -99,7 +100,7 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
   // appState.posts was already prepended by the global subscription in main.js; this one only
   // re-renders. New posts start at 0 likes, so they typically will not surface here until liked.
   activeCleanupFunctions.push(
-    subscribeToPostCreated(MOCK_API_BASE_URL, renderTrendingFeed),
+    subscribeToPostCreated(shellTransport, renderTrendingFeed),
   );
 
   const firstShowcase = appState.showcases[0];

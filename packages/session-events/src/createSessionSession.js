@@ -1,167 +1,79 @@
 /**
- * One EventSource per tab for session events (such as session.revoked).
- * Role: Manages a tab-scoped SSE connection to /auth/session-stream with reconnect logic,
- *   delivering events to registered listeners.
- * Not in this file: UI toasts or shell navigation.
- * Key dependencies: EventSource; src/createSessionEvents.js; src/sessionEventsContracts.js.
+ * One session subscription per tab.
+ * Role: Starts and stops the session/revoked subscription and suppresses the tab that is signing itself out.
+ * Not in this file: The sign-out HTTP command (src/sessionRevocationCommands.js).
+ * Key dependencies: src/sessionEventsContracts.js. The caller supplies the transport.
  * See also: src/sessionEventsClient.js.
  */
 
-import { createSessionEvents } from "./createSessionEvents.js";
-import {
-  SESSION_REVOKED_EVENT_NAME,
-  SESSION_STREAM_PATH,
-} from "./sessionEventsContracts.js";
-
-const INITIAL_RECONNECT_DELAY_MS = 2000;
-const MAX_RECONNECT_DELAY_MS = 30_000;
+import { SESSION_REVOKED_EVENT, SESSION_TOPIC } from "./sessionEventsContracts.js";
 
 /**
- * Creates a tab-scoped session stream session.
+ * Creates a tab-scoped session subscription.
  *
- * @returns {{
- *   start: (input: { apiBaseUrl: string, authToken: string }) => void,
- *   stop: () => void,
- *   markLocalSignOut: () => void,
- *   subscribe: (listener: () => void) => () => void
- * }} Stream controls.
+ * @returns {{ start: (transport: { subscribe: Function }) => void, stop: () => void, markLocalSignOut: () => void, subscribe: (listener: () => void) => () => void }} Session controls.
  */
 function createSessionStreamSession() {
-  /** @type {Set<(message: { payload?: object }) => void>} */
-  const inboundCallbacks = new Set();
-  const sessionEvents = createSessionEvents({
-    subscribe(_topic, _event, callback) {
-      inboundCallbacks.add(callback);
-      return function unsubscribeFromSessionRevoked() {
-        inboundCallbacks.delete(callback);
-      };
-    },
-  });
-  let activeEventSource = null;
-  let reconnectTimeoutId = null;
-  let reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
-  let activeApiBaseUrl = "";
-  let activeAuthToken = "";
+  /** @type {Set<() => void>} */
+  const listeners = new Set();
+  let unsubscribeFromTransport = null;
   let ignoreIncomingRevocation = false;
 
-  function clearReconnectTimer() {
-    if (reconnectTimeoutId) {
-      window.clearTimeout(reconnectTimeoutId);
-      reconnectTimeoutId = null;
-    }
-  }
-
-  function closeActiveEventSource() {
-    if (activeEventSource) {
-      activeEventSource.close();
-      activeEventSource = null;
-    }
-  }
-
-  function dispatchSessionRevoked() {
-    if (ignoreIncomingRevocation) {
+  /**
+   * Opens the session subscription when a previous one is not already open.
+   *
+   * @param {{ subscribe: Function }} transport - Event interface.
+   * @returns {void}
+   * @sideEffects Subscribes to session/revoked and clears a previous local sign-out suppression.
+   */
+  function start(transport) {
+    if (unsubscribeFromTransport) {
       return;
     }
-    inboundCallbacks.forEach((callback) => {
-      try {
-        callback({ payload: {} });
-      } catch (error) {
-        console.warn("createSessionStreamSession - listener error");
-        console.warn(error);
+    ignoreIncomingRevocation = false;
+    unsubscribeFromTransport = transport.subscribe(SESSION_TOPIC, SESSION_REVOKED_EVENT, () => {
+      if (ignoreIncomingRevocation) {
+        return;
       }
+      listeners.forEach((listener) => listener());
     });
   }
 
-  function scheduleReconnect() {
-    clearReconnectTimer();
-    reconnectTimeoutId = window.setTimeout(() => {
-      if (!activeAuthToken) {
-        return;
-      }
-      reconnectDelayMs = Math.min(reconnectDelayMs * 2, MAX_RECONNECT_DELAY_MS);
-      start({ apiBaseUrl: activeApiBaseUrl, authToken: activeAuthToken });
-    }, reconnectDelayMs);
-  }
-
   /**
-   * Opens the tab's single session stream when an authToken is present and none is currently open.
-   *
-   * @param {{ apiBaseUrl: string, authToken: string }} startInput - API base URL and bearer token.
-   * @returns {void}
-   * @sideEffects Opens one EventSource. Clears a previous local sign-out suppression so this session can be revoked remotely.
-   */
-  function start({ apiBaseUrl, authToken }) {
-    activeApiBaseUrl = apiBaseUrl;
-    activeAuthToken = authToken;
-
-    if (!authToken || activeEventSource) {
-      return;
-    }
-
-    ignoreIncomingRevocation = false;
-
-    try {
-      const streamUrl = `${apiBaseUrl}${SESSION_STREAM_PATH}?token=${encodeURIComponent(authToken)}`;
-      const eventSource = new EventSource(streamUrl);
-
-      eventSource.addEventListener(SESSION_REVOKED_EVENT_NAME, () => {
-        dispatchSessionRevoked();
-        closeActiveEventSource();
-      });
-
-      eventSource.onerror = () => {
-        closeActiveEventSource();
-        if (ignoreIncomingRevocation) {
-          return;
-        }
-        scheduleReconnect();
-      };
-
-      activeEventSource = eventSource;
-      reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
-    } catch (error) {
-      console.warn("createSessionStreamSession - start error");
-      console.warn(error);
-      scheduleReconnect();
-    }
-  }
-
-  /**
-   * Closes the open session stream and clears pending reconnect timers.
-   * Does not clear a local sign-out suppression. A session.revoked frame can still arrive after close.
+   * Closes the subscription. Does not clear a local sign-out suppression.
    *
    * @returns {void}
-   * @sideEffects Closes the EventSource.
+   * @sideEffects Unsubscribes from the transport.
    */
   function stop() {
-    activeAuthToken = "";
-    clearReconnectTimer();
-    reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
-    closeActiveEventSource();
+    if (unsubscribeFromTransport) {
+      unsubscribeFromTransport();
+      unsubscribeFromTransport = null;
+    }
   }
 
   /**
-   * Ignores the next session.revoked delivery on this tab.
-   * The tab that calls sign-out-everywhere still receives the broadcast on its own stream.
-   * stop() leaves this flag set so a frame that arrives after the stream closes is still ignored.
-   * The next start() clears it.
+   * Ignores session.revoked on this tab until the next start.
    *
    * @returns {void}
-   * @sideEffects Suppresses listener delivery and reconnect until the next stream start.
+   * @sideEffects Suppresses listener delivery for the current subscription.
    */
   function markLocalSignOut() {
     ignoreIncomingRevocation = true;
   }
 
   /**
-   * Subscribes a listener to the session.revoked event.
+   * Subscribes a listener to session.revoked.
    *
-   * @param {() => void} listener - Callback invoked when the user session is revoked.
+   * @param {() => void} listener - Called when a revocation arrives from another tab.
    * @returns {() => void} Unsubscribe function.
-   * @sideEffects Registers the listener on the shared session module.
+   * @sideEffects Registers the listener.
    */
   function subscribe(listener) {
-    return sessionEvents.subscribeToSessionRevoked(listener);
+    listeners.add(listener);
+    return function unsubscribeFromSessionRevoked() {
+      listeners.delete(listener);
+    };
   }
 
   return { start, stop, markLocalSignOut, subscribe };

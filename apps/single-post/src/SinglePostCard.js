@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { createServerEvents } from "@shared/server-events";
 import {
   togglePostLike,
   subscribeToPostLikesChanged,
@@ -31,6 +32,15 @@ export function SinglePostCard({
   });
   const [isToggling, setIsToggling] = useState(false);
 
+  const postTransport = useMemo(
+    () =>
+      createServerEvents({
+        getApiBaseUrl: () => apiBaseUrl,
+        getAuthToken: () => authToken || "",
+      }),
+    [apiBaseUrl, authToken],
+  );
+
   useEffect(() => {
     setLikeState({
       likes: post.likes || 0,
@@ -39,7 +49,7 @@ export function SinglePostCard({
   }, [post.likes, post.likedByCurrentUser]);
 
   useEffect(() => {
-    const unsubscribe = subscribeToPostLikesChanged((event) => {
+    const unsubscribe = subscribeToPostLikesChanged(postTransport, (event) => {
       if (event && event.postId === post.id) {
         setLikeState((prev) => ({
           likes: typeof event.likes === "number" ? event.likes : prev.likes,
@@ -51,7 +61,7 @@ export function SinglePostCard({
     return () => {
       unsubscribe();
     };
-  }, [post.id, currentUserId]);
+  }, [post.id, currentUserId, postTransport]);
 
   const isOwnPost = Boolean(currentUserId) && currentUserId === author.id;
   const isLikeDisabled = !currentUserId || isOwnPost || isToggling || !canLike;
@@ -62,11 +72,7 @@ export function SinglePostCard({
     }
     setIsToggling(true);
     try {
-      const result = await togglePostLike({
-        apiBaseUrl,
-        authToken,
-        postId: post.id,
-      });
+      const result = await togglePostLike(postTransport, { postId: post.id });
       if (result.ok) {
         setLikeState({
           likes: result.likes,

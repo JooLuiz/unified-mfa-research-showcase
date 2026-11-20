@@ -1,58 +1,25 @@
 /**
- * Downloads authenticated CSV exports for the social media shell.
- * Role: Converts a successful direct HTTP CSV response into a browser download and returns only its outcome.
- * Not in this file: Export UI, notifications, or event-mesh completion handling.
- * Key dependencies: Mock data service and the browser Blob, URL, and document APIs.
- * See also: src/pages/accountPage.js.
+ * Downloads the signed-in member's posts.
+ * Role: Asks the shell transport for the posts export. The adapter saves the file.
+ * Not in this file: Export UI (src/pages/accountPage.js).
+ * Key dependencies: The shell event interface.
+ * See also: src/pages/accountPage.js; src/events/eventEndpoints.js.
  */
-
-import { MOCK_API_BASE_URL } from "../utils/constants";
 
 /**
- * Requests and downloads a CSV export from the mock data service.
+ * Requests the posts CSV download.
  *
- * @param {{ endpointPath: string, fileName: string, authToken: string }} exportRequest - Endpoint path, download name, and current auth token.
- * @returns {Promise<{ ok: boolean }>} Whether a CSV file was successfully downloaded.
- * @sideEffects Performs an authenticated HTTP request and triggers a browser download.
+ * @param {{ request: Function }} transport - Event interface.
+ * @param {{ kind: "posts" }} exportRequest - Export kind. The social shell maps posts to my-posts.csv.
+ * @returns {Promise<{ ok: boolean }>} Whether a CSV file was downloaded.
+ * @sideEffects Sends exports/csv. The adapter triggers the browser download.
  */
-async function requestCsvExport({ endpointPath, fileName, authToken }) {
-  let objectUrl = "";
-  let downloadElement = null;
-
-  try {
-    const response = await fetch(`${MOCK_API_BASE_URL}${endpointPath}`, {
-      headers: {
-        Accept: "text/csv",
-        Authorization: `Bearer ${authToken}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error(
-        `requestCsvExport - request failed: ${response.status} ${response.statusText}`,
-      );
-    }
-
-    const csvBlob = await response.blob();
-    objectUrl = URL.createObjectURL(csvBlob);
-    downloadElement = document.createElement("a");
-    downloadElement.href = objectUrl;
-    downloadElement.download = fileName;
-    downloadElement.style.display = "none";
-    document.body.appendChild(downloadElement);
-    downloadElement.click();
-    return { ok: true };
-  } catch (error) {
-    console.warn("requestCsvExport - error");
-    console.warn(error);
-    return { ok: false };
-  } finally {
-    if (downloadElement) {
-      downloadElement.remove();
-    }
-    if (objectUrl) {
-      URL.revokeObjectURL(objectUrl);
-    }
-  }
+async function requestCsvExport(transport, { kind }) {
+  return transport.request({
+    topic: "exports",
+    event: "csv",
+    payload: { kind },
+  });
 }
 
 export { requestCsvExport };

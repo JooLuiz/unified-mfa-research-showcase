@@ -14,23 +14,23 @@ import {
   addCartItemWithStockCheck,
   reReserveGuestCartLines,
 } from "../utils/cartActions";
-import { MOCK_API_BASE_URL } from "../utils/constants";
-import { subscribeToCartItemAddRequests } from "./eventBus";
+import { shellTransport, subscribeToCartItemAddRequests } from "./eventBus";
 import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
  * Starts the shell's persistent stock stream and gates add-to-cart requests behind it.
  *
  * @param {object} appState - Shell state holding cart items, products, and an optional auth token.
+ * @param {{ subscribe: Function, publish: Function }} [transport] - Event interface. Defaults to the shell singleton.
  * @returns {void}
  * @sideEffects Opens the tab's stock stream and subscribes to cart-item-add requests for the
  *   lifetime of the tab; neither is ever torn down, matching the stream's own lifetime.
  */
-function startStockGating(appState) {
+function startStockGating(appState, transport = shellTransport) {
   // Opened once, eagerly, independent of any component mount: a guest's hold is released
   // specifically when this tab's stock stream connection drops, so the stream must outlive
   // every page render.
-  const stockWatchClient = createStockWatchClient({ apiBaseUrl: MOCK_API_BASE_URL });
+  const stockWatchClient = createStockWatchClient(transport);
   stockWatchClient.subscribeToReconnect(() => {
     void reReserveGuestCartLines(appState);
   });

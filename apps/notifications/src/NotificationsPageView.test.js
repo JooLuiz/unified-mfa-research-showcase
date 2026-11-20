@@ -15,6 +15,7 @@ import {
   startNotificationInboxLiveEvents,
   stopNotificationInboxLiveEvents,
 } from "@shared/notification-inbox-events";
+import { createRecordingTransport } from "../../../test/support/createRecordingTransport.js";
 import "../../../test/support/installBrowserGlobals.js";
 import { findElement, installDomDocument } from "../../../test/support/installDomDocument.js";
 import { loadAppModule } from "../../../test/support/loadAppModule.js";
@@ -82,38 +83,22 @@ test("an empty inbox shows the empty copy and disables mark-all", () => {
 });
 
 test("opening a linked row navigates, and a row without a link stays on the page", async () => {
-  const originalFetch = globalThis.fetch;
-  const originalWarn = console.warn;
-  const originalEventSource = globalThis.EventSource;
-  console.warn = () => {};
-  globalThis.EventSource = class QuietEventSource {
-    addEventListener() {}
-    close() {}
-  };
   const readItems = [
     { ...shippedNotification, read: true },
     welcomeNotification,
   ];
-  let inboxFetchCount = 0;
-  globalThis.fetch = async () => {
-    inboxFetchCount += 1;
-    const items = inboxFetchCount === 1 ? [shippedNotification, welcomeNotification] : readItems;
-    return {
-      ok: true,
-      status: 200,
-      statusText: "OK",
-      json: async () => ({ items }),
-    };
-  };
+  const transport = createRecordingTransport({
+    requestReplies: [
+      { ok: true, items: [shippedNotification, welcomeNotification] },
+      { ok: true, notification: { ...shippedNotification, read: true } },
+    ],
+    requestReply: { ok: true, items: readItems },
+  });
   const visited = [];
   let mounted;
 
   try {
-    await startNotificationInboxLiveEvents({
-      apiBaseUrl: "http://localhost:4000/api",
-      authToken: "token-01",
-      shell: "ecommerce",
-    });
+    await startNotificationInboxLiveEvents(transport, { shell: "ecommerce" });
     mounted = mountPage((path) => {
       visited.push(path);
     });
@@ -162,30 +147,17 @@ test("opening a linked row navigates, and a row without a link stays on the page
   } finally {
     mounted?.unmount();
     stopNotificationInboxLiveEvents();
-    globalThis.fetch = originalFetch;
-    globalThis.EventSource = originalEventSource;
-    console.warn = originalWarn;
   }
 });
 
 test("a linked row does not navigate when the host did not provide navigation", async () => {
-  const originalFetch = globalThis.fetch;
-  const originalWarn = console.warn;
-  console.warn = () => {};
-  globalThis.fetch = async () => ({
-    ok: true,
-    status: 200,
-    statusText: "OK",
-    json: async () => ({ items: [shippedNotification] }),
+  const transport = createRecordingTransport({
+    requestReply: { ok: true, items: [shippedNotification] },
   });
   let mounted;
 
   try {
-    await startNotificationInboxLiveEvents({
-      apiBaseUrl: "http://localhost:4000/api",
-      authToken: "token-01",
-      shell: "ecommerce",
-    });
+    await startNotificationInboxLiveEvents(transport, { shell: "ecommerce" });
     mounted = mountPage();
     const shippedRow = findElement(
       mounted.root,
@@ -198,7 +170,5 @@ test("a linked row does not navigate when the host did not provide navigation", 
   } finally {
     mounted?.unmount();
     stopNotificationInboxLiveEvents();
-    globalThis.fetch = originalFetch;
-    console.warn = originalWarn;
   }
 });

@@ -44,6 +44,7 @@ module.exports = applyE2eCoverage({
           requiredVersion: "^3.5.13",
         },
         "@shared/stock-events": { singleton: true },
+        "@shared/server-events": { singleton: true },
       },
     }),
     new HtmlWebpackPlugin({

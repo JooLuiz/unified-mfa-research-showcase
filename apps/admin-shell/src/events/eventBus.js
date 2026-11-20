@@ -6,6 +6,8 @@
  * See also: src/main.js; src/utils/mountActions.js.
  */
 
+import { NOTIFICATION_RAISED_EVENT, NOTIFICATION_TOPIC } from "@shared/notifications";
+import { composeShellTransport, createServerEvents } from "@shared/server-events";
 import {
   AUTH_LOGOUT_REQUESTED_EVENT,
   AUTH_SESSION_CHANGED_EVENT,
@@ -14,6 +16,8 @@ import {
   RENDER_REQUESTED_EVENT,
   createShellEvents,
 } from "@shared/shell-events";
+import { MOCK_API_BASE_URL } from "../utils/constants";
+import { createAdminEndpoints } from "./eventEndpoints";
 
 const HOST_NAVIGATE_EVENT = "host:navigate";
 const HOST_LOGOUT_EVENT = "host:logout";
@@ -22,6 +26,7 @@ const WINDOW_EVENT_BY_CONTRACT = {
   [`${AUTH_TOPIC}.${AUTH_SESSION_CHANGED_EVENT}`]: "auth:changed",
   [`${AUTH_TOPIC}.${AUTH_LOGOUT_REQUESTED_EVENT}`]: "auth:logout-request",
   [`${NAVIGATION_TOPIC}.${RENDER_REQUESTED_EVENT}`]: "global:renderApp",
+  [`${NOTIFICATION_TOPIC}.${NOTIFICATION_RAISED_EVENT}`]: "admin-shell:notification",
 };
 
 /**
@@ -58,6 +63,45 @@ function createBrowserTransport() {
   return { publish, subscribe };
 }
 
+const browserTransport = createBrowserTransport();
+
+let readAuthToken = () => "";
+
+/**
+ * Points the shell adapter at the live session token.
+ *
+ * @param {() => string | null | undefined} readToken - Reads the current bearer token.
+ * @returns {void}
+ */
+function bindShellTransport(readToken) {
+  readAuthToken = readToken;
+}
+
+/**
+ * Builds the admin event interface.
+ *
+ * @param {{ getAuthToken: () => string }} transportInput - Bearer token reader.
+ * @returns {{ publish: Function, subscribe: Function, request: Function, whenConnected: Function }} Window bus plus HTTP adapter.
+ */
+function createShellTransport({ getAuthToken }) {
+  const serverEvents = createServerEvents({
+    getApiBaseUrl: () => MOCK_API_BASE_URL,
+    getAuthToken,
+    endpoints: createAdminEndpoints(),
+  });
+  return composeShellTransport({
+    browserTransport,
+    serverEvents,
+    isWindowContract(topic, event) {
+      return Boolean(WINDOW_EVENT_BY_CONTRACT[`${topic}.${event}`]);
+    },
+  });
+}
+
+const shellTransport = createShellTransport({
+  getAuthToken: () => readAuthToken() || "",
+});
+
 const {
   publishRenderRequested,
   subscribeToRenderRequests,
@@ -65,7 +109,7 @@ const {
   subscribeToAuthSessionChanges,
   publishLogoutRequested,
   subscribeToLogoutRequests,
-} = createShellEvents(createBrowserTransport());
+} = createShellEvents(shellTransport);
 
 /**
  * Listens for header navigation and logout events on a mounted header element.
@@ -93,9 +137,12 @@ function subscribeToHeaderEvents(headerElement, handlers) {
 }
 
 export {
+  bindShellTransport,
+  createShellTransport,
   publishAuthSessionChanged,
   publishLogoutRequested,
   publishRenderRequested,
+  shellTransport,
   subscribeToAuthSessionChanges,
   subscribeToHeaderEvents,
   subscribeToLogoutRequests,

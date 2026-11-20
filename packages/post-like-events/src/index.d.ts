@@ -25,12 +25,12 @@ export type CreatedPost = {
 };
 
 export declare function subscribeToPostLikesChanged(
-  apiBaseUrl: string,
+  transport: { subscribe: PostLikeTransport["subscribe"] },
   listener: (event: PostLikesChangedEvent) => void,
 ): () => void;
 
 export declare function subscribeToPostCreated(
-  apiBaseUrl: string,
+  transport: { subscribe: PostLikeTransport["subscribe"] },
   listener: (post: CreatedPost) => void,
 ): () => void;
 
@@ -49,8 +49,13 @@ export type PostLikeEvents = {
 
 export declare function createPostLikeEvents(transport: PostLikeTransport): PostLikeEvents;
 
-export declare function togglePostLike(input: {
-  apiBaseUrl: string;
-  authToken: string;
-  postId: string;
-}): Promise<{ ok: true; liked: boolean; likes: number } | { ok: false; code: string }>;
+export declare function togglePostLike(
+  transport: {
+    request(message: {
+      topic: string;
+      event: string;
+      payload?: { postId?: string };
+    }): Promise<{ ok: true; liked: boolean; likes: number } | { ok: false; code: string }>;
+  },
+  input: { postId: string },
+): Promise<{ ok: true; liked: boolean; likes: number } | { ok: false; code: string }>;

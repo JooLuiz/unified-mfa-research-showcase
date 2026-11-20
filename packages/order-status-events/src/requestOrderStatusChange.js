@@ -1,42 +1,25 @@
 /**
- * Sends one order status write to the mock API.
- * Role: PUT /orders/:orderId/status for both the customer cancellation request and admin actions.
- * Not in this file: The SSE connection (src/createOrderStatusSession.js).
- * Key dependencies: fetch.
- * See also: apps/mock-data-service/src/routes/orderStatusRoutes.js.
+ * Sends one order status write through the injected transport.
+ * Role: Asks the server to move one order to the given status.
+ * Not in this file: The live status subscription (src/createOrderStatusSession.js).
+ * Key dependencies: The caller supplies the transport.
+ * See also: src/customerOrderStatusClient.js; src/adminOrderStatusClient.js.
  */
 
 /**
  * Asks the server to move one order to the given status.
  *
- * @param {{ apiBaseUrl: string, authToken: string, orderId: string, status: string, actor: "admin" | "customer" }} changeInput - API base, bearer token, order id, the next status, and the capacity the caller is acting in.
+ * @param {{ request: Function }} transport - Event interface.
+ * @param {{ orderId: string, status: string, actor: "admin" | "customer" }} changeInput - Order id, next status, and the capacity the caller is acting in.
  * @returns {Promise<{ ok: true, order: object } | { ok: false, code: string }>} Updated order, or a rejection code.
- * @sideEffects Performs the HTTP status write.
+ * @sideEffects Sends orders/status-change.
  */
-async function requestOrderStatusChange({ apiBaseUrl, authToken, orderId, status, actor }) {
-  try {
-    const response = await fetch(
-      `${apiBaseUrl}/orders/${encodeURIComponent(orderId)}/status`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ status, actor }),
-      },
-    );
-    if (!response.ok) {
-      const errorBody = await response.json().catch(() => ({}));
-      return { ok: false, code: errorBody.code || "request-failed" };
-    }
-    const order = await response.json();
-    return { ok: true, order };
-  } catch (error) {
-    console.warn("requestOrderStatusChange - error");
-    console.warn(error);
-    return { ok: false, code: "network-error" };
-  }
+function requestOrderStatusChange(transport, { orderId, status, actor }) {
+  return transport.request({
+    topic: "orders",
+    event: "status-change",
+    payload: { orderId, status, actor },
+  });
 }
 
 export { requestOrderStatusChange };

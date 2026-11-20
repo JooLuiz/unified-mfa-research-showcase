@@ -3,12 +3,24 @@
  * Role: Starts and stops a subscription to the shared stock client for the currently loaded
  *   product, reporting the live "available" count back through a callback.
  * Not in this file: Component state or rendering (src/product-details.component.ts).
- * Key dependencies: @shared/stock-events.
+ * Key dependencies: @shared/server-events; @shared/stock-events.
  * See also: src/product-details.component.ts.
  */
 
-import { createStockWatchClient } from "@shared/stock-events";
+import { createServerEvents } from "@shared/server-events";
+import {
+  createStockWatchClient,
+  getOrCreateGuestStockSessionId,
+} from "@shared/stock-events";
 import type { Product } from "./product-details.types";
+
+let readStockApiBaseUrl = (): string => "";
+
+const stockTransport = createServerEvents({
+  getApiBaseUrl: () => readStockApiBaseUrl(),
+  getAuthToken: () => "",
+  getStockSessionId: () => getOrCreateGuestStockSessionId(),
+});
 
 export type AvailabilityChangeCallback = (nextAvailable: number) => void;
 
@@ -32,7 +44,8 @@ export class ProductAvailabilityWatcher {
       return initialAvailable;
     }
 
-    const stockClient = createStockWatchClient({ apiBaseUrl });
+    readStockApiBaseUrl = () => apiBaseUrl;
+    const stockClient = createStockWatchClient(stockTransport);
     this.stopWatchingAvailability = stockClient.watchProduct(product.id, this.onAvailableChange);
     return initialAvailable;
   }

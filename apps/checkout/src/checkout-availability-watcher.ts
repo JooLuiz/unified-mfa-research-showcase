@@ -4,11 +4,23 @@
  *   removing subscriptions as the rendered line set changes, and reporting each line's live
  *   "available" count back through a callback.
  * Not in this file: Component state or rendering (src/checkout-items.ts).
- * Key dependencies: @shared/stock-events.
+ * Key dependencies: @shared/server-events; @shared/stock-events.
  * See also: src/checkout-items.ts.
  */
 
-import { createStockWatchClient } from "@shared/stock-events";
+import { createServerEvents } from "@shared/server-events";
+import {
+  createStockWatchClient,
+  getOrCreateGuestStockSessionId,
+} from "@shared/stock-events";
+
+let readCheckoutApiBaseUrl = (): string => "";
+
+const checkoutStockTransport = createServerEvents({
+  getApiBaseUrl: () => readCheckoutApiBaseUrl(),
+  getAuthToken: () => "",
+  getStockSessionId: () => getOrCreateGuestStockSessionId(),
+});
 
 export type AvailabilityByProductIdChangeCallback = (
   productId: string,
@@ -45,7 +57,8 @@ export class CheckoutAvailabilityWatcher {
       }
     }
 
-    const stockClient = createStockWatchClient({ apiBaseUrl: this.apiBaseUrl });
+    readCheckoutApiBaseUrl = () => this.apiBaseUrl || "";
+    const stockClient = createStockWatchClient(checkoutStockTransport);
     for (const productId of nextProductIds) {
       if (this.stopWatchingByProductId.has(productId)) {
         continue;

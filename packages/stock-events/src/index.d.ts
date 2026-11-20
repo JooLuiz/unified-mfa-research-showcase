@@ -8,19 +8,27 @@ export type StockReservationOutcome =
   | { ok: true; quantity: number; available: number }
   | { ok: false; code: string };
 
+export type StockCommandTransport = {
+  request(message: {
+    topic: string;
+    event: string;
+    payload?: { productId?: string; quantity?: number; sessionId?: string };
+  }): Promise<StockReservationOutcome>;
+};
+
 export type StockReservationInput = {
-  apiBaseUrl: string;
-  authToken?: string | null;
-  guestSessionId?: string | null;
   productId: string;
   quantity: number;
+  sessionId?: string | null;
 };
 
 export declare function reserveStockQuantity(
+  transport: StockCommandTransport,
   input: StockReservationInput,
 ): Promise<StockReservationOutcome>;
 
 export declare function setStockQuantity(
+  transport: StockCommandTransport,
   input: StockReservationInput,
 ): Promise<StockReservationOutcome>;
 
@@ -29,4 +37,13 @@ export type StockWatchClient = {
   subscribeToReconnect(listener: () => void): () => void;
 };
 
-export declare function createStockWatchClient(input: { apiBaseUrl: string }): StockWatchClient;
+export type StockWatchTransport = {
+  publish(message: { topic: string; event: string; payload?: object; scope?: string }): void;
+  subscribe(
+    topic: string,
+    event: string,
+    callback: (message: { payload?: { streamId?: string } }) => void,
+  ): () => void;
+};
+
+export declare function createStockWatchClient(transport: StockWatchTransport): StockWatchClient;

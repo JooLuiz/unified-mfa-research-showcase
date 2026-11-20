@@ -11,7 +11,6 @@ import {
   POST_SUBMITTED_EVENT,
   RESIZED_EVENT,
   createIframeBridge,
-  createPostMessageTransport,
 } from "@shared/iframe-bridge";
 
 const EVENT_BY_SUBMITTED_MESSAGE_TYPE = {
@@ -19,21 +18,20 @@ const EVENT_BY_SUBMITTED_MESSAGE_TYPE = {
   "post:form-submitted": POST_SUBMITTED_EVENT,
 };
 
-const iframeBridge = createIframeBridge(createPostMessageTransport());
-
 /**
  * Posts the current document height for one formulary frame.
  *
+ * @param {{ publish: Function, subscribe: Function }} transport - PostMessage adapter created by the iframe entry.
  * @param {string} frameId - Host iframe identifier, such as faq-formulary.
  * @returns {void}
  * @sideEffects Publishes an iframe resized message to the parent window.
  */
-function publishIframeResize(frameId) {
+function publishIframeResize(transport, frameId) {
   const contentHeight = Math.max(
     document.documentElement.scrollHeight,
     document.body.scrollHeight,
   );
-  iframeBridge.publishIframeMessage(RESIZED_EVENT, {
+  createIframeBridge(transport).publishIframeMessage(RESIZED_EVENT, {
     frameId,
     height: contentHeight,
   });
@@ -42,17 +40,18 @@ function publishIframeResize(frameId) {
 /**
  * Posts a completed formulary payload to the host.
  *
+ * @param {{ publish: Function, subscribe: Function }} transport - PostMessage adapter created by the iframe entry.
  * @param {string} messageType - faq:form-submitted or post:form-submitted.
  * @param {object} payload - Trimmed field values from the form.
  * @returns {void}
  * @sideEffects Publishes the submit message to the parent window.
  */
-function publishFormularySubmitted(messageType, payload) {
+function publishFormularySubmitted(transport, messageType, payload) {
   const eventName = EVENT_BY_SUBMITTED_MESSAGE_TYPE[messageType];
   if (!eventName) {
     return;
   }
-  iframeBridge.publishIframeMessage(eventName, payload);
+  createIframeBridge(transport).publishIframeMessage(eventName, payload);
 }
 
 export { publishIframeResize, publishFormularySubmitted };

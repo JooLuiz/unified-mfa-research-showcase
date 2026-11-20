@@ -2,13 +2,14 @@
  * Verifies carts pushed from another tab and a logout noticed from shared storage.
  * Role: Locks the cart left in this tab after a remote notice or a removed auth token.
  * Not in this file: Opening the live connection.
- * Key dependencies: node:test; src/utils/cartSync.js; test/support/installBrowserGlobals.js.
+ * Key dependencies: node:test; src/utils/cartSync.js; test/support/createRecordingTransport.js; test/support/installBrowserGlobals.js.
  * See also: src/utils/cartSync.js.
  */
 
 import assert from "node:assert/strict";
 import { register } from "node:module";
 import test from "node:test";
+import { createRecordingTransport } from "../../../../test/support/createRecordingTransport.js";
 import "../../../../test/support/installBrowserGlobals.js";
 
 const extensionlessRegistration = register(
@@ -68,62 +69,42 @@ function dispatchStorage(key, newValue) {
   window.dispatchEvent(storageEvent);
 }
 
-/**
- * Delivers a cross-tab cart message when this branch opened a channel.
- *
- * @param {object | null} message - Broadcast payload.
- * @returns {void}
- */
-function deliverCartMessage(message) {
-  if (activeCartChannel && typeof activeCartChannel.onmessage === "function") {
-    activeCartChannel.onmessage({ data: message });
-  }
-}
-
 test("a remote cart notice and a removed auth token leave this tab signed out", async () => {
-  const originalFetch = globalThis.fetch;
-  const originalWarn = console.warn;
-  console.warn = () => {};
   const appState = createSignedInCart();
-
-  try {
-    startCartTabSync(appState);
-    dispatchStorage("other-key", null);
-    assert.equal(appState.authToken, "token-01");
-    dispatchStorage(AUTH_TOKEN_STORAGE_KEY, "still-signed-in");
-    assert.equal(appState.cartItems[0].productId, "mug");
-    dispatchStorage(AUTH_TOKEN_STORAGE_KEY, null);
-    assert.equal(appState.authToken, null);
-    assert.deepEqual(appState.cartItems, []);
-    dispatchStorage(AUTH_TOKEN_STORAGE_KEY, null);
-    assert.equal(appState.currentUser, null);
-    startCartTabSync(appState);
-    assert.equal(appState.currentUser, null);
-
-    globalThis.fetch = async (_url, options) => {
-      if (options?.method === "PUT") {
-        return { ok: true, json: async () => ({}) };
-      }
-      return {
+  const transport = createRecordingTransport({
+    requestReplies: [
+      {
         ok: true,
-        json: async () => ({
+        cart: {
           items: [{ productId: "saved", quantity: 1 }],
           appliedCoupon: null,
           updatedAt: "2026-10-01T00:00:00.000Z",
-        }),
-      };
-    };
-    const merging = createSignedInCart();
-    merging.cartItems = [{ productId: "guest", quantity: 1 }];
-    const mergeResult = await mergeGuestCartOnLogin(merging, "token-01", "u-01");
-    assert.equal(typeof mergeResult.needsPersist, "boolean");
-    assert.equal(merging.cartItems.some((cartItem) => cartItem.productId === "guest"), true);
-    scheduleCartPersist(merging);
-    await flushCartPersist();
-    endCartSession(merging);
-    assert.deepEqual(merging.cartItems, []);
-  } finally {
-    globalThis.fetch = originalFetch;
-    console.warn = originalWarn;
-  }
+        },
+      },
+    ],
+    requestReply: { ok: true },
+  });
+
+  startCartTabSync(appState);
+  dispatchStorage("other-key", null);
+  assert.equal(appState.authToken, "token-01");
+  dispatchStorage(AUTH_TOKEN_STORAGE_KEY, "still-signed-in");
+  assert.equal(appState.cartItems[0].productId, "mug");
+  dispatchStorage(AUTH_TOKEN_STORAGE_KEY, null);
+  assert.equal(appState.authToken, null);
+  assert.deepEqual(appState.cartItems, []);
+  dispatchStorage(AUTH_TOKEN_STORAGE_KEY, null);
+  assert.equal(appState.currentUser, null);
+  startCartTabSync(appState);
+  assert.equal(appState.currentUser, null);
+
+  const merging = createSignedInCart();
+  merging.cartItems = [{ productId: "guest", quantity: 1 }];
+  const mergeResult = await mergeGuestCartOnLogin(merging, "token-01", "u-01", transport);
+  assert.equal(typeof mergeResult.needsPersist, "boolean");
+  assert.equal(merging.cartItems.some((cartItem) => cartItem.productId === "guest"), true);
+  scheduleCartPersist(merging, transport);
+  await flushCartPersist();
+  endCartSession(merging);
+  assert.deepEqual(merging.cartItems, []);
 });

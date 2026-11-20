@@ -8,6 +8,7 @@
 
 import { calculateCartTotals } from "../utils/cartActions";
 import { clearLocalCart, flushCartPersist, resumeCartPersist, scheduleCartPersist, suspendCartPersist } from "../utils/cartSync";
+import { shellTransport } from "../events/eventBus";
 import { placeOrder } from "./placeOrder";
 
 /**
@@ -43,7 +44,7 @@ async function placeCheckoutOrder(appState) {
   const orderTotals = calculateCheckoutTotals(appState);
   const totalAmount = orderTotals.subtotal - orderTotals.discountAmount;
 
-  const orderResult = await placeOrder(appState, {
+  const orderResult = await placeOrder(shellTransport, {
     items: orderItems,
     subtotal: orderTotals.subtotal,
     discountAmount: orderTotals.discountAmount,

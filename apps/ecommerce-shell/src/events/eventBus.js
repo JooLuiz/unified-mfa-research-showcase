@@ -12,6 +12,8 @@ import {
   CART_TOPIC,
   createCatalogEvents,
 } from "@shared/catalog-events";
+import { NOTIFICATION_RAISED_EVENT, NOTIFICATION_TOPIC } from "@shared/notifications";
+import { composeShellTransport, createServerEvents } from "@shared/server-events";
 import {
   AUTH_LOGOUT_REQUESTED_EVENT,
   AUTH_SESSION_CHANGED_EVENT,
@@ -20,6 +22,9 @@ import {
   RENDER_REQUESTED_EVENT,
   createShellEvents,
 } from "@shared/shell-events";
+import { getOrCreateGuestStockSessionId } from "@shared/stock-events";
+import { MOCK_API_BASE_URL } from "../utils/constants";
+import { createEcommerceEndpoints } from "./eventEndpoints";
 
 const HOST_NAVIGATE_EVENT = "host:navigate";
 const HOST_LOGOUT_EVENT = "host:logout";
@@ -30,6 +35,7 @@ const WINDOW_EVENT_BY_CONTRACT = {
   [`${NAVIGATION_TOPIC}.${RENDER_REQUESTED_EVENT}`]: "global:renderApp",
   [`${CART_TOPIC}.${CART_ITEM_ADD_REQUESTED_EVENT}`]: "cart:add-item",
   [`${CART_TOPIC}.${CART_CHANGED_EVENT}`]: "cart:updateGlobalCart",
+  [`${NOTIFICATION_TOPIC}.${NOTIFICATION_RAISED_EVENT}`]: "ecommerce-shell:notification",
 };
 
 /**
@@ -67,8 +73,58 @@ function createBrowserTransport() {
 }
 
 const browserTransport = createBrowserTransport();
-const shellEvents = createShellEvents(browserTransport);
-const catalogEvents = createCatalogEvents(browserTransport);
+
+let readAuthToken = () => "";
+
+/**
+ * Points the shell adapter at the live session token.
+ *
+ * @param {() => string | null | undefined} readToken - Reads the current bearer token.
+ * @returns {void}
+ */
+function bindShellTransport(readToken) {
+  readAuthToken = readToken;
+}
+
+/**
+ * Builds the ecommerce event interface.
+ *
+ * @param {{ getAuthToken: () => string }} transportInput - Bearer token reader.
+ * @returns {import("@shared/server-events").ServerEventTransport} Window bus plus HTTP adapter.
+ */
+function createShellTransport({ getAuthToken }) {
+  const serverEvents = createServerEvents({
+    getApiBaseUrl: () => MOCK_API_BASE_URL,
+    getAuthToken,
+    getStockSessionId: () => getOrCreateGuestStockSessionId(),
+    endpoints: createEcommerceEndpoints(),
+  });
+  return composeShellTransport({
+    browserTransport,
+    serverEvents,
+    isWindowContract(topic, event) {
+      return Boolean(WINDOW_EVENT_BY_CONTRACT[`${topic}.${event}`]);
+    },
+  });
+}
+
+let shellTransport = createShellTransport({
+  getAuthToken: () => readAuthToken() || "",
+});
+
+/**
+ * Replaces the shell event interface used by later stock calls.
+ *
+ * @param {import("@shared/server-events").ServerEventTransport} nextTransport - Transport read from the shellTransport binding on the next call.
+ * @returns {void}
+ * @sideEffects Assigns the shellTransport binding. Window helpers and the notification adapter created at startup keep the transport they already captured.
+ */
+function installShellTransport(nextTransport) {
+  shellTransport = nextTransport;
+}
+
+const shellEvents = createShellEvents(shellTransport);
+const catalogEvents = createCatalogEvents(shellTransport);
 
 /**
  * Subscribes to add-to-cart requests and keeps the existing CustomEvent detail shape.
@@ -120,11 +176,15 @@ const {
 const { publishCartItemAddRequested, publishCartChanged, subscribeToCartChanges } = catalogEvents;
 
 export {
+  bindShellTransport,
+  installShellTransport,
   publishAuthSessionChanged,
   publishCartChanged,
   publishCartItemAddRequested,
   publishLogoutRequested,
   publishRenderRequested,
+  shellTransport,
+  createShellTransport,
   subscribeToAuthSessionChanges,
   subscribeToCartChanges,
   subscribeToCartItemAddRequests,

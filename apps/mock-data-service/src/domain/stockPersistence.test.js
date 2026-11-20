@@ -115,6 +115,22 @@ test("reserveAdditiveStock and consumeStockForSale return persistence failure an
   assert.equal(writeStore.files["products.json"][0].stock, 5);
 });
 
+test("restoreStockForOrder returns persistence failure and leaves the previous stock", async () => {
+  const jsonStore = createSignedInStore(5);
+  jsonStore.writeJsonFile = async function failWrite() {
+    throw new Error("disk full");
+  };
+
+  const restoreResult = await restoreStockForOrder({
+    jsonStore,
+    items: [{ productId: "p-01", quantity: 1 }],
+  });
+
+  assert.equal(restoreResult.ok, false);
+  assert.equal(restoreResult.code, STOCK_PERSISTENCE_FAILED_CODE);
+  assert.equal(jsonStore.files["products.json"][0].stock, 5);
+});
+
 test("consumeStockForSale and restoreStockForOrder treat a missing item list as no change", async () => {
   const jsonStore = createSignedInStore(5);
 

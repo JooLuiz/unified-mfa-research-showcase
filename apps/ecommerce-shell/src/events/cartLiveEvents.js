@@ -1,160 +1,56 @@
 /**
- * Manages the ecommerce shell's live cart SSE connection.
- * Role: Exchanges the bearer token for a one-time ticket, opens the cart EventSource, and reconnects it.
- * Not in this file: Applying the cart (src/utils/cartSync.js).
- * Key dependencies: src/events/cartLiveEventsContracts.js; src/utils/fetchJson.js; EventSource.
- * See also: src/main.js; apps/mock-data-service/src/routes/cartRoutes.js.
+ * Fans the ecommerce shell's live cart into local listeners.
+ * Role: Subscribes to cart/live-changed and keeps the listener list cart sync already uses.
+ * Not in this file: Applying the cart (src/utils/cartSync.js) or the ticket exchange.
+ * Key dependencies: The shell event interface.
+ * See also: src/main.js; src/events/eventEndpoints.js.
  */
 
-import fetchJson from "../utils/fetchJson";
-import { MOCK_API_BASE_URL } from "../utils/constants";
-import { CART_CHANGED_EVENT_TYPE, CART_LIVE_EVENT_NAME } from "./cartLiveEventsContracts";
+/** @type {Set<(cart: object) => void>} */
+const cartListeners = new Set();
+let unsubscribeFromCart = null;
 
 /**
- * Re-dispatches a pushed cart as a window event for this tab.
+ * Starts the live cart subscription when this tab is not already listening.
  *
- * @param {MessageEvent} messageEvent - Raw SSE message event.
+ * @param {{ subscribe: Function }} transport - Event interface.
  * @returns {void}
- * @sideEffects Dispatches a window CustomEvent whose detail is the cart payload.
+ * @sideEffects Subscribes to cart/live-changed.
  */
-function dispatchCartLiveEvent(messageEvent) {
-  const cart = JSON.parse(messageEvent.data);
-  window.dispatchEvent(
-    new CustomEvent(CART_LIVE_EVENT_NAME, {
-      detail: cart,
-    }),
-  );
-}
-
-/**
- * Opens an authenticated SSE connection to the cart stream.
- *
- * @param {string} ticket - One-time connection ticket from POST /api/cart/connection-tickets.
- * @returns {EventSource} The open connection; callers own closing it.
- * @sideEffects Opens a network connection and registers the cart_changed listener.
- */
-function connectCartEventSource(ticket) {
-  const eventSource = new EventSource(
-    `${MOCK_API_BASE_URL}/cart/events?ticket=${encodeURIComponent(ticket)}`,
-  );
-  eventSource.addEventListener(CART_CHANGED_EVENT_TYPE, dispatchCartLiveEvent);
-  return eventSource;
-}
-
-const INITIAL_RECONNECT_DELAY_MS = 2000;
-const MAX_RECONNECT_DELAY_MS = 30_000;
-
-let activeEventSource = null;
-let reconnectTimeoutId = null;
-let reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
-let isStartInFlight = false;
-
-function clearReconnectTimer() {
-  if (reconnectTimeoutId) {
-    window.clearTimeout(reconnectTimeoutId);
-    reconnectTimeoutId = null;
-  }
-}
-
-function closeActiveEventSource() {
-  if (activeEventSource) {
-    activeEventSource.close();
-    activeEventSource = null;
-  }
-}
-
-/**
- * Exchanges the shopper's bearer token for a one-time cart SSE ticket.
- *
- * @param {object} appState - Shell state holding the authenticated session.
- * @returns {Promise<string>} Ticket to pass to the SSE connection.
- */
-async function requestConnectionTicket(appState) {
-  const { ticket } = await fetchJson(`${MOCK_API_BASE_URL}/cart/connection-tickets`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${appState.authToken}` },
-  });
-  return ticket;
-}
-
-/**
- * Schedules a reconnect that asks for a new ticket.
- *
- * @param {object} appState - Shell state holding the authenticated session.
- * @returns {void}
- * @sideEffects Registers a timeout. A missing token cancels the attempt.
- */
-function scheduleReconnect(appState) {
-  clearReconnectTimer();
-  reconnectTimeoutId = window.setTimeout(() => {
-    if (!appState.authToken) {
-      return;
-    }
-    reconnectDelayMs = Math.min(reconnectDelayMs * 2, MAX_RECONNECT_DELAY_MS);
-    void startCartLiveEvents(appState);
-  }, reconnectDelayMs);
-}
-
-/**
- * Starts the cart SSE connection when this tab has a token and is not already connected.
- *
- * @param {object} appState - Shell state holding the authenticated session.
- * @returns {Promise<void>}
- * @sideEffects Requests a fresh ticket and opens an EventSource. On error, closes it and retries with a new ticket.
- */
-async function startCartLiveEvents(appState) {
-  if (!appState.authToken || activeEventSource || isStartInFlight) {
+function startCartLiveEvents(transport) {
+  if (unsubscribeFromCart) {
     return;
   }
-
-  isStartInFlight = true;
-  try {
-    const ticket = await requestConnectionTicket(appState);
-    if (!appState.authToken) {
-      return;
-    }
-    activeEventSource = connectCartEventSource(ticket);
-    reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
-    activeEventSource.onerror = () => {
-      closeActiveEventSource();
-      scheduleReconnect(appState);
-    };
-  } catch (error) {
-    console.warn("startCartLiveEvents - error");
-    console.warn(error);
-    scheduleReconnect(appState);
-  } finally {
-    isStartInFlight = false;
-  }
+  unsubscribeFromCart = transport.subscribe("cart", "live-changed", (message) => {
+    const cart = message.payload;
+    cartListeners.forEach((listener) => listener(cart));
+  });
 }
 
 /**
- * Stops the cart SSE connection and cancels any pending reconnect.
+ * Stops the live cart subscription.
  *
  * @returns {void}
- * @sideEffects Closes the active EventSource and clears the reconnect timer.
+ * @sideEffects Unsubscribes from the transport.
  */
 function stopCartLiveEvents() {
-  clearReconnectTimer();
-  reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
-  closeActiveEventSource();
+  if (unsubscribeFromCart) {
+    unsubscribeFromCart();
+    unsubscribeFromCart = null;
+  }
 }
 
 /**
  * Subscribes to carts pushed on the live stream.
  *
- * @param {(cart: object) => void} listener - Called with each cart_changed payload.
+ * @param {(cart: object) => void} listener - Called with each cart payload.
  * @returns {() => void} Unsubscribe function.
- * @sideEffects Registers a window event listener.
+ * @sideEffects Registers the listener.
  */
 function subscribeToCartLiveEvents(listener) {
-  function handleCartLiveEvent(domEvent) {
-    listener(domEvent.detail);
-  }
-
-  window.addEventListener(CART_LIVE_EVENT_NAME, handleCartLiveEvent);
+  cartListeners.add(listener);
   return function unsubscribeFromCartLiveEvents() {
-    window.removeEventListener(CART_LIVE_EVENT_NAME, handleCartLiveEvent);
+    cartListeners.delete(listener);
   };
 }
 

@@ -2,8 +2,7 @@
  * Shared constants for the live-stock HTTP + SSE transport.
  * Role: Route paths, header names, SSE event names, and the insufficient-stock code, used by
  *   both the reservation commands and the watch stream/client on this branch.
- * Not in this file: HTTP calls (src/stockReservationCommands.js) or the EventSource lifecycle
- *   (src/createStockWatchClient.js).
+ * Not in this file: HTTP calls or the stream connection. Both live behind the injected transport.
  * Key dependencies: None.
  * See also: apps/mock-data-service/src/routes/stockRoutes.js.
  */

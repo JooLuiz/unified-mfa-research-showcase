@@ -8,6 +8,13 @@
 
 const FAILING_MODULE_URL = new URL("./failingModule.mjs", import.meta.url).href;
 
+const EMPTY_CHECKOUT_BASENAMES = new Set([
+  "polyfills",
+  "polyfills.ts",
+  "checkout-empty-page",
+  "checkout-empty-page.ts",
+]);
+
 /**
  * Drops encoding, slashes, and a query or hash so path checks see the module name.
  *
@@ -19,41 +26,57 @@ function modulePath(value) {
 }
 
 /**
- * Reports a bootstrap file whose dynamic import should fail.
+ * Reports one of the three shell index modules.
  *
  * @param {string | undefined} parentURL - Module that requested the import.
- * @returns {boolean} True for the three shell indexes and the empty-checkout entry.
+ * @returns {boolean} True when the parent is ecommerce, admin, or social index.js.
  */
-function isBootstrapParent(parentURL) {
+function isShellIndexParent(parentURL) {
   if (!parentURL) {
     return false;
   }
-  const normalized = modulePath(parentURL);
-  return (
-    /\/apps\/(ecommerce-shell|social-media-shell|admin-shell)\/src\/index\.js$/.test(normalized) ||
-    normalized.endsWith("/apps/checkout/src/checkout-empty-entry.ts")
+  return /\/apps\/(ecommerce-shell|social-media-shell|admin-shell)\/src\/index\.js$/.test(
+    modulePath(parentURL),
   );
 }
 
 /**
- * Reports a shell or empty-checkout application import.
+ * Reports the application import made by a shell index.
  *
  * @param {string} specifier - Relative request, or the absolute URL Node already resolved.
- * @returns {boolean} True when this import should fail instead of loading the application.
+ * @returns {boolean} True for ./main or ./main.js.
  */
-function isApplicationImport(specifier) {
+function isShellApplicationImport(specifier) {
   const path = modulePath(specifier);
-  return (
-    path === "./main.js" ||
-    path === "./main" ||
-    path.endsWith("/main.js") ||
-    path === "./polyfills" ||
-    path === "./polyfills.ts" ||
-    path.endsWith("/polyfills.ts") ||
-    path === "./checkout-empty-page" ||
-    path === "./checkout-empty-page.ts" ||
-    path.endsWith("/checkout-empty-page.ts")
-  );
+  return path === "./main.js" || path === "./main" || path.endsWith("/main.js");
+}
+
+/**
+ * Reports the empty-checkout polyfill or page import.
+ * Coverage may pass an absolute URL with no .ts suffix, so the basename is the identifier.
+ * The parent is not checked: this resolver is registered only by the bootstrap test process.
+ *
+ * @param {string} specifier - Relative request, or the absolute URL Node already resolved.
+ * @returns {boolean} True for polyfills or checkout-empty-page.
+ */
+function isEmptyCheckoutImport(specifier) {
+  const basename = modulePath(specifier).split("/").pop();
+  return EMPTY_CHECKOUT_BASENAMES.has(basename);
+}
+
+/**
+ * Chooses the failing module when a bootstrap import must not load the application.
+ *
+ * @param {string} specifier - Relative request, or the absolute URL Node already resolved.
+ * @param {string | undefined} parentURL - Module that requested the import.
+ * @returns {string | null} URL of the module that throws, or null when this import should load normally.
+ */
+export function redirectBootstrapSpecifier(specifier, parentURL) {
+  const shellImportFailed = isShellIndexParent(parentURL) && isShellApplicationImport(specifier);
+  if (shellImportFailed || isEmptyCheckoutImport(specifier)) {
+    return FAILING_MODULE_URL;
+  }
+  return null;
 }
 
 /**
@@ -65,8 +88,9 @@ function isApplicationImport(specifier) {
  * @returns {Promise<{ url: string, shortCircuit?: boolean }>} Resolved module.
  */
 export async function resolve(specifier, context, nextResolve) {
-  if (isBootstrapParent(context.parentURL) && isApplicationImport(specifier)) {
-    return { url: FAILING_MODULE_URL, shortCircuit: true };
+  const redirectedUrl = redirectBootstrapSpecifier(specifier, context.parentURL);
+  if (redirectedUrl) {
+    return { url: redirectedUrl, shortCircuit: true };
   }
   return nextResolve(specifier, context);
 }

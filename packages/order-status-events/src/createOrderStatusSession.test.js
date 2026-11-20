@@ -8,12 +8,13 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createRecordingTransport } from "../../../test/support/createRecordingTransport.js";
 import {
   createOrderStatusEvents,
   ORDERS_STATUS_CHANGED_EVENT,
   ORDERS_TOPIC,
 } from "./createOrderStatusEvents.js";
-import { createRecordingTransport } from "../../../test/support/createRecordingTransport.js";
+import { createOrderStatusStreamSession } from "./createOrderStatusSession.js";
 
 test("subscribeToOrderStatusChanged delivers one status update until unsubscribe", () => {
   const transport = createRecordingTransport();
@@ -37,4 +38,28 @@ test("subscribeToOrderStatusChanged delivers one status update until unsubscribe
   });
 
   assert.deepEqual(received, [shipped]);
+});
+
+test("createOrderStatusStreamSession delivers a status change until stop or unsubscribe", () => {
+  const transport = createRecordingTransport();
+  const session = createOrderStatusStreamSession();
+  const received = [];
+  const unsubscribe = session.subscribe((statusEvent) => {
+    received.push(statusEvent);
+  });
+  const shipped = { orderId: "order-01", status: "shipped" };
+
+  session.start(transport);
+  transport.deliver("orders", "status-changed", shipped);
+  unsubscribe();
+  transport.deliver("orders", "status-changed", { orderId: "order-01", status: "delivered" });
+  assert.deepEqual(received, [shipped]);
+
+  const afterUnsubscribe = [];
+  session.subscribe((statusEvent) => {
+    afterUnsubscribe.push(statusEvent);
+  });
+  session.stop();
+  transport.deliver("orders", "status-changed", { orderId: "order-01", status: "delivered" });
+  assert.deepEqual(afterUnsubscribe, []);
 });

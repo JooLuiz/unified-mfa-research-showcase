@@ -4,8 +4,7 @@
  *   mock API. `POST_CREATED_EVENT_NAME` travels over the same `/posts/stream` connection as
  *   `POST_LIKES_CHANGED_EVENT_NAME`, matching the server's single social SSE registry
  *   (apps/mock-data-service/src/infrastructure/postLikeEvents.js).
- * Not in this file: The EventSource lifecycle (src/createPostLikesSession.js) or the toggle
- *   write (src/togglePostLike.js).
+ * Not in this file: The stream connection or the toggle write (src/togglePostLike.js). Both live behind the injected transport.
  * Key dependencies: None.
  * See also: apps/mock-data-service/src/routes/postLikeRoutes.js;
  *   apps/mock-data-service/src/routes/postRoutes.js.
