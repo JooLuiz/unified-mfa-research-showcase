@@ -2,7 +2,7 @@
  * Renders the order details route for the ecommerce shell.
  * Role: Guards the route and mounts the order details MFE for the URL-encoded order id.
  * Not in this file: Order fetching or rendering internals (order-details MFE) or order history (src/pages/accountPage.js).
- * Key dependencies: order-details remote; src/utils/authActions.js.
+ * Key dependencies: order-details remote; src/utils/authActions.js; src/events/eventBus.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
@@ -12,6 +12,7 @@ import {
   rememberPostLoginRedirect,
 } from "../utils/authActions";
 import { MOCK_API_BASE_URL } from "../utils/constants";
+import { shellTransport } from "../events/eventBus";
 import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
@@ -52,6 +53,7 @@ async function renderOrderDetailsPage(appState, pageMount, modules, activeCleanu
       apiBaseUrl: MOCK_API_BASE_URL,
       actor: "customer",
       authToken: appState.authToken,
+      transport: shellTransport,
       onStatusRejected: () => {
         publishNotification({
           type: "error",
