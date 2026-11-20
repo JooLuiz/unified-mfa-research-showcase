@@ -9,8 +9,7 @@
   },
   "dependencies": {
     "vue": "^3.5.13",
-    "@shared/order-status-events": "*",
-    "@shared/server-events": "*"
+    "@shared/order-status-events": "*"
   },
   "devDependencies": {
     "css-loader": "^7.1.2",
