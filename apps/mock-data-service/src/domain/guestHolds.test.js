@@ -131,6 +131,30 @@ test("getTotalGuestHoldQuantity sums every session and deleteGuestHoldSession re
   assert.deepEqual(alreadyGone, { ok: true, removedLines: [] });
 });
 
+test("writeGuestHoldLine reports a failed read and leaves the hold file unchanged", async () => {
+  const jsonStore = createMemoryJsonStore({
+    "guestHolds.json": { "session-01": [{ productId: "p-01", quantity: 1 }] },
+  });
+  jsonStore.readJsonFile = async function failRead() {
+    throw new Error("unreadable");
+  };
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    const writeResult = await writeGuestHoldLine({
+      jsonStore,
+      sessionId: "session-01",
+      productId: "p-01",
+      quantity: 4,
+    });
+    assert.equal(writeResult.ok, false);
+    assert.equal(writeResult.code, GUEST_HOLDS_PERSISTENCE_FAILED_CODE);
+    assert.equal(jsonStore.files["guestHolds.json"]["session-01"][0].quantity, 1);
+  } finally {
+    console.error = originalConsoleError;
+  }
+});
+
 test("writeGuestHoldLine and deleteGuestHoldSession report a failed write", async () => {
   const jsonStore = createMemoryJsonStore({
     "guestHolds.json": { "session-01": [{ productId: "p-01", quantity: 1 }] },

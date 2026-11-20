@@ -1,18 +1,32 @@
+/**
+ * Live availability for one product card.
+ * Role: Binds the product-card stock adapter and watches the loaded product through the shared stock client.
+ * Not in this file: Rendering (src/product-card-component.js).
+ * Key dependencies: @shared/server-events; @shared/stock-events.
+ * See also: src/product-card-component.js.
+ */
+
 import { onUnmounted, ref, watch } from "vue";
-import { createStockWatchClient } from "@shared/stock-events";
+import { createServerEvents } from "@shared/server-events";
+import {
+  createStockWatchClient,
+  getOrCreateGuestStockSessionId,
+} from "@shared/stock-events";
+
+let readStockApiBaseUrl = () => "";
+
+const stockTransport = createServerEvents({
+  getApiBaseUrl: () => readStockApiBaseUrl(),
+  getAuthToken: () => "",
+  getStockSessionId: () => getOrCreateGuestStockSessionId(),
+});
 
 /**
- * Vue composable that keeps a product's live "available" count current.
- * Role: Starts and stops watching the loaded product through the shared stock client as the
- *   product or API base url changes, and clamps a quantity ref when the count it holds drops
- *   below the selected quantity.
- * Not in this file: Rendering (src/product-card-component.js) or the stock transport
- *   (@shared/stock-events).
- * Key dependencies: @shared/stock-events.
- * See also: src/product-card-component.js.
+ * Starts and stops watching the loaded product, and clamps the selected quantity when availability drops.
  *
  * @param {{ productRef: import("vue").Ref<{ id: string, available?: number } | null>, getApiBaseUrl: () => string, quantityRef: import("vue").Ref<number> }} availabilityInput - The loaded product, the current API base url, and the selected quantity to clamp.
  * @returns {{ availableCount: import("vue").Ref<number | null> }} The live available count, or null before a count is known.
+ * @sideEffects Subscribes to the shared stock client while the composable is mounted.
  */
 export function useProductAvailability({ productRef, getApiBaseUrl, quantityRef }) {
   const availableCount = ref(null);
@@ -31,7 +45,8 @@ export function useProductAvailability({ productRef, getApiBaseUrl, quantityRef 
     if (!product || !apiBaseUrl) {
       return;
     }
-    const stockClient = createStockWatchClient({ apiBaseUrl });
+    readStockApiBaseUrl = () => apiBaseUrl;
+    const stockClient = createStockWatchClient(stockTransport);
     stopWatchingAvailability = stockClient.watchProduct(product.id, (nextAvailable) => {
       availableCount.value = nextAvailable;
       if (nextAvailable > 0 && quantityRef.value > nextAvailable) {

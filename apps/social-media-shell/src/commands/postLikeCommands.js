@@ -12,7 +12,7 @@
  */
 
 import { togglePostLike } from "@shared/post-like-events";
-import { MOCK_API_BASE_URL } from "../utils/constants";
+import { shellTransport } from "../events/eventBus";
 import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
@@ -50,11 +50,7 @@ async function toggleLikeForPost(appState, post) {
     return null;
   }
 
-  const toggleResult = await togglePostLike({
-    apiBaseUrl: MOCK_API_BASE_URL,
-    authToken: appState.authToken,
-    postId: post.id,
-  });
+  const toggleResult = await togglePostLike(shellTransport, { postId: post.id });
   if (!toggleResult.ok) {
     return null;
   }

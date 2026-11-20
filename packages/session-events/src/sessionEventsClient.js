@@ -1,7 +1,7 @@
 /**
  * Singleton tab client for session event streaming.
- * Role: Provides start, stop, local sign-out suppression, and subscribe helpers for the tab's session SSE connection.
- * Not in this file: Stream internals or the sign-out HTTP request.
+ * Role: Provides start, stop, local sign-out suppression, and subscribe helpers for the tab's session subscription.
+ * Not in this file: Stream URL selection or the sign-out command.
  * Key dependencies: src/createSessionSession.js.
  * See also: src/sessionRevocationCommands.js.
  */
@@ -11,21 +11,21 @@ import { createSessionStreamSession } from "./createSessionSession.js";
 const sessionStreamSession = createSessionStreamSession();
 
 /**
- * Starts the tab's session stream with the given credentials.
+ * Starts the tab's session stream.
  *
- * @param {{ apiBaseUrl: string, authToken: string }} input - API base URL and token.
+ * @param {{ subscribe: Function }} transport - Event interface.
  * @returns {void}
- * @sideEffects Opens the tab's EventSource when none is open.
+ * @sideEffects Opens the tab's session subscription when none is open.
  */
-function startSessionStream(input) {
-  sessionStreamSession.start(input);
+function startSessionStream(transport) {
+  sessionStreamSession.start(transport);
 }
 
 /**
  * Stops the tab's session stream.
  *
  * @returns {void}
- * @sideEffects Closes the EventSource. Does not clear local sign-out suppression.
+ * @sideEffects Closes the subscription. Does not clear local sign-out suppression.
  */
 function stopSessionStream() {
   sessionStreamSession.stop();

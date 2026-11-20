@@ -11,8 +11,10 @@ import {
 
 import loadRemoteModules from "./utils/loadRemoteModules";
 import {
+  bindShellTransport,
   publishLogoutRequested,
   publishRenderRequested,
+  shellTransport,
   subscribeToAuthSessionChanges,
   subscribeToLogoutRequests,
   subscribeToRenderRequests,
@@ -49,6 +51,8 @@ const appState = {
   authToken: null,
   currentUser: null,
 };
+
+bindShellTransport(() => appState.authToken);
 
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
@@ -87,16 +91,9 @@ subscribeToNewInboxNotifications((notification) => {
  */
 function syncAdminLiveEventsWithSession() {
   if (isAdminAuthenticated(appState)) {
-    void startAdminLiveEvents(appState);
-    void startAdminOrderStatusStream({
-      apiBaseUrl: MOCK_API_BASE_URL,
-      authToken: appState.authToken,
-    });
-    void startNotificationInboxLiveEvents({
-      apiBaseUrl: MOCK_API_BASE_URL,
-      authToken: appState.authToken,
-      shell: "admin",
-    });
+    void startAdminLiveEvents(shellTransport);
+    void startAdminOrderStatusStream(shellTransport);
+    void startNotificationInboxLiveEvents(shellTransport, { shell: "admin" });
   } else {
     stopAdminLiveEvents();
     stopAdminOrderStatusStream();

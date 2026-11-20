@@ -16,12 +16,11 @@ import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
-import { publishLogoutRequested } from "../events/eventBus";
+import { publishLogoutRequested, shellTransport } from "../events/eventBus";
 import { persistAccountUpdate } from "../commands/accountCommands";
 import { requestCsvExport } from "../exports/requestCsvExport";
 import { publishNotification } from "../notifications/notificationAdapter";
 import { toggleLikeForPost } from "../commands/postLikeCommands";
-import { MOCK_API_BASE_URL } from "../utils/constants";
 
 /**
  * Renders the account page with profile, address, and "My Posts" sections.
@@ -64,10 +63,7 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
     signOutEverywhereButton.addEventListener("click", async () => {
       signOutEverywhereButton.disabled = true;
       try {
-        await requestSignOutEverywhere({
-          apiBaseUrl: MOCK_API_BASE_URL,
-          authToken: appState.authToken,
-        });
+        await requestSignOutEverywhere(shellTransport);
       } catch (error) {
         console.warn("signOutEverywhereButton - error");
         console.warn(error);
@@ -130,11 +126,7 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
   `;
   const exportPostsButton = accountPostsMount.querySelector("#exportPostsButton");
   const handlePostsExport = async () => {
-    const exportResult = await requestCsvExport({
-      endpointPath: "/exports/posts.csv",
-      fileName: "my-posts.csv",
-      authToken: appState.authToken,
-    });
+    const exportResult = await requestCsvExport(shellTransport, { kind: "posts" });
     publishNotification(
       exportResult.ok
         ? {
@@ -191,7 +183,7 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
   activeCleanupFunctions.push(accountPostFeedHandle);
 
   activeCleanupFunctions.push(
-    subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes, likerId, liked }) => {
+    subscribeToPostLikesChanged(shellTransport, ({ postId, likes, likerId, liked }) => {
       appState.posts = appState.posts.map((post) => {
         if (post.id !== postId) {
           return post;

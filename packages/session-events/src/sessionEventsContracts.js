@@ -1,7 +1,7 @@
 /**
  * Shared contracts and event names for the session stream.
  * Role: Centralizes topic/event names and endpoints across shells.
- * Not in this file: EventSource connection or shell state.
+ * Not in this file: The stream connection or shell state. Both live behind the injected transport.
  * Key dependencies: None.
  * See also: src/createSessionSession.js, src/sessionRevocationCommands.js.
  */

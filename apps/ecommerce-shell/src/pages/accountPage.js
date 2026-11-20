@@ -12,7 +12,7 @@ import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
-import { publishLogoutRequested } from "../events/eventBus";
+import { publishLogoutRequested, shellTransport } from "../events/eventBus";
 import { requestSignOutEverywhere } from "@shared/session-events";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import fetchJson from "../utils/fetchJson";
@@ -64,10 +64,7 @@ async function renderAccountPage(appState, pageMount, activeCleanupFunctions) {
     signOutEverywhereButton.addEventListener("click", async () => {
       signOutEverywhereButton.disabled = true;
       try {
-        await requestSignOutEverywhere({
-          apiBaseUrl: MOCK_API_BASE_URL,
-          authToken: appState.authToken,
-        });
+        await requestSignOutEverywhere(shellTransport);
       } catch (error) {
         console.warn("signOutEverywhereButton - error");
         console.warn(error);
@@ -165,11 +162,7 @@ async function renderMyOrdersList(appState, ordersContainer, activeCleanupFuncti
   exportOrdersButton.textContent = "Export CSV";
   ordersCardHeader.appendChild(exportOrdersButton);
   const handleOrdersExport = async () => {
-    const exportResult = await requestCsvExport({
-      endpointPath: "/exports/orders.csv",
-      fileName: "my-orders.csv",
-      authToken: appState.authToken,
-    });
+    const exportResult = await requestCsvExport(shellTransport, { kind: "orders" });
     publishNotification(
       exportResult.ok
         ? {

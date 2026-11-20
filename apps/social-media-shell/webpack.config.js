@@ -52,6 +52,7 @@ module.exports = applyE2eCoverage({
       shared: {
         "@shared/session-events": { singleton: true },
         "@shared/notification-inbox-events": { singleton: true },
+        "@shared/server-events": { singleton: true },
       },
     }),
     new HtmlWebpackPlugin({

@@ -1,7 +1,7 @@
 /**
  * Shared names for the order-status HTTP and SSE contract.
  * Role: Keeps the customer and admin clients on the same paths, shared topic, and SSE event name as the mock API.
- * Not in this file: The EventSource lifecycle or the status write.
+ * Not in this file: The stream connection or the status write. Both live behind the injected transport.
  * Key dependencies: None.
  * See also: apps/mock-data-service/src/routes/orderStatusRoutes.js.
  */

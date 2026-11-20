@@ -82,6 +82,8 @@ test("unitTestArguments selects the quiet reporter without logs and spec with lo
   assert.equal(verbose.includes("--disable-warning=ExperimentalWarning"), false);
   assert.equal(verbose.includes("--disable-warning=MODULE_TYPELESS_PACKAGE_JSON"), false);
   assert.ok(quiet.includes("--experimental-strip-types"));
+  assert.ok(quiet.includes("--test-coverage-exclude=packages/server-events/**"));
+  assert.ok(verbose.includes("--test-coverage-exclude=packages/server-events/**"));
   assert.ok(verbose.includes("--experimental-test-coverage"));
   assert.ok(quiet.includes("scripts/test/quietReporter.test.js"));
 });

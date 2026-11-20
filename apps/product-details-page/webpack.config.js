@@ -55,6 +55,7 @@ module.exports = applyE2eCoverage({
         rxjs: { singleton: true },
         "zone.js": { singleton: true },
         "@shared/stock-events": { singleton: true },
+        "@shared/server-events": { singleton: true },
       },
     }),
     new AngularWebpackPlugin({

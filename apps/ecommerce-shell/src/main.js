@@ -13,8 +13,10 @@ import {
 import loadRemoteModules from "./utils/loadRemoteModules";
 import loadMockData from "./utils/loadData";
 import {
+  bindShellTransport,
   publishLogoutRequested,
   publishRenderRequested,
+  shellTransport,
   subscribeToAuthSessionChanges,
   subscribeToCartChanges,
   subscribeToLogoutRequests,
@@ -36,7 +38,6 @@ import {
 } from "@shared/notification-inbox-events";
 import { subscribeToSessionRevoked } from "@shared/session-events";
 import { publishNotification } from "./notifications/notificationAdapter";
-import { MOCK_API_BASE_URL } from "./utils/constants";
 import { startStockGating } from "./events/stockGating";
 import { endCartSession, hydrateSavedCart, startCartTabSync } from "./utils/cartSync";
 import { navigate } from "./utils/navigate";
@@ -71,6 +72,8 @@ const appState = {
   authToken: null,
   currentUser: null,
 };
+
+bindShellTransport(() => appState.authToken);
 
 let currentRenderId = 0;
 let activeCleanupFunctions = [];
@@ -275,16 +278,9 @@ subscribeToNewInboxNotifications((notification) => {
 
 function syncCartLiveEventsWithSession() {
   if (appState.authToken) {
-    void startCartLiveEvents(appState);
-    void startCustomerOrderStatusStream({
-      apiBaseUrl: MOCK_API_BASE_URL,
-      authToken: appState.authToken,
-    });
-    void startNotificationInboxLiveEvents({
-      apiBaseUrl: MOCK_API_BASE_URL,
-      authToken: appState.authToken,
-      shell: "ecommerce",
-    });
+    void startCartLiveEvents(shellTransport);
+    void startCustomerOrderStatusStream(shellTransport);
+    void startNotificationInboxLiveEvents(shellTransport, { shell: "ecommerce" });
   } else {
     stopCartLiveEvents();
     stopCustomerOrderStatusStream();

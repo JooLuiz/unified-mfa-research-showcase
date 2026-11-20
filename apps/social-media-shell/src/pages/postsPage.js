@@ -11,14 +11,15 @@
  * See also: src/utils/renderActions.js (public barrel).
  */
 
+import { createPostMessageTransport } from "@shared/iframe-bridge";
 import { subscribeToPostLikesChanged, subscribeToPostCreated } from "@shared/post-like-events";
-import { publishRenderRequested } from "../events/eventBus";
+import { publishRenderRequested, shellTransport } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
-import { ECOMMERCE_SHELL_BASE_URL, MOCK_API_BASE_URL } from "../utils/constants";
+import { ECOMMERCE_SHELL_BASE_URL } from "../utils/constants";
 import { publishNotification } from "../notifications/notificationAdapter";
 import { persistNewPost } from "../commands/postCommands";
 import { toggleLikeForPost } from "../commands/postLikeCommands";
@@ -52,30 +53,34 @@ function redirectToEcommerceForBanner(banner) {
 
 function mountNewPostFormularyWithProps(containerElement, appState, modules) {
   const currentUser = appState.currentUser;
-  return modules.mountNewPostFormulary(containerElement, {
-    userName: currentUser?.fullName || currentUser?.username || "",
-    userEmail: currentUser?.email || "",
-    authorId: currentUser?.id || "",
-    onFormSubmitted: (payload) => {
-      if (!isAuthenticated(appState)) {
-        return;
-      }
-      void persistNewPost(appState, {
-        content: payload.content,
-        imageUrl: payload.imageUrl,
-        authorId: appState.currentUser?.id,
-      }).then((postResult) => {
-        if (postResult.ok) {
-          publishNotification({
-            type: "success",
-            title: "Post published",
-            message: "Your post is now visible in the community feed.",
-          });
-          publishRenderRequested();
+  return modules.mountNewPostFormulary(
+    containerElement,
+    {
+      userName: currentUser?.fullName || currentUser?.username || "",
+      userEmail: currentUser?.email || "",
+      authorId: currentUser?.id || "",
+      onFormSubmitted: (payload) => {
+        if (!isAuthenticated(appState)) {
+          return;
         }
-      });
+        void persistNewPost(appState, {
+          content: payload.content,
+          imageUrl: payload.imageUrl,
+          authorId: appState.currentUser?.id,
+        }).then((postResult) => {
+          if (postResult.ok) {
+            publishNotification({
+              type: "success",
+              title: "Post published",
+              message: "Your post is now visible in the community feed.",
+            });
+            publishRenderRequested();
+          }
+        });
+      },
     },
-  });
+    createPostMessageTransport(),
+  );
 }
 
 function mountLoginPromptForNewPost(containerElement) {
@@ -221,7 +226,7 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
   };
 
   activeCleanupFunctions.push(
-    subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes, likerId, liked }) => {
+    subscribeToPostLikesChanged(shellTransport, ({ postId, likes, likerId, liked }) => {
       appState.posts = appState.posts.map((post) => {
         if (post.id !== postId) {
           return post;
@@ -236,7 +241,7 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
 
   // appState.posts was already prepended by the global subscription in main.js; this one only
   // re-renders (see renderAllGroups' doc comment for the accepted trade-off).
-  activeCleanupFunctions.push(subscribeToPostCreated(MOCK_API_BASE_URL, renderAllGroups));
+  activeCleanupFunctions.push(subscribeToPostCreated(shellTransport, renderAllGroups));
 }
 
 export { renderPostsPage };

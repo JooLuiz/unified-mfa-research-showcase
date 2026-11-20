@@ -8,6 +8,7 @@
 
 import { getOrCreateGuestStockSessionId } from "@shared/stock-events";
 import { fetchSavedCart, saveSavedCart } from "../commands/cartCommands";
+import { shellTransport } from "../events/eventBus";
 import { subscribeToCartLiveEvents } from "../events/cartLiveEvents";
 import { publishCartChanged } from "../events/eventBus";
 import { clearAuthSession } from "./authActions";
@@ -173,14 +174,15 @@ function startCartTabSync(appState) {
  * Loads the saved cart into the shell before the first render.
  *
  * @param {object} appState - Shell state with an auth token, when the user is signed in.
+ * @param {{ request: Function }} [transport] - Event interface. Defaults to the shell singleton.
  * @returns {Promise<void>}
  * @sideEffects Replaces local cart state when the read succeeds.
  */
-async function hydrateSavedCart(appState) {
+async function hydrateSavedCart(appState, transport = shellTransport) {
   if (!appState.authToken) {
     return;
   }
-  const fetchedCart = await fetchSavedCart(appState.authToken);
+  const fetchedCart = await fetchSavedCart(transport, appState.authToken);
   if (!fetchedCart.ok) {
     return;
   }
@@ -193,16 +195,17 @@ async function hydrateSavedCart(appState) {
  * @param {object} appState - Shell state whose cart may hold guest lines.
  * @param {string} authToken - Token from the login response, not yet stored on appState.
  * @param {string | null} userId - Signed-in user id used to address other tabs.
+ * @param {{ request: Function }} [transport] - Event interface. Defaults to the shell singleton.
  * @returns {Promise<{ needsPersist: boolean }>} Whether the caller should save again after the session is stored.
- * @sideEffects Replaces local cart state. PUTs the merged cart when the guest tab contributed
+ * @sideEffects Replaces local cart state. Sends cart/save when the guest tab contributed
  *   lines, telling the server to release this tab's guest stock session in the same request
  *   (its held quantities are now folded into the saved cart).
  * Note: A failed cart read leaves the guest lines in memory and does not overwrite the saved cart.
  */
-async function mergeGuestCartOnLogin(appState, authToken, userId) {
+async function mergeGuestCartOnLogin(appState, authToken, userId, transport = shellTransport) {
   const guestItems = cloneCartItems(appState.cartItems);
   const guestCoupon = cloneAppliedCoupon(appState.appliedCoupon);
-  const fetchedCart = await fetchSavedCart(authToken);
+  const fetchedCart = await fetchSavedCart(transport, authToken);
   if (!fetchedCart.ok) {
     return { needsPersist: false };
   }
@@ -217,9 +220,10 @@ async function mergeGuestCartOnLogin(appState, authToken, userId) {
   }
 
   const saveResult = await saveSavedCart(
-    authToken,
+    transport,
     { items: mergedItems, appliedCoupon },
     getOrCreateGuestStockSessionId(),
+    authToken,
   );
   if (!saveResult.ok) {
     return { needsPersist: true };

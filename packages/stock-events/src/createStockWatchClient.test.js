@@ -8,12 +8,13 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createRecordingTransport } from "../../../test/support/createRecordingTransport.js";
+import { createStockWatchClient } from "./createStockWatchClient.js";
 import {
   createStockWatchEvents,
   STOCK_CHANGED_EVENT,
   STOCK_TOPIC,
 } from "./createStockWatchEvents.js";
-import { createRecordingTransport } from "../../../test/support/createRecordingTransport.js";
 
 test("watchProduct delivers that product's availability until unwatch", () => {
   const transport = createRecordingTransport();
@@ -81,4 +82,60 @@ test("subscribeToStockChanged delivers every update until unsubscribe", () => {
   });
 
   assert.deepEqual(received, [firstUpdate, secondUpdate]);
+});
+
+test("createStockWatchClient delivers one product and publishes the watched ids after the stream is ready", async (testContext) => {
+  testContext.mock.timers.enable({ apis: ["setTimeout"] });
+  const previousWindow = globalThis.window;
+  globalThis.window = {
+    setTimeout,
+    clearTimeout() {},
+  };
+  const transport = createRecordingTransport();
+  const received = [];
+  const reconnects = [];
+  const client = createStockWatchClient(transport);
+  const unwatch = client.watchProduct("p-01", (available) => {
+    received.push(available);
+  });
+  const unwatchSecond = client.watchProduct("p-01", () => {});
+  const unsubscribeReconnect = client.subscribeToReconnect(() => {
+    reconnects.push("reconnected");
+  });
+
+  try {
+    testContext.mock.timers.tick(150);
+    transport.deliver("stock", "changed", { productId: "p-01", available: 4 });
+    transport.deliver("stock", "changed", { productId: "p-02", available: 9 });
+    assert.deepEqual(received, [4]);
+
+    unwatchSecond();
+    transport.deliver("stock", "ready", { streamId: "stream-01" });
+    transport.deliver("stock", "ready", { streamId: "stream-02" });
+    testContext.mock.timers.tick(150);
+    unsubscribeReconnect();
+
+    unwatch();
+    transport.deliver("stock", "changed", { productId: "p-01", available: 1 });
+    testContext.mock.timers.tick(150);
+    assert.deepEqual(reconnects, ["reconnected"]);
+
+    assert.deepEqual(received, [4]);
+    const watchingMessages = transport.published.filter((message) => message.event === "watching");
+    assert.ok(watchingMessages.length >= 1);
+    assert.deepEqual(watchingMessages[0], {
+      topic: "stock",
+      event: "watching",
+      payload: { streamId: "stream-01", productIds: ["p-01"] },
+      scope: "distributed",
+    });
+  } finally {
+    unwatch();
+    if (previousWindow) {
+      globalThis.window = previousWindow;
+    } else {
+      delete globalThis.window;
+    }
+    testContext.mock.timers.reset();
+  }
 });

@@ -8,6 +8,7 @@
  */
 
 import { onMounted, onUnmounted, ref, watch } from "vue";
+import { createServerEvents } from "@shared/server-events";
 import {
   requestAdminOrderStatusChange,
   requestOrderCancellation,
@@ -96,17 +97,17 @@ function useOrderDetails(props) {
     if (!currentOrder?.id || !authToken || !props.apiBaseUrl) {
       return;
     }
+    const orderTransport = createServerEvents({
+      getApiBaseUrl: () => props.apiBaseUrl,
+      getAuthToken: () => authToken,
+    });
     const statusResult =
       props.actor === "admin"
-        ? await requestAdminOrderStatusChange({
-            apiBaseUrl: props.apiBaseUrl,
-            authToken,
+        ? await requestAdminOrderStatusChange(orderTransport, {
             orderId: currentOrder.id,
             status: nextStatus,
           })
-        : await requestOrderCancellation({
-            apiBaseUrl: props.apiBaseUrl,
-            authToken,
+        : await requestOrderCancellation(orderTransport, {
             orderId: currentOrder.id,
           });
     if (statusResult.ok) {

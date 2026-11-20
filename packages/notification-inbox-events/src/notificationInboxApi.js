@@ -1,91 +1,72 @@
 /**
- * HTTP operations for the notification inbox.
- * Role: Fetches notifications for a shell and marks one notification or the whole shell read.
+ * Notification inbox commands over an injected transport.
+ * Role: Fetches the shell inbox and marks one row or the whole shell read.
+ * Not in this file: The live subscription or in-memory inbox state (src/notificationInboxClient.js).
+ * Key dependencies: The caller supplies the transport.
+ * See also: src/notificationInboxClient.js.
  */
+
+const NOTIFICATION_INBOX_TOPIC = "notification-inbox";
 
 /**
- * Fetches notifications for a given shell.
+ * Fetches notifications for a shell.
  *
- * @param {{ apiBaseUrl: string, authToken: string, shell: string }} input
- * @returns {Promise<Array<object>>}
+ * @param {{ request: Function }} transport - Event interface.
+ * @param {{ shell: string }} input - Shell name, such as ecommerce or admin.
+ * @returns {Promise<object[]>} Inbox rows, or an empty list when the request fails.
+ * @sideEffects Sends notification-inbox/fetch.
  */
-export async function fetchNotificationInbox({ apiBaseUrl, authToken, shell }) {
-  if (!apiBaseUrl || !authToken || !shell) {
+export async function fetchNotificationInbox(transport, { shell }) {
+  if (!transport || !shell) {
     return [];
   }
-
-  const response = await fetch(
-    `${apiBaseUrl}/notifications?shell=${encodeURIComponent(shell)}`,
-    {
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(
-      `fetchNotificationInbox - request failed: ${response.status} ${response.statusText}`,
-    );
+  const result = await transport.request({
+    topic: NOTIFICATION_INBOX_TOPIC,
+    event: "fetch",
+    payload: { shell },
+  });
+  if (!result.ok) {
+    throw new Error("fetchNotificationInbox - request failed");
   }
-
-  const data = await response.json();
-  return Array.isArray(data.items) ? data.items : [];
+  return Array.isArray(result.items) ? result.items : [];
 }
 
 /**
- * Marks a single notification as read on the server.
+ * Marks a single notification as read.
  *
- * @param {{ apiBaseUrl: string, authToken: string, notificationId: string }} input
+ * @param {{ request: Function }} transport - Event interface.
+ * @param {{ notificationId: string }} input - Notification id.
  * @returns {Promise<object>} The updated notification row.
+ * @sideEffects Sends notification-inbox/mark-read.
  */
-export async function markNotificationAsRead({
-  apiBaseUrl,
-  authToken,
-  notificationId,
-}) {
-  const response = await fetch(
-    `${apiBaseUrl}/notifications/${encodeURIComponent(notificationId)}/read`,
-    {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(
-      `markNotificationAsRead - request failed: ${response.status} ${response.statusText}`,
-    );
+export async function markNotificationAsRead(transport, { notificationId }) {
+  const result = await transport.request({
+    topic: NOTIFICATION_INBOX_TOPIC,
+    event: "mark-read",
+    payload: { notificationId },
+  });
+  if (!result.ok) {
+    throw new Error("markNotificationAsRead - request failed");
   }
-
-  return response.json();
+  return result.notification;
 }
 
 /**
  * Marks every unread notification for the caller's shell as read.
  *
- * @param {{ apiBaseUrl: string, authToken: string, shell: string }} input
- * @returns {Promise<Array<object>>} The shell's notifications after the update.
+ * @param {{ request: Function }} transport - Event interface.
+ * @param {{ shell: string }} input - Shell name.
+ * @returns {Promise<object[]>} The shell's notifications after the update.
+ * @sideEffects Sends notification-inbox/mark-all-read.
  */
-export async function markAllNotificationsAsRead({ apiBaseUrl, authToken, shell }) {
-  const response = await fetch(
-    `${apiBaseUrl}/notifications/read-all?shell=${encodeURIComponent(shell)}`,
-    {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(
-      `markAllNotificationsAsRead - request failed: ${response.status} ${response.statusText}`,
-    );
+export async function markAllNotificationsAsRead(transport, { shell }) {
+  const result = await transport.request({
+    topic: NOTIFICATION_INBOX_TOPIC,
+    event: "mark-all-read",
+    payload: { shell },
+  });
+  if (!result.ok) {
+    throw new Error("markAllNotificationsAsRead - request failed");
   }
-
-  const data = await response.json();
-  return Array.isArray(data.items) ? data.items : [];
+  return Array.isArray(result.items) ? result.items : [];
 }

@@ -1,6 +1,6 @@
 /**
  * Builds one DOM node the React renderer can update in a unit test.
- * Role: Element, text, and document nodes with the methods React 18 calls while rendering.
+ * Role: Element, text, and document nodes with the methods React 18 and Vue call while rendering.
  * Not in this file: Installing globals or searching a tree.
  * Key dependencies: None.
  * See also: test/support/installDomDocument.js.
@@ -38,9 +38,39 @@ function createNode(nodeType, nodeName, ownerDocument) {
     type: "",
   };
 
+  // React replaces a text node's contents through nodeValue. textContent reads text.
+  if (nodeType === TEXT_NODE || nodeType === 8) {
+    let textValue = "";
+    Object.defineProperty(node, "text", {
+      get() {
+        return textValue;
+      },
+      set(value) {
+        textValue = value == null ? "" : String(value);
+      },
+    });
+    Object.defineProperty(node, "nodeValue", {
+      get() {
+        return textValue;
+      },
+      set(value) {
+        textValue = value == null ? "" : String(value);
+      },
+    });
+  }
+
   Object.defineProperty(node, "tagName", {
     get() {
       return node.nodeName;
+    },
+  });
+
+  Object.defineProperty(node, "innerHTML", {
+    get() {
+      return node.textContent;
+    },
+    set(value) {
+      node.textContent = value;
     },
   });
 
@@ -103,6 +133,10 @@ function createNode(nodeType, nodeName, ownerDocument) {
     child.parentNode = node;
     node.childNodes.push(child);
     return child;
+  };
+
+  node.append = (...children) => {
+    children.forEach((child) => node.appendChild(child));
   };
 
   node.insertBefore = (child, reference) => {

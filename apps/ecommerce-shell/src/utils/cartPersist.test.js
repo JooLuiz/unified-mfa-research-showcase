@@ -1,13 +1,14 @@
 /**
  * Verifies a suspended or cleared cart save never starts a write.
  * Role: Locks that the persist queue stays idle when a save is suspended or cleared before send.
- * Not in this file: A save the server rejects or accepts. That write uses the branch transport.
- * Key dependencies: node:test; src/utils/cartPersist.js; test/support/loadAppModule.js.
+ * Not in this file: A save the server rejects or accepts.
+ * Key dependencies: node:test; src/utils/cartPersist.js; test/support/createRecordingTransport.js; test/support/loadAppModule.js.
  * See also: src/utils/cartPersist.js.
  */
 
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createRecordingTransport } from "../../../../test/support/createRecordingTransport.js";
 import "../../../../test/support/installBrowserGlobals.js";
 import { loadAppModule } from "../../../../test/support/loadAppModule.js";
 
@@ -35,43 +36,35 @@ function createSignedInCart() {
 }
 
 test("a suspended save and a save cleared before it is sent finish idle", async (parentTest) => {
-  const originalFetch = globalThis.fetch;
-  const originalWarn = console.warn;
-  console.warn = () => {};
-
   try {
     await parentTest.test("a suspended save and a remote replacement do not write", async () => {
       const appState = createSignedInCart();
-      let saveAttempts = 0;
-      globalThis.fetch = async () => {
-        saveAttempts += 1;
-        throw new Error("offline");
-      };
+      const transport = createRecordingTransport();
 
       suspendCartPersist();
-      scheduleCartPersist(appState);
+      scheduleCartPersist(appState, transport);
       assert.equal(isCartPersistBusy(), false);
 
       resumeCartPersist();
       runWithoutCartPersist(() => {
-        scheduleCartPersist(appState);
+        scheduleCartPersist(appState, transport);
       });
       await flushCartPersist();
-      assert.equal(saveAttempts, 0);
+      assert.equal(transport.published.length, 0);
       assert.equal(isCartPersistBusy(), false);
     });
 
     await parentTest.test("a save cleared before it is sent finishes idle", async () => {
       const appState = createSignedInCart();
-      scheduleCartPersist(appState);
+      const transport = createRecordingTransport();
+      scheduleCartPersist(appState, transport);
       suspendCartPersist();
       await flushCartPersist();
+      assert.equal(transport.published.length, 0);
       assert.equal(isCartPersistBusy(), false);
       resumeCartPersist();
     });
   } finally {
-    console.warn = originalWarn;
-    globalThis.fetch = originalFetch;
     resumeCartPersist();
   }
 });

@@ -10,7 +10,6 @@ import {
   FAQ_SUBMITTED_EVENT,
   RESIZED_EVENT,
   createIframeBridge,
-  createPostMessageTransport,
 } from "@shared/iframe-bridge";
 
 const FAQ_FORMULARY_HTML_PATH = "faq-formulary.html";
@@ -51,7 +50,16 @@ function applyFaqIframeHeight(payload) {
   }
 }
 
-export function mountFaqFormulary(containerElement, props = {}) {
+/**
+ * Mounts the FAQ iframe and listens for resize and submit messages on the given transport.
+ *
+ * @param {HTMLElement} containerElement - Host element that receives the iframe.
+ * @param {{ userName?: string, userEmail?: string, onFormSubmitted?: (payload: object) => void }} props - Prefill values and the submit callback.
+ * @param {{ publish: Function, subscribe: Function }} transport - PostMessage adapter created by the host entry.
+ * @returns {() => void} Removes the listeners and clears the container.
+ * @sideEffects Writes iframe markup and subscribes to iframe bridge events.
+ */
+export function mountFaqFormulary(containerElement, props = {}, transport) {
   const iframeSource = buildFaqFormularyUrl(props);
 
   containerElement.innerHTML = `
@@ -70,7 +78,7 @@ export function mountFaqFormulary(containerElement, props = {}) {
     iframeElement.style.height = "0px";
   }
 
-  const iframeBridge = createIframeBridge(createPostMessageTransport());
+  const iframeBridge = createIframeBridge(transport);
   const unsubscribeFromResize = iframeBridge.subscribeToIframeEvent(
     RESIZED_EVENT,
     applyFaqIframeHeight,

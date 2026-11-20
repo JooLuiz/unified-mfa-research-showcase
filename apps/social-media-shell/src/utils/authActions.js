@@ -1,4 +1,4 @@
-import { publishAuthSessionChanged } from "../events/eventBus";
+import { publishAuthSessionChanged, shellTransport } from "../events/eventBus";
 import {
   readStoredAuthRecord,
   storePostLoginRedirect,
@@ -13,7 +13,7 @@ function readStoredAuth(appState) {
   appState.authToken = storedAuth?.token || null;
   appState.currentUser = storedAuth?.user || null;
   if (appState.authToken) {
-    startSessionStream({ apiBaseUrl: MOCK_API_BASE_URL, authToken: appState.authToken });
+    startSessionStream(shellTransport);
   }
 }
 
@@ -26,7 +26,7 @@ function setAuthSession(appState, sessionPayload) {
   appState.currentUser = sessionPayload.user || null;
   persistAuth(appState);
   if (appState.authToken) {
-    startSessionStream({ apiBaseUrl: MOCK_API_BASE_URL, authToken: appState.authToken });
+    startSessionStream(shellTransport);
   } else {
     stopSessionStream();
   }

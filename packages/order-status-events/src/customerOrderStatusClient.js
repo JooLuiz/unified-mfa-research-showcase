@@ -6,35 +6,27 @@
  * See also: apps/ecommerce-shell/src/main.js; apps/order-details/src/useOrderDetails.js.
  */
 
-import {
-  CUSTOMER_ORDER_STATUS_STREAM_PATH,
-  CUSTOMER_ORDER_STATUS_TICKET_PATH,
-} from "./orderStatusContracts.js";
 import { createOrderStatusStreamSession } from "./createOrderStatusSession.js";
 import { requestOrderStatusChange } from "./requestOrderStatusChange.js";
 
-const customerOrderStatusSession = createOrderStatusStreamSession({
-  ticketPath: CUSTOMER_ORDER_STATUS_TICKET_PATH,
-  streamPath: CUSTOMER_ORDER_STATUS_STREAM_PATH,
-  logName: "startCustomerOrderStatusStream",
-});
+const customerOrderStatusSession = createOrderStatusStreamSession();
 
 /**
  * Opens this tab's customer order-status stream. A second call while it is open does nothing.
  *
- * @param {{ apiBaseUrl: string, authToken: string }} startInput - Mock API base and the shopper's bearer token.
- * @returns {Promise<void>}
- * @sideEffects Opens one EventSource for this tab.
+ * @param {{ subscribe: Function }} transport - Ecommerce event interface.
+ * @returns {void}
+ * @sideEffects Subscribes to orders/status-changed.
  */
-function startCustomerOrderStatusStream(startInput) {
-  return customerOrderStatusSession.start(startInput);
+function startCustomerOrderStatusStream(transport) {
+  customerOrderStatusSession.start(transport);
 }
 
 /**
  * Closes this tab's customer order-status stream.
  *
  * @returns {void}
- * @sideEffects Closes the EventSource.
+ * @sideEffects Unsubscribes from the transport.
  */
 function stopCustomerOrderStatusStream() {
   customerOrderStatusSession.stop();
@@ -54,15 +46,13 @@ function subscribeToOrderStatusChanged(listener) {
 /**
  * Asks to cancel one of the signed-in customer's placed orders.
  *
- * @param {{ apiBaseUrl: string, authToken: string, orderId: string }} requestInput - API base, bearer token, and order id.
+ * @param {{ request: Function }} transport - Event interface.
+ * @param {{ orderId: string }} requestInput - Order id.
  * @returns {Promise<{ ok: true, order: object } | { ok: false, code: string }>} Updated order, or a rejection code.
- * @sideEffects PUTs status cancellation-requested, claiming the customer actor. The server grants
- *   this regardless of the caller's role, as long as the order belongs to them.
+ * @sideEffects Sends orders/status-change with the customer actor.
  */
-function requestOrderCancellation({ apiBaseUrl, authToken, orderId }) {
-  return requestOrderStatusChange({
-    apiBaseUrl,
-    authToken,
+function requestOrderCancellation(transport, { orderId }) {
+  return requestOrderStatusChange(transport, {
     orderId,
     status: "cancellation-requested",
     actor: "customer",

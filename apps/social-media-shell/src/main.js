@@ -20,7 +20,9 @@ import {
 import loadMockData from "./utils/loadData";
 import loadRemoteModules from "./utils/loadRemoteModules";
 import {
+  bindShellTransport,
   publishLogoutRequested,
+  shellTransport,
   subscribeToAuthSessionChanges,
   subscribeToLogoutRequests,
   subscribeToRenderRequests,
@@ -38,7 +40,6 @@ import {
   subscribeToNewInboxNotifications,
 } from "@shared/notification-inbox-events";
 import { subscribeToSessionRevoked } from "@shared/session-events";
-import { MOCK_API_BASE_URL } from "./utils/constants";
 import {
   feedPageApp,
   postsPageApp,
@@ -57,6 +58,8 @@ const appState = {
   authToken: null,
   currentUser: null,
 };
+
+bindShellTransport(() => appState.authToken);
 
 const HEADER_APP_NAME = "@social-media/header";
 const FOOTER_APP_NAME = "@social-media/footer";
@@ -187,11 +190,7 @@ subscribeToRenderRequests(() => {
 
 function syncNotificationInboxWithSession() {
   if (appState.authToken) {
-    void startNotificationInboxLiveEvents({
-      apiBaseUrl: MOCK_API_BASE_URL,
-      authToken: appState.authToken,
-      shell: "social",
-    });
+    void startNotificationInboxLiveEvents(shellTransport, { shell: "social" });
   } else {
     stopNotificationInboxLiveEvents();
   }
@@ -249,7 +248,7 @@ subscribeToSessionRevoked(() => {
 // keeps appState.posts correct for the next render. The author's "liked your post" toast comes
 // from the inbox stream (subscribeToNewInboxNotifications above). The liker's own "Post Liked"
 // toast is fired separately, from the HTTP response in src/commands/postLikeCommands.js.
-subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes, likerId, liked }) => {
+subscribeToPostLikesChanged(shellTransport, ({ postId, likes, likerId, liked }) => {
   appState.posts = appState.posts.map((post) => {
     if (post.id !== postId) {
       return post;
@@ -267,7 +266,7 @@ subscribeToPostLikesChanged(MOCK_API_BASE_URL, ({ postId, likes, likerId, liked 
 // a raw prepend) because the server broadcasts this push to every open tab including the post's
 // own author, whose tab may have already inserted it optimistically from the HTTP response in
 // src/commands/postCommands.js.
-subscribeToPostCreated(MOCK_API_BASE_URL, (newPost) => {
+subscribeToPostCreated(shellTransport, (newPost) => {
   addPostIfMissing(appState, { ...newPost, likedByCurrentUser: false });
 });
 
