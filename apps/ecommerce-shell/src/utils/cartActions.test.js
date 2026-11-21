@@ -2,7 +2,7 @@
  * Verifies cart totals, local line edits, and stock-gated edits.
  * Role: Locks the cart math and the stock outcomes both comparison branches share.
  * Not in this file: The HTTP or mesh body of the shell transport.
- * Key dependencies: node:test; src/utils/cartActions.js; src/events/eventBus.js; test/support/createRecordingTransport.js; test/support/loadAppModule.js.
+ * Key dependencies: node:test; src/utils/cartActions.js; src/events/eventBus.js; src/notifications/notificationAdapter.js; test/support/createRecordingTransport.js; test/support/loadAppModule.js.
  * See also: src/utils/cartActions.js.
  */
 
@@ -29,6 +29,10 @@ const {
   setCartItemQuantityWithStockCheck,
   updateCartItem,
 } = await loadAppModule(new URL("./cartActions.js", import.meta.url).href);
+
+const { subscribeToNotifications } = await loadAppModule(
+  new URL("../notifications/notificationAdapter.js", import.meta.url).href,
+);
 
 /**
  * Runs one stock edit against a recording transport, then restores the shell binding.
@@ -142,10 +146,9 @@ test("a guest re-reserve drops a rejected line and publishes the stock notificat
     { productId: "lamp", quantity: 2 },
   ]);
   const notifications = [];
-  const recordNotification = (event) => {
-    notifications.push(event.detail);
-  };
-  window.addEventListener("ecommerce-shell:notification", recordNotification);
+  const unsubscribe = subscribeToNotifications((notification) => {
+    notifications.push(notification);
+  });
 
   try {
     await withInstalledTransport(
@@ -168,7 +171,7 @@ test("a guest re-reserve drops a rejected line and publishes the stock notificat
       },
     );
   } finally {
-    window.removeEventListener("ecommerce-shell:notification", recordNotification);
+    unsubscribe();
   }
 });
 
