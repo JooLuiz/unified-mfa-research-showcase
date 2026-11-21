@@ -666,11 +666,6 @@ subscribeToSessionRevoked(() => {
 });
 
 async function bootstrap() {
-  const notificationMount = document.getElementById("notificationMount");
-  if (notificationMount) {
-    mountNotificationCenter(notificationMount);
-  }
-
   readStoredPLPFilters(appState);
   readStoredAuth(appState);
   if (appState.authToken) {
@@ -678,8 +673,12 @@ async function bootstrap() {
   } else {
     startLocalMeshSession();
   }
-  // Promotional query params publish catalog.filters-changed. That publish has to
-  // follow configureMesh, or the first use initializes EventMesh and configureMesh throws.
+  // The notification subscribe and promotional catalog publish have to follow
+  // configureMesh. The first use initializes EventMesh and a later configureMesh throws.
+  const notificationMount = document.getElementById("notificationMount");
+  if (notificationMount) {
+    mountNotificationCenter(notificationMount);
+  }
   applyPlpFiltersFromLocation(appState);
   startCartTabSync(appState);
   publishPlpFiltersChanged(appState.plpFilters);

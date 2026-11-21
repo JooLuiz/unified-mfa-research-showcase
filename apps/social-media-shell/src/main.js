@@ -506,30 +506,6 @@ subscribeToSessionRevoked(() => {
   publishLogoutRequested();
 });
 
-// Global for the life of the tab (signed-in or guest), independent of which page is mounted:
-// keeps appState.posts correct for the next render. The author's "liked your post" toast comes
-subscribeToPostLikesChanged(shellTransport, ({ postId, likes, likerId, liked }) => {
-  appState.posts = appState.posts.map((post) => {
-    if (post.id !== postId) {
-      return post;
-    }
-    const likedByCurrentUser =
-      likerId === appState.currentUser?.id ? liked : post.likedByCurrentUser;
-    return { ...post, likes, likedByCurrentUser };
-  });
-});
-
-// The single place that inserts a newly created post into appState.posts. This subscription is
-// registered before any page can mount, so it always runs before a page-level subscriber to the
-// same push (feedPage.js, postsPage.js) — those only re-render from this already-updated array
-// instead of inserting again, which would duplicate the post. addPostIfMissing is required (not
-// a raw prepend) because the server broadcasts this push to every open tab including the post's
-// own author, whose tab may have already inserted it optimistically from the HTTP response in
-// src/commands/postCommands.js.
-subscribeToPostCreated(shellTransport, (newPost) => {
-  addPostIfMissing(appState, { ...newPost, likedByCurrentUser: false });
-});
-
 function applyInitialAuthGuard() {
   const currentPathName = window.location.pathname;
   if (isProtectedRoute(currentPathName) && !isAuthenticated(appState)) {
@@ -540,17 +516,40 @@ function applyInitialAuthGuard() {
 }
 
 async function bootstrap() {
-  const notificationMount = document.getElementById("notificationMount");
-  if (notificationMount) {
-    mountNotificationCenter(notificationMount);
-  }
-
   readStoredAuth(appState);
   if (appState.authToken) {
     startAuthenticatedMeshSession();
   } else {
     startLocalMeshSession();
   }
+  // These subscribes have to follow configureMesh. The first use initializes
+  // EventMesh and a later configureMesh throws. They still run before any page mounts.
+  const notificationMount = document.getElementById("notificationMount");
+  if (notificationMount) {
+    mountNotificationCenter(notificationMount);
+  }
+  // Global for the life of the tab (signed-in or guest), independent of which page is mounted:
+  // keeps appState.posts correct for the next render. The author's "liked your post" toast comes
+  subscribeToPostLikesChanged(shellTransport, ({ postId, likes, likerId, liked }) => {
+    appState.posts = appState.posts.map((post) => {
+      if (post.id !== postId) {
+        return post;
+      }
+      const likedByCurrentUser =
+        likerId === appState.currentUser?.id ? liked : post.likedByCurrentUser;
+      return { ...post, likes, likedByCurrentUser };
+    });
+  });
+  // The single place that inserts a newly created post into appState.posts. This subscription is
+  // registered before any page can mount, so it always runs before a page-level subscriber to the
+  // same push (feedPage.js, postsPage.js) — those only re-render from this already-updated array
+  // instead of inserting again, which would duplicate the post. addPostIfMissing is required (not
+  // a raw prepend) because the server broadcasts this push to every open tab including the post's
+  // own author, whose tab may have already inserted it optimistically from the HTTP response in
+  // src/commands/postCommands.js.
+  subscribeToPostCreated(shellTransport, (newPost) => {
+    addPostIfMissing(appState, { ...newPost, likedByCurrentUser: false });
+  });
   await loadMockData(appState);
   if (appState.authToken) {
     void refreshCurrentUserFromApi(appState);

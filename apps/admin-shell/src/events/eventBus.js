@@ -1,6 +1,6 @@
 /**
  * Publishes and subscribes to admin shell events.
- * Role: Joins window events with the Event Mesh client and exposes the shell transport.
+ * Role: Wraps the Event Mesh client and exposes the shell transport.
  * Not in this file: Route rendering or the command reply table (src/events/commandReplies.js).
  * Key dependencies: event-mesh/mesh; @shared/shell-events; @shared/account-events.
  * See also: src/main.js; src/events/commandReplies.js.
@@ -9,27 +9,12 @@
 import mesh from "event-mesh/mesh";
 import { configureMesh } from "event-mesh/mesh";
 import { createAccountEvents } from "@shared/account-events";
-import { NOTIFICATION_RAISED_EVENT, NOTIFICATION_TOPIC } from "@shared/notifications";
-import {
-  AUTH_LOGOUT_REQUESTED_EVENT,
-  AUTH_SESSION_CHANGED_EVENT,
-  AUTH_TOPIC,
-  NAVIGATION_TOPIC,
-  NAVIGATION_RENDER_REQUESTED_EVENT,
-  createShellEvents,
-} from "@shared/shell-events";
+import { createShellEvents } from "@shared/shell-events";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import { resolveSubscribeTarget, runMeshCommand } from "./commandReplies";
 
 const HOST_NAVIGATE_EVENT = "host:navigate";
 const HOST_LOGOUT_EVENT = "host:logout";
-
-const WINDOW_EVENT_BY_CONTRACT = {
-  [`${AUTH_TOPIC}.${AUTH_SESSION_CHANGED_EVENT}`]: "auth:changed",
-  [`${AUTH_TOPIC}.${AUTH_LOGOUT_REQUESTED_EVENT}`]: "auth:logout-request",
-  [`${NAVIGATION_TOPIC}.${NAVIGATION_RENDER_REQUESTED_EVENT}`]: "global:renderApp",
-  [`${NOTIFICATION_TOPIC}.${NOTIFICATION_RAISED_EVENT}`]: "admin-shell:notification",
-};
 
 /**
  * Configures the shell Event Mesh connection.
@@ -52,33 +37,6 @@ function closeShellMesh() {
   mesh.close();
 }
 
-function createBrowserTransport() {
-  function publish({ topic, event, payload }) {
-    const eventName = WINDOW_EVENT_BY_CONTRACT[`${topic}.${event}`];
-    if (!eventName) {
-      return;
-    }
-    window.dispatchEvent(new CustomEvent(eventName, { detail: payload }));
-  }
-
-  function subscribe(topic, event, callback) {
-    const eventName = WINDOW_EVENT_BY_CONTRACT[`${topic}.${event}`];
-    if (!eventName) {
-      return function unsubscribeUnmappedContract() {};
-    }
-    function handleWindowEvent(domEvent) {
-      callback({ payload: domEvent.detail });
-    }
-    window.addEventListener(eventName, handleWindowEvent);
-    return function unsubscribeFromWindowEvent() {
-      window.removeEventListener(eventName, handleWindowEvent);
-    };
-  }
-
-  return { publish, subscribe };
-}
-
-const browserTransport = createBrowserTransport();
 let readAuthToken = () => "";
 
 /**
@@ -116,38 +74,14 @@ function createMeshGateway({ getAuthToken }) {
   };
 }
 
-function composeShellBus(meshGateway) {
-  function isWindowContract(topic, event) {
-    return Boolean(WINDOW_EVENT_BY_CONTRACT[`${topic}.${event}`]);
-  }
-
-  return {
-    publish(message) {
-      if (isWindowContract(message.topic, message.event)) {
-        browserTransport.publish(message);
-        return;
-      }
-      meshGateway.publish(message);
-    },
-    subscribe(topic, event, callback) {
-      if (isWindowContract(topic, event)) {
-        return browserTransport.subscribe(topic, event, callback);
-      }
-      return meshGateway.subscribe(topic, event, callback);
-    },
-    request: meshGateway.request,
-    whenConnected: meshGateway.whenConnected,
-  };
-}
-
 /**
  * Builds the admin event interface.
  *
  * @param {{ getAuthToken: () => string }} transportInput - Bearer token reader.
- * @returns {{ publish: Function, subscribe: Function, request: Function, whenConnected: Function }} Window bus plus mesh gateway.
+ * @returns {{ publish: Function, subscribe: Function, request: Function, whenConnected: Function }} Mesh gateway.
  */
 function createShellTransport({ getAuthToken }) {
-  return composeShellBus(createMeshGateway({ getAuthToken }));
+  return createMeshGateway({ getAuthToken });
 }
 
 let shellTransport = createShellTransport({

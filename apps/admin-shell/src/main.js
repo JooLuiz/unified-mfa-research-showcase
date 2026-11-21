@@ -450,16 +450,17 @@ subscribeToSessionRevoked(() => {
 });
 
 async function bootstrap() {
-  const notificationMount = document.getElementById("notificationMount");
-  if (notificationMount) {
-    mountNotificationCenter(notificationMount);
-  }
-
   readStoredAuth(appState);
   if (appState.authToken) {
     startAuthenticatedMeshSession();
   } else {
     startLocalMeshSession();
+  }
+  // The notification subscribe has to follow configureMesh. The first use
+  // initializes EventMesh and a later configureMesh throws.
+  const notificationMount = document.getElementById("notificationMount");
+  if (notificationMount) {
+    mountNotificationCenter(notificationMount);
   }
   if (appState.authToken) {
     void refreshCurrentUserFromApi(appState);
