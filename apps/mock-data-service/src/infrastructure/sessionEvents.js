@@ -23,6 +23,7 @@ function serializeSessionRevoked() {
  * @returns {{
  *   rememberClient: (userId: string, clientId: string, response: import("express").Response) => void,
  *   forgetClient: (clientId: string) => void,
+ *   writeSessionRevoked: (response: import("express").Response) => void,
  *   broadcastSessionRevoked: (userId: string) => void
  * }}
  */
@@ -74,22 +75,35 @@ function createSessionEventStream() {
   }
 
   /**
+   * Writes one session.revoked frame and ends that response.
+   * Does not register the client. A late open and a live broadcast share this frame.
+   *
+   * @param {import("express").Response} response - SSE response that should receive the frame.
+   * @returns {void}
+   * @sideEffects Writes `event: session.revoked` / `data: {}` and ends the response.
+   */
+  function writeSessionRevoked(response) {
+    response.write(serializeSessionRevoked());
+    response.end();
+  }
+
+  /**
    * Broadcasts session.revoked to all connected clients for the user, then ends the responses.
    *
    * @param {string} userId - User whose sessions have been revoked.
+   * @returns {void}
+   * @sideEffects Writes the frame to each open response for that user and drops the registry entry.
    */
   function broadcastSessionRevoked(userId) {
     const userClients = clientsByUserId.get(userId);
     if (!userClients) {
       return;
     }
-    const frame = serializeSessionRevoked();
     // Copy references before iterating since close will mutate the map
     const clientResponses = Array.from(userClients.values());
     for (const clientResponse of clientResponses) {
       try {
-        clientResponse.write(frame);
-        clientResponse.end();
+        writeSessionRevoked(clientResponse);
       } catch (error) {
         console.warn("broadcastSessionRevoked - clientResponse error");
         console.warn(error);
@@ -101,6 +115,7 @@ function createSessionEventStream() {
   return {
     rememberClient,
     forgetClient,
+    writeSessionRevoked,
     broadcastSessionRevoked,
   };
 }

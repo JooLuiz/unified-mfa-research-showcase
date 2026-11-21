@@ -7,11 +7,25 @@
  */
 
 const express = require("express");
-const { resolveAuthenticatedUserId } = require("../domain/auth");
-const { revokeAllSessionsForUser } = require("../domain/sessionRevocation");
+const { extractTokenIssuedAt, extractUserIdFromToken, resolveAuthenticatedUserId } = require("../domain/auth");
+const { getRevokedAtForUser, isTokenRevoked, revokeAllSessionsForUser } = require("../domain/sessionRevocation");
 const { generateIdentifier } = require("../domain/identifiers");
 
 const SESSION_SSE_HEARTBEAT_INTERVAL_MS = 20_000;
+
+/**
+ * Starts one session SSE response. EventSource only delivers frames from a 200 event stream.
+ *
+ * @param {import("express").Response} response - Response that will carry session frames.
+ * @returns {void}
+ * @sideEffects Sets SSE headers and flushes them.
+ */
+function beginSessionEventResponse(response) {
+  response.setHeader("Content-Type", "text/event-stream");
+  response.setHeader("Cache-Control", "no-cache");
+  response.setHeader("Connection", "keep-alive");
+  response.flushHeaders();
+}
 
 /**
  * Creates the session router.
@@ -23,6 +37,7 @@ const SESSION_SSE_HEARTBEAT_INTERVAL_MS = 20_000;
  * @param {{
  *   rememberClient: (userId: string, clientId: string, response: import("express").Response) => void,
  *   forgetClient: (clientId: string) => void,
+ *   writeSessionRevoked: (response: import("express").Response) => void,
  *   broadcastSessionRevoked: (userId: string) => void
  * }} sessionEventStream - Per-user session SSE registry and broadcaster.
  * @returns {import("express").Router} Express router mounted at /api.
@@ -71,7 +86,8 @@ function createSessionRouter(jsonStore, sessionEventStream) {
 
   /**
    * GET /auth/session-stream. Auth: Bearer token via Authorization header or ?token= query parameter.
-   * Holds open an SSE stream that will receive `session.revoked` if this user signs out everywhere.
+   * A missing or malformed token returns 401. A well-formed token that is already revoked writes
+   * session.revoked and ends, without registering the client. A still-valid token holds the stream open.
    */
   router.get("/auth/session-stream", async (request, response) => {
     const rawAuthHeader = request.headers.authorization;
@@ -79,23 +95,25 @@ function createSessionRouter(jsonStore, sessionEventStream) {
     const authHeaderCandidate = rawAuthHeader || (tokenQuery ? `Bearer ${tokenQuery}` : "");
 
     const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
-    const authenticatedUserId = resolveAuthenticatedUserId(
-      authHeaderCandidate,
-      sessionRevocations,
-    );
+    const userId = extractUserIdFromToken(authHeaderCandidate);
+    const tokenIssuedAt = extractTokenIssuedAt(authHeaderCandidate);
 
-    if (!authenticatedUserId) {
+    if (!userId || tokenIssuedAt === null) {
       response.status(401).json({ message: "Missing or invalid token" });
       return;
     }
 
-    response.setHeader("Content-Type", "text/event-stream");
-    response.setHeader("Cache-Control", "no-cache");
-    response.setHeader("Connection", "keep-alive");
-    response.flushHeaders();
+    const revokedAt = getRevokedAtForUser(sessionRevocations, userId);
+    if (isTokenRevoked(tokenIssuedAt, revokedAt)) {
+      beginSessionEventResponse(response);
+      sessionEventStream.writeSessionRevoked(response);
+      return;
+    }
+
+    beginSessionEventResponse(response);
 
     const clientId = generateIdentifier("session-client");
-    sessionEventStream.rememberClient(authenticatedUserId, clientId, response);
+    sessionEventStream.rememberClient(userId, clientId, response);
 
     const heartbeatIntervalId = setInterval(() => {
       response.write(": ping\n\n");
