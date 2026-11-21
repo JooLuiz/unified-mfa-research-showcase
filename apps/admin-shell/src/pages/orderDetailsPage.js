@@ -3,12 +3,13 @@
  * Role: Guards nothing itself (main.js already requires an admin session) and mounts the
  *   order-details remote as the admin actor.
  * Not in this file: The header layout or status writes (order-details MFE).
- * Key dependencies: order-details remote; src/notifications/notificationAdapter.js.
+ * Key dependencies: order-details remote; src/events/eventBus.js; src/notifications/notificationAdapter.js.
  * See also: src/pages/ordersPage.js; src/main.js.
  */
 
 import { navigate } from "../utils/navigate";
 import { MOCK_API_BASE_URL } from "../utils/constants";
+import { shellTransport } from "../events/eventBus";
 import { publishNotification } from "../notifications/notificationAdapter";
 
 const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
@@ -77,6 +78,7 @@ async function renderOrderDetailsPage(appState, pageMount, modules, activeCleanu
       apiBaseUrl: MOCK_API_BASE_URL,
       actor: "admin",
       authToken: appState.authToken,
+      transport: shellTransport,
       buildOrderRequestPath: (id) => `/admin/orders/${id}`,
       onStatusRejected: () => {
         publishNotification({

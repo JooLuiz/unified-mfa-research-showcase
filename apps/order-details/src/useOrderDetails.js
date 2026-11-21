@@ -3,12 +3,12 @@
  * Role: Owns order-id parsing from the URL, auth token lookup, and the abort-aware order request lifecycle.
  * Not in this file: Rendering (src/OrderDetailsView.js) or formatting (src/order-details-utils.js).
  * Key dependencies: Mock data service GET /orders/:orderId; the host authToken prop or the
- *   ecommerce-shell localStorage token; @shared/order-status-events for status writes and the live stream.
+ *   ecommerce-shell localStorage token; the host transport prop for status writes;
+ *   @shared/order-status-events for status writes and the live stream.
  * See also: src/OrderDetailsView.js.
  */
 
 import { onMounted, onUnmounted, ref, watch } from "vue";
-import { createServerEvents } from "@shared/server-events";
 import {
   requestAdminOrderStatusChange,
   requestOrderCancellation,
@@ -72,7 +72,7 @@ async function fetchOrderById(apiBaseUrl, orderId, authToken, signal, buildOrder
 /**
  * Loads the order from props or the mock API and exposes the request state.
  *
- * @param {{ order: object | null, apiBaseUrl: string, actor?: string, authToken?: string, buildOrderRequestPath?: (orderId: string) => string, onStatusRejected?: (statusResult: { ok: false, code: string }) => void }} props - Component props. A non-empty authToken overrides the ecommerce localStorage token. onStatusRejected fires for any actor whose status write is rejected.
+ * @param {{ order: object | null, apiBaseUrl: string, actor?: string, authToken?: string, getAuthToken?: () => string, transport?: { request: Function }, buildOrderRequestPath?: (orderId: string) => string, onStatusRejected?: (statusResult: { ok: false, code: string }) => void }} props - Component props. getAuthToken is the live host getter. A non-empty authToken overrides the ecommerce localStorage token. transport is the host shell event interface. onStatusRejected fires for any actor whose status write is rejected.
  * @returns {{ orderData: import("vue").Ref<object | null>, isLoading: import("vue").Ref<boolean>, loadError: import("vue").Ref<Error | null>, isMissingOrderId: import("vue").Ref<boolean>, actor: string, applyStatusAction: (nextStatus: string) => Promise<void> }} Reactive order state and the status action.
  * @sideEffects Performs an HTTP request on mount and prop changes, aborted on unmount or reload. Subscribes to the shared order-status stream for this actor.
  */
@@ -103,17 +103,13 @@ function useOrderDetails(props) {
     if (!currentOrder?.id || !authToken || !props.apiBaseUrl) {
       return;
     }
-    const orderTransport = createServerEvents({
-      getApiBaseUrl: () => props.apiBaseUrl,
-      getAuthToken: () => authToken,
-    });
     const statusResult =
       props.actor === "admin"
-        ? await requestAdminOrderStatusChange(orderTransport, {
+        ? await requestAdminOrderStatusChange(props.transport, {
             orderId: currentOrder.id,
             status: nextStatus,
           })
-        : await requestOrderCancellation(orderTransport, {
+        : await requestOrderCancellation(props.transport, {
             orderId: currentOrder.id,
           });
     if (statusResult.ok) {

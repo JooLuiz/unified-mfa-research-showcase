@@ -39,6 +39,7 @@ function orderLoadFailureMessage(loadError) {
  * Order details component.
  * Props: order (object, optional pre-loaded order), apiBaseUrl (string), actor ("customer" or "admin"),
  *   authToken (string, optional override), getAuthToken (function, live token getter),
+ *   transport (object with request, the host shell event interface),
  *   onStatusRejected (function, called for either actor's rejected status write).
  * Renders: loading, missing-id, forbidden (403), not-found (404), generic error, or the full order details section.
  */
@@ -62,6 +63,10 @@ const OrderDetailsComponent = {
     },
     getAuthToken: {
       type: Function,
+      default: null,
+    },
+    transport: {
+      type: Object,
       default: null,
     },
     onStatusRejected: {

@@ -8,17 +8,12 @@
  * See also: src/checkout-items.ts.
  */
 
-import { createStockWatchClient } from "@shared/stock-events";
+import { createStockWatchClient, type StockWatchTransport } from "@shared/stock-events";
 
 export type AvailabilityByProductIdChangeCallback = (
   productId: string,
   nextAvailable: number,
 ) => void;
-
-type StockWatchTransport = {
-  subscribe: Function;
-  publish: Function;
-};
 
 export class CheckoutAvailabilityWatcher {
   private readonly stopWatchingByProductId = new Map<string, () => void>();

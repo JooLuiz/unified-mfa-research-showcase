@@ -7,15 +7,10 @@
  * See also: src/product-details.component.ts.
  */
 
-import { createStockWatchClient } from "@shared/stock-events";
+import { createStockWatchClient, type StockWatchTransport } from "@shared/stock-events";
 import type { Product } from "./product-details.types";
 
 export type AvailabilityChangeCallback = (nextAvailable: number) => void;
-
-type StockWatchTransport = {
-  subscribe: Function;
-  publish: Function;
-};
 
 export class ProductAvailabilityWatcher {
   private stopWatchingAvailability: (() => void) | null = null;
