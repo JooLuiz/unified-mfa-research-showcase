@@ -113,6 +113,20 @@ function openSharedWatch(transport) {
     hasConnectedBefore = true;
   });
 
+  if (typeof transport.whenConnected === "function") {
+    transport
+      .whenConnected({ timeoutMs: 5000 })
+      .then(() => {
+        if (!streamId) {
+          streamId = "mesh";
+        }
+        publishWatchedProductIds();
+      })
+      .catch(() => {
+        // The page keeps the availability it loaded until this socket opens.
+      });
+  }
+
   function subscribeToReconnect(listener) {
     reconnectListeners.add(listener);
     return function unsubscribeFromReconnect() {

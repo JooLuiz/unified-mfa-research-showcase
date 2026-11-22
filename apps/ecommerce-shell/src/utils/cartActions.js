@@ -73,7 +73,7 @@ function dispatchAddToCartEvent(addToCartPayload) {
  */
 function commitCartState(appState) {
   window.__APP_SHELL_CART__ = appState.cartItems;
-  publishCartChanged();
+  publishCartChanged(appState.cartItems);
   scheduleCartPersist(appState);
 }
 

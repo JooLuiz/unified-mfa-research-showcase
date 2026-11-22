@@ -1,6 +1,6 @@
 /**
  * Mounts the new-post formulary iframe and applies host bridge messages.
- * Role: Builds the post iframe URL and resizes it from iframe bridge events.
+ * Role: Builds the post iframe URL with a mesh channel and resizes it from iframe bridge events.
  * Not in this file: The child form page or post persistence.
  * Key dependencies: @shared/iframe-bridge.
  * See also: src/faq-formulary.js.
@@ -10,14 +10,19 @@ import {
   POST_SUBMITTED_EVENT,
   RESIZED_EVENT,
   createIframeBridge,
+  createIframeChannel,
 } from "@shared/iframe-bridge";
 
 const NEW_POST_FORMULARY_HTML_PATH = "faq-formulary.html";
 const NEW_POST_FRAME_ID = "new-post-formulary";
 
-function buildNewPostFormularyUrl(props) {
+function buildNewPostFormularyUrl(props, channelId) {
   const baseUrl = new URL(NEW_POST_FORMULARY_HTML_PATH, __webpack_public_path__);
-  const queryParameters = new URLSearchParams({ type: "post" });
+  const queryParameters = new URLSearchParams({
+    type: "post",
+    channelId,
+    frameId: NEW_POST_FRAME_ID,
+  });
 
   if (props.userName) {
     queryParameters.set("name", props.userName);
@@ -58,12 +63,13 @@ function applyNewPostIframeHeight(payload) {
  *
  * @param {HTMLElement} containerElement - Host element that receives the iframe.
  * @param {{ userName?: string, userEmail?: string, authorId?: string, onFormSubmitted?: (payload: object) => void }} props - Prefill values and the submit callback.
- * @param {{ publish: Function, subscribe: Function }} transport - PostMessage adapter created by the host entry.
+ * @param {{ publish: Function, subscribe: Function }} transport - Shell mesh client.
  * @returns {() => void} Removes the listeners and clears the container.
- * @sideEffects Writes iframe markup and subscribes to iframe bridge events.
+ * @sideEffects Writes iframe markup, registers one iframe channel, and subscribes to iframe bridge events.
  */
 export function mountNewPostFormulary(containerElement, props = {}, transport) {
-  const iframeSource = buildNewPostFormularyUrl(props);
+  const channelId = createIframeChannel();
+  const iframeSource = buildNewPostFormularyUrl(props, channelId);
 
   containerElement.innerHTML = `
     <section class="frame-container">
@@ -82,6 +88,23 @@ export function mountNewPostFormulary(containerElement, props = {}, transport) {
   }
 
   const iframeBridge = createIframeBridge(transport);
+  iframeBridge.registerIframeChannel({ channelId, frameId: NEW_POST_FRAME_ID });
+  const unsubscribeFromChannel = iframeBridge.subscribeToIframeChannel({
+    channelId,
+    frameId: NEW_POST_FRAME_ID,
+    onMessage: ({ event, payload }) => {
+      if (event === RESIZED_EVENT) {
+        applyNewPostIframeHeight({
+          frameId: NEW_POST_FRAME_ID,
+          height: payload && payload.height,
+        });
+        return;
+      }
+      if (event === POST_SUBMITTED_EVENT && props.onFormSubmitted) {
+        props.onFormSubmitted(payload);
+      }
+    },
+  });
   const unsubscribeFromResize = iframeBridge.subscribeToIframeEvent(
     RESIZED_EVENT,
     applyNewPostIframeHeight,
@@ -96,8 +119,10 @@ export function mountNewPostFormulary(containerElement, props = {}, transport) {
   );
 
   return () => {
+    unsubscribeFromChannel();
     unsubscribeFromResize();
     unsubscribeFromSubmit();
+    iframeBridge.unregisterIframeChannel({ channelId, frameId: NEW_POST_FRAME_ID });
     containerElement.innerHTML = "";
   };
 }

@@ -78,7 +78,11 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
     modules.mountCheckoutItems(checkoutItemsMount, {
       cartItems: appState.cartItems,
       productsById: appState.productsById,
-      subscribeToCartChanges,
+      // Cart listeners are called with no payload. The line list reads the cart this page already committed.
+      subscribeToCartChanges: (listener) =>
+        subscribeToCartChanges(() => {
+          listener(appState.cartItems);
+        }),
     }),
   );
 

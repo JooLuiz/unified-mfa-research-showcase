@@ -11,7 +11,7 @@ const { generateIdentifier } = require("./identifiers");
 
 const CONNECTION_TICKET_TTL_MS = 30_000;
 
-/** @type {Map<string, { userId: string, roles: string[], expiresAt: number }>} */
+/** @type {Map<string, { userId: string, roles: string[], expiresAt: number, tokenIssuedAt?: number }>} */
 const connectionTicketsByValue = new Map();
 
 /**
@@ -45,19 +45,24 @@ function purgeExpiredConnectionTickets() {
 /**
  * Issues a one-time connection ticket for an authenticated user.
  *
- * @param {{ userId: string, roles: string[] }} ticketInput - User identity and gateway roles.
+ * @param {{ userId: string, roles: string[], tokenIssuedAt?: number }} ticketInput - User identity, gateway roles, and the Bearer token's issued-at when known.
  * @returns {string} Opaque ticket value for WebSocket upgrade.
  * @sideEffects Stores the ticket until consumed or expired.
  */
-function issueConnectionTicket({ userId, roles }) {
+function issueConnectionTicket({ userId, roles, tokenIssuedAt }) {
   purgeExpiredConnectionTickets();
 
   const ticketValue = `connection-${generateIdentifier("ticket")}-${randomBytes(16).toString("hex")}`;
-  connectionTicketsByValue.set(ticketValue, {
+  /** @type {{ userId: string, roles: string[], expiresAt: number, tokenIssuedAt?: number }} */
+  const ticketRecord = {
     userId,
     roles,
     expiresAt: Date.now() + CONNECTION_TICKET_TTL_MS,
-  });
+  };
+  if (Number.isFinite(tokenIssuedAt)) {
+    ticketRecord.tokenIssuedAt = tokenIssuedAt;
+  }
+  connectionTicketsByValue.set(ticketValue, ticketRecord);
 
   return ticketValue;
 }
@@ -66,7 +71,7 @@ function issueConnectionTicket({ userId, roles }) {
  * Validates and consumes a connection ticket, returning the gateway credential.
  *
  * @param {string | null | undefined} ticketValue - Ticket from the WebSocket upgrade URL.
- * @returns {{ userId: string, roles: string[] } | null} Credential object, or null when invalid.
+ * @returns {{ userId: string, roles: string[], tokenIssuedAt?: number } | null} Credential object, or null when invalid. tokenIssuedAt is present only when the ticket was stamped with a finite issued-at.
  * @sideEffects Deletes the ticket on successful consumption.
  */
 function consumeConnectionTicket(ticketValue) {
@@ -87,10 +92,15 @@ function consumeConnectionTicket(ticketValue) {
     return null;
   }
 
-  return {
+  /** @type {{ userId: string, roles: string[], tokenIssuedAt?: number }} */
+  const credential = {
     userId: ticketRecord.userId,
     roles: ticketRecord.roles,
   };
+  if (Number.isFinite(ticketRecord.tokenIssuedAt)) {
+    credential.tokenIssuedAt = ticketRecord.tokenIssuedAt;
+  }
+  return credential;
 }
 
 module.exports = {

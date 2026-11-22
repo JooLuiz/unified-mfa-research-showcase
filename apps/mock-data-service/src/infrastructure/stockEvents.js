@@ -17,6 +17,24 @@ const STOCK_WATCHING_EVENT = "watching";
 const STOCK_CHANGED_EVENT = "changed";
 
 /**
+ * Reads the product ids a client announced. The shared client sends productIds.
+ *
+ * @param {object | undefined} payload - stock/watching payload.
+ * @returns {string[] | null} Product ids, or null when the payload has neither shape.
+ */
+function readWatchedProductIds(payload) {
+  if (Array.isArray(payload?.productIds)) {
+    return payload.productIds.filter(
+      (productId) => typeof productId === "string" && productId.trim() !== "",
+    );
+  }
+  if (typeof payload?.productId === "string" && payload.productId.trim() !== "") {
+    return [payload.productId];
+  }
+  return null;
+}
+
+/**
  * Creates the stock watcher registry and guest-session tracker used by the mesh handlers.
  *
  * @returns {{
@@ -43,20 +61,48 @@ function createStockEventStream() {
    * @returns {void}
    * @sideEffects Adds the client to both watcher indexes.
    */
-  function rememberWatcher(productId, clientId) {
-    const existingClientIds = clientIdsByProductId.get(productId);
-    const clientIds = existingClientIds || new Set();
-    if (!existingClientIds) {
-      clientIdsByProductId.set(productId, clientIds);
-    }
-    clientIds.add(clientId);
+  /**
+   * Replaces one client's watched products with the announced set.
+   *
+   * @param {string} clientId - Gateway client id that published stock/watching.
+   * @param {string[]} nextProductIds - Full set this client is watching now.
+   * @returns {string[]} Product ids that were not already watched by this client.
+   * @sideEffects Updates both watcher indexes.
+   */
+  function replaceWatchedProducts(clientId, nextProductIds) {
+    const previousProductIds = new Set(productIdsByClientId.get(clientId) || []);
+    const nextProductIdSet = new Set(nextProductIds);
 
-    const existingProductIds = productIdsByClientId.get(clientId);
-    const productIds = existingProductIds || new Set();
-    if (!existingProductIds) {
-      productIdsByClientId.set(clientId, productIds);
+    previousProductIds.forEach((productId) => {
+      if (nextProductIdSet.has(productId)) {
+        return;
+      }
+      const clientIds = clientIdsByProductId.get(productId);
+      if (!clientIds) {
+        return;
+      }
+      clientIds.delete(clientId);
+      if (clientIds.size === 0) {
+        clientIdsByProductId.delete(productId);
+      }
+    });
+
+    if (nextProductIdSet.size === 0) {
+      productIdsByClientId.delete(clientId);
+      return [];
     }
-    productIds.add(productId);
+
+    productIdsByClientId.set(clientId, nextProductIdSet);
+    nextProductIdSet.forEach((productId) => {
+      const existingClientIds = clientIdsByProductId.get(productId);
+      const clientIds = existingClientIds || new Set();
+      if (!existingClientIds) {
+        clientIdsByProductId.set(productId, clientIds);
+      }
+      clientIds.add(clientId);
+    });
+
+    return nextProductIds.filter((productId) => !previousProductIds.has(productId));
   }
 
   /**
@@ -102,13 +148,15 @@ function createStockEventStream() {
     const gateway = gatewayModule.default;
 
     gateway.subscribe(STOCK_TOPIC, STOCK_WATCHING_EVENT, (incomingMessage) => {
-      const productId = incomingMessage.payload?.productId;
       const clientId = incomingMessage.sourceClientId;
-      if (typeof productId !== "string" || !productId || !clientId) {
+      const productIds = readWatchedProductIds(incomingMessage.payload);
+      if (!clientId || !productIds) {
         return;
       }
-      rememberWatcher(productId, clientId);
-      void publishAvailabilitySnapshot(jsonStore, productId, clientId);
+      const addedProductIds = replaceWatchedProducts(clientId, productIds);
+      addedProductIds.forEach((productId) => {
+        void publishAvailabilitySnapshot(jsonStore, productId, clientId);
+      });
     });
   }
 

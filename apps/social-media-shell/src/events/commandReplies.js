@@ -166,7 +166,7 @@ const MESH_COMMANDS = {
     toOutcome(payload) {
       return payload.code
         ? { ok: false, code: payload.code }
-        : { ok: true, jobId: payload.requestId };
+        : { ok: true, jobId: payload.jobId };
     },
   },
 };

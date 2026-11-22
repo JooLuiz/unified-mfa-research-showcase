@@ -49,7 +49,7 @@ function createCatalogCartOperations(transport) {
   /**
    * Subscribes to cart/changed until the returned function runs.
    *
-   * @param {() => void} listener - Called for each cart change.
+   * @param {() => void} listener - Called with no arguments. Callers that need the lines read the cart they already committed.
    * @returns {() => void} Removes the subscription.
    * @sideEffects Registers a local cart subscription.
    */

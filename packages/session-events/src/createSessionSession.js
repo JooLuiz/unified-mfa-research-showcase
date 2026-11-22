@@ -1,12 +1,61 @@
 /**
  * One session subscription per tab.
- * Role: Starts and stops the session/revoked subscription and suppresses the tab that is signing itself out.
+ * Role: Starts and stops the session/revoked subscription, announces session/watching, and suppresses the tab that is signing itself out.
  * Not in this file: The sign-out HTTP command (src/sessionRevocationCommands.js).
  * Key dependencies: src/sessionEventsContracts.js. The caller supplies the transport.
  * See also: src/sessionEventsClient.js.
  */
 
-import { SESSION_REVOKED_EVENT, SESSION_TOPIC } from "./sessionEventsContracts.js";
+import {
+  SESSION_REVOKED_EVENT,
+  SESSION_TOPIC,
+  SESSION_WATCHING_EVENT,
+} from "./sessionEventsContracts.js";
+
+const MESH_CONNECT_TIMEOUT_MS = 5000;
+
+/**
+ * Registers this tab for session-revocation catch-up once the socket is open.
+ *
+ * @param {{ publish?: Function, whenConnected?: Function }} transport - Event interface. A subscribe-only fake is ignored.
+ * @returns {void}
+ * @sideEffects Publishes session/watching. A connect timeout is swallowed.
+ */
+function publishSessionWatching(transport) {
+  if (!openTransport(transport)) {
+    return;
+  }
+  transport.publish({
+    topic: SESSION_TOPIC,
+    event: SESSION_WATCHING_EVENT,
+    payload: {},
+    scope: "distributed",
+  });
+}
+
+/**
+ * Starts the socket for a transport that can publish. A subscribe-only fake is skipped.
+ *
+ * @param {{ publish?: Function, whenConnected?: Function }} transport - Event interface.
+ * @returns {boolean} True when the caller should publish.
+ * @sideEffects Calls whenConnected. A closed client or a connect timeout does not throw.
+ */
+function openTransport(transport) {
+  if (typeof transport.publish !== "function" || typeof transport.whenConnected !== "function") {
+    return false;
+  }
+  try {
+    const connected = transport.whenConnected({ timeoutMs: MESH_CONNECT_TIMEOUT_MS });
+    if (connected && typeof connected.catch === "function") {
+      connected.catch(() => {
+        // A missed announce skips revocation catch-up for this connection.
+      });
+    }
+  } catch {
+    return false;
+  }
+  return true;
+}
 
 /**
  * Creates a tab-scoped session subscription.
@@ -24,13 +73,14 @@ function createSessionStreamSession() {
    *
    * @param {{ subscribe: Function }} transport - Event interface.
    * @returns {void}
-   * @sideEffects Subscribes to session/revoked and clears a previous local sign-out suppression.
+   * @sideEffects Subscribes to session/revoked, publishes session/watching, and clears a previous local sign-out suppression.
    */
   function start(transport) {
     if (unsubscribeFromTransport) {
       return;
     }
     ignoreIncomingRevocation = false;
+    publishSessionWatching(transport);
     unsubscribeFromTransport = transport.subscribe(SESSION_TOPIC, SESSION_REVOKED_EVENT, () => {
       if (ignoreIncomingRevocation) {
         return;

@@ -37,7 +37,7 @@ function applyLocalCart(appState, cartSnapshot) {
     appState.cartItems = cloneCartItems(cartSnapshot.items);
     appState.appliedCoupon = cloneAppliedCoupon(cartSnapshot.appliedCoupon);
     window.__APP_SHELL_CART__ = appState.cartItems;
-    publishCartChanged();
+    publishCartChanged(appState.cartItems);
   });
 }
 

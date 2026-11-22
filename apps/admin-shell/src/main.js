@@ -200,6 +200,8 @@ function startAuthenticatedMeshSession() {
   resetNotificationDisplayListeners();
   resetShellEventListeners();
   resetAccountIntentListeners();
+  stopAdminOrderStatusStream();
+  stopSessionLiveEvents();
   stopNotificationInboxLiveEvents();
   closeShellMesh();
   clearMeshSessionFlags();
@@ -438,15 +440,14 @@ subscribeToSessionRevoked(() => {
   if (!appState.authToken) {
     return;
   }
+  // Logout first. Downgrade resets the toast listener and clears rendered toasts,
+  // so the session-ended notice is published on the local mesh that downgrade opens.
+  publishLogoutRequested();
   publishNotification({
     type: "error",
     title: "Session ended",
     message: "Your session ended on another device.",
   });
-  // Logout is a local mesh message. Closing here drops it, so the tab stays
-  // signed in until refresh. onLogoutRequested clears credentials, then
-  // downgradeToLocalMeshSession closes the authenticated socket.
-  publishLogoutRequested();
 });
 
 async function bootstrap() {

@@ -104,7 +104,7 @@ async function configureAndStartEventGateway() {
   await orderEventStream.registerWithGateway();
   await postLikeEventStream.registerWithGateway();
   await communityPostEventStream.registerWithGateway();
-  await sessionEventStream.registerWithGateway();
+  await sessionEventStream.registerWithGateway(jsonStore);
   await notificationInboxEventStream.registerWithGateway();
   await registerExportRequestHandler(jsonStore);
   await registerOrderRequestHandler(

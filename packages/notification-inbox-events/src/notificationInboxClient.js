@@ -1,12 +1,12 @@
 /**
  * Tab-scoped notification inbox state.
- * Role: Loads the inbox, applies live row changes, and sends mark-read commands.
+ * Role: Loads the inbox, announces notification-inbox/watching for the shell, applies live row changes, and sends mark-read commands.
  * Not in this file: Toast rendering or the stream URL.
  * Key dependencies: src/notificationInboxApi.js; src/contracts.js. The caller supplies the transport.
  * See also: apps/ecommerce-shell/src/main.js.
  */
 
-import { NOTIFICATION_INBOX_TOPIC } from "./contracts.js";
+import { NOTIFICATION_INBOX_TOPIC, NOTIFICATION_INBOX_WATCHING_EVENT } from "./contracts.js";
 import {
   fetchNotificationInbox,
   markNotificationAsRead as apiMarkNotificationAsRead,
@@ -15,6 +15,7 @@ import {
 
 const INBOX_CHANGED_EVENT = "changed";
 const RESTART_DELAY_MS = 2000;
+const MESH_CONNECT_TIMEOUT_MS = 5000;
 
 class NotificationInboxManager {
   constructor() {
@@ -120,6 +121,7 @@ class NotificationInboxManager {
           this.handleInboxChanged(message.payload);
         },
       );
+      this.publishInboxWatching(transport, shell);
     } catch (error) {
       console.warn("NotificationInboxManager start - error");
       console.warn(error);
@@ -127,6 +129,36 @@ class NotificationInboxManager {
     } finally {
       this.isStarting = false;
     }
+  }
+
+  /**
+   * Registers this tab for inbox pushes for one shell.
+   *
+   * @param {{ publish?: Function, whenConnected?: Function }} transport - Event interface. A subscribe-only fake is ignored.
+   * @param {string} shell - Shell name the gateway registry requires.
+   * @returns {void}
+   * @sideEffects Publishes notification-inbox/watching with payload.shell. A connect timeout is swallowed.
+   */
+  publishInboxWatching(transport, shell) {
+    if (typeof transport.publish !== "function" || typeof transport.whenConnected !== "function") {
+      return;
+    }
+    try {
+      const connected = transport.whenConnected({ timeoutMs: MESH_CONNECT_TIMEOUT_MS });
+      if (connected && typeof connected.catch === "function") {
+        connected.catch(() => {
+          // The gateway drops inbox changes for a client that never announced its shell.
+        });
+      }
+    } catch {
+      return;
+    }
+    transport.publish({
+      topic: NOTIFICATION_INBOX_TOPIC,
+      event: NOTIFICATION_INBOX_WATCHING_EVENT,
+      payload: { shell },
+      scope: "distributed",
+    });
   }
 
   stop() {

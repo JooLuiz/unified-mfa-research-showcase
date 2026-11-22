@@ -7,6 +7,7 @@
  */
 
 const ORDERS_TOPIC = "orders";
+const ORDERS_WATCHING_EVENT = "watching";
 const ORDERS_STATUS_CHANGED_EVENT = "status-changed";
 const ORDER_STATUS_CHANGED_EVENT_NAME = "orders.status-changed";
 const CUSTOMER_ORDER_STATUS_TICKET_PATH = "/orders/connection-tickets";
@@ -37,6 +38,7 @@ function formatOrderStatus(status) {
 
 export {
   ORDERS_TOPIC,
+  ORDERS_WATCHING_EVENT,
   ORDERS_STATUS_CHANGED_EVENT,
   ORDER_STATUS_CHANGED_EVENT_NAME,
   CUSTOMER_ORDER_STATUS_TICKET_PATH,

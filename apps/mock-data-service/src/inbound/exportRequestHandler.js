@@ -29,6 +29,11 @@ async function registerExportRequestHandler(jsonStore) {
   gateway.subscribe("exports", "requested", async (incomingMessage) => {
     const userId = incomingMessage.credential?.userId;
     const kind = incomingMessage.payload?.kind;
+    const requestId =
+      typeof incomingMessage.payload?.requestId === "string" &&
+      incomingMessage.payload.requestId.trim() !== ""
+        ? incomingMessage.payload.requestId
+        : "unknown";
 
     if (!userId) {
       return;
@@ -36,7 +41,7 @@ async function registerExportRequestHandler(jsonStore) {
 
     if (!Object.values(EXPORT_KINDS).includes(kind)) {
       await replyExportFailed(incomingMessage, {
-        requestId: "unknown",
+        requestId,
         kind: kind || EXPORT_KINDS.orders,
         code: INVALID_EXPORT_REQUEST_CODE,
       });
@@ -47,7 +52,7 @@ async function registerExportRequestHandler(jsonStore) {
     const user = users.find((userRecord) => userRecord.id === userId);
     if (!user) {
       await replyExportFailed(incomingMessage, {
-        requestId: "unknown",
+        requestId,
         kind,
         code: INVALID_EXPORT_REQUEST_CODE,
       });
@@ -67,12 +72,13 @@ async function registerExportRequestHandler(jsonStore) {
         user,
         onCompleted: () =>
           replyExportCompleted(incomingMessage, {
-            requestId: exportJob.id,
+            requestId,
+            jobId: exportJob.id,
             kind: exportJob.kind,
           }),
         onFailed: (code) =>
           replyExportFailed(incomingMessage, {
-            requestId: exportJob.id,
+            requestId,
             kind: exportJob.kind,
             code,
           }),

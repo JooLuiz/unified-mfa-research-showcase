@@ -236,6 +236,9 @@ function createIframeBridge(transport) {
 
   function subscribeToIframeEvent(eventName, listener) {
     return transport.subscribe(IFRAME_BRIDGE_TOPIC, IFRAME_BRIDGE_MESSAGE_EVENT, (message) => {
+      if (isBridgeMessage(message.payload)) {
+        return;
+      }
       if (readBridgeAction(message.payload) !== eventName) {
         return;
       }

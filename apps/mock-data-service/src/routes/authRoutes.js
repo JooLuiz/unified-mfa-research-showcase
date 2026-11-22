@@ -7,7 +7,7 @@
  */
 
 const express = require("express");
-const { buildPublicUser, buildAuthToken, resolveAuthenticatedUserId } = require("../domain/auth");
+const { buildPublicUser, buildAuthToken, extractTokenIssuedAt, resolveAuthenticatedUserId } = require("../domain/auth");
 const {
   buildConnectionRolesFromUserRole,
   issueConnectionTicket,
@@ -41,6 +41,7 @@ function createAuthRouter(jsonStore) {
       const connectionTicket = issueConnectionTicket({
         userId: matchingUser.id,
         roles: buildConnectionRolesFromUserRole(matchingUser.role),
+        tokenIssuedAt: extractTokenIssuedAt(request.headers.authorization),
       });
 
       response.type("text/plain").send(connectionTicket);

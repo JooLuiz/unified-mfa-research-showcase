@@ -14,16 +14,16 @@ const EXPORT_FAILED_EVENT = "failed";
  * Replies to the requesting client with a successful export completion event.
  *
  * @param {import("event-mesh/gateway").GatewayIncomingMessageWithClientId} incomingMessage - Authenticated export request message.
- * @param {{ requestId: string, kind: "orders" | "posts" }} exportJob - Opaque job correlation data.
+ * @param {{ requestId: string, jobId: string, kind: "orders" | "posts" }} exportJob - Command request id, export job id, and kind.
  * @returns {Promise<void>}
  * @sideEffects Sends a targeted reply through the event-mesh gateway.
  */
-async function replyExportCompleted(incomingMessage, { requestId, kind }) {
+async function replyExportCompleted(incomingMessage, { requestId, jobId, kind }) {
   const gatewayModule = await import("event-mesh/gateway");
   gatewayModule.default.reply(incomingMessage, {
     topic: EXPORT_TOPIC,
     event: EXPORT_COMPLETED_EVENT,
-    payload: { requestId, kind },
+    payload: { requestId, jobId, kind },
   });
 }
 

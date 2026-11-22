@@ -11,7 +11,6 @@
  * See also: src/utils/renderActions.js (public barrel).
  */
 
-import { createPostMessageTransport } from "@shared/iframe-bridge";
 import { subscribeToPostLikesChanged, subscribeToPostCreated } from "@shared/post-like-events";
 import { publishRenderRequested, shellTransport } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
@@ -79,7 +78,7 @@ function mountNewPostFormularyWithProps(containerElement, appState, modules) {
         });
       },
     },
-    createPostMessageTransport(),
+    shellTransport,
   );
 }
 

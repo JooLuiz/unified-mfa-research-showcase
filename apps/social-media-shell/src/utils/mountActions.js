@@ -10,6 +10,9 @@ import { isAuthenticated } from "./authActions";
 import { subscribeToAuthSessionChanges } from "../events/eventBus";
 import { navigate } from "./navigate";
 
+/** @type {HTMLElement | null} */
+let mountedHeaderElement = null;
+
 function buildHeaderState(appState) {
   return {
     appType: "social",
@@ -19,6 +22,20 @@ function buildHeaderState(appState) {
     currentUserName:
       appState.currentUser?.fullName || appState.currentUser?.username || "",
   };
+}
+
+/**
+ * Writes the signed-in name onto the mounted social header.
+ *
+ * @param {object} appState - Shell state holding the current user.
+ * @returns {void}
+ * @sideEffects Replaces the header element's state. Does nothing before the header mounts.
+ */
+function updateHeaderState(appState) {
+  if (!mountedHeaderElement) {
+    return;
+  }
+  mountedHeaderElement.state = buildHeaderState(appState);
 }
 
 /**
@@ -43,6 +60,7 @@ function createHeaderApp() {
     storedAppState = appState;
 
     headerElement = document.createElement("react-header-mfe");
+    mountedHeaderElement = headerElement;
     headerElement.state = buildHeaderState(appState);
 
     const updateBellMount = () => {
@@ -61,8 +79,8 @@ function createHeaderApp() {
     };
 
     onAuthSessionChanged = () => {
-      if (headerElement && storedAppState) {
-        headerElement.state = buildHeaderState(storedAppState);
+      if (storedAppState) {
+        updateHeaderState(storedAppState);
         setTimeout(updateBellMount, 0);
       }
     };
@@ -87,6 +105,9 @@ function createHeaderApp() {
     }
     if (unsubscribeFromAuthSessionChanges) {
       unsubscribeFromAuthSessionChanges();
+    }
+    if (mountedHeaderElement === headerElement) {
+      mountedHeaderElement = null;
     }
     headerElement = null;
     onAuthSessionChanged = null;
@@ -132,4 +153,4 @@ function createFooterApp() {
   return { bootstrap, mount, unmount };
 }
 
-export { createHeaderApp, createFooterApp };
+export { createHeaderApp, createFooterApp, updateHeaderState };

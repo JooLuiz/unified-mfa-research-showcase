@@ -34,6 +34,8 @@ const NOTIFICATION_INBOX_TOPIC = "notification-inbox";
 const NOTIFICATION_INBOX_WATCHING_EVENT = "watching";
 const NOTIFICATION_INBOX_MARK_READ_EVENT = "mark-read";
 const NOTIFICATION_INBOX_MARK_ALL_READ_EVENT = "mark-all-read";
+const SESSION_TOPIC = "session";
+const SESSION_WATCHING_EVENT = "watching";
 const GUEST_CREDENTIAL = Object.freeze({
   kind: "guest",
   roles: ["guest"],
@@ -126,6 +128,9 @@ function createAuthorizeMessage() {
         message.event === NOTIFICATION_INBOX_MARK_READ_EVENT ||
         message.event === NOTIFICATION_INBOX_MARK_ALL_READ_EVENT);
 
+    const isSessionWatchingMessage =
+      message.topic === SESSION_TOPIC && message.event === SESSION_WATCHING_EVENT;
+
     return (
       isAdminWatchingMessage ||
       isCartSyncMessage ||
@@ -134,6 +139,7 @@ function createAuthorizeMessage() {
       isCommunityLikesMessage ||
       isCommunityPostsWatchingMessage ||
       isNotificationInboxMessage ||
+      isSessionWatchingMessage ||
       (message.topic === EXPORT_TOPIC &&
         message.event === EXPORT_REQUESTED_EVENT) ||
       (message.topic === ORDERS_TOPIC &&

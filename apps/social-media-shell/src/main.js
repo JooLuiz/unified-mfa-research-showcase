@@ -24,7 +24,7 @@ import loadRemoteModules from "./utils/loadRemoteModules";
 import { navigate } from "./utils/navigate";
 import { isSinglePostPath } from "./utils/singlePostRoute";
 import { addPostIfMissing } from "./utils/postsState";
-import { createHeaderApp, createFooterApp } from "./utils/mountActions";
+import { createHeaderApp, createFooterApp, updateHeaderState } from "./utils/mountActions";
 import {
   mountNotificationCenter,
   ensureNotificationDisplayListeners,
@@ -174,6 +174,7 @@ function startAuthenticatedMeshSession() {
   resetCatalogIntentListeners();
   resetAccountIntentListeners();
   resetCommunityIntentListeners();
+  stopSessionLiveEvents();
   stopNotificationInboxLiveEvents();
   closeShellMesh();
   clearMeshSessionFlags();
@@ -387,7 +388,8 @@ const accountIntentHandlers = {
 
 const communityIntentHandlers = {
   onPostLiked: ({ postId }) => {
-    void toggleLikeForPost(appState, postId);
+    const likedPost = appState.posts.find((post) => post.id === postId);
+    void toggleLikeForPost(appState, likedPost);
   },
   onAuthorSelected: ({ author }) => {
     if (author?.username) {
@@ -449,28 +451,32 @@ const shellEventHandlers = {
     if (signedInThisTurn) {
       // The login form publishes path-requested immediately after this handler.
       // Closing the mesh here drops that navigation, so reconnect after this turn.
-      queueMicrotask(() => {
-        handleAuthMeshLifecycle();
-        syncNotificationInboxWithSession();
-      });
-    } else {
-      handleAuthMeshLifecycle();
-      syncNotificationInboxWithSession();
-    }
-    if (signedInThisTurn) {
       const welcomeName =
         appState.currentUser?.fullName ||
         appState.currentUser?.username ||
         "there";
-      publishNotification({
-        type: "success",
-        title: "Signed in",
-        message: `Welcome back, ${welcomeName}.`,
+      queueMicrotask(() => {
+        handleAuthMeshLifecycle();
+        syncNotificationInboxWithSession();
+        updateHeaderState(appState);
+        // The lifecycle reset clears toasts already on the page, so this notice
+        // is published on the authenticated mesh that lifecycle just opened.
+        publishNotification({
+          type: "success",
+          title: "Signed in",
+          message: `Welcome back, ${welcomeName}.`,
+        });
       });
+    } else {
+      handleAuthMeshLifecycle();
+      syncNotificationInboxWithSession();
+      // mesh.close() drops the header subscription, including on sign-out.
+      updateHeaderState(appState);
     }
-    // The header rewrites its own state from this event. Reloading would only
-    // tear down a mounted page's action buttons mid-click.
+    // Reloading would tear down a mounted page's action buttons mid-click.
+    // mesh.close() drops the header's own auth subscription, so the shell pushes the name.
     if (appState.authToken && appState.currentUser?.id === lastRenderedUserId) {
+      updateHeaderState(appState);
       return;
     }
     // Re-fetches posts so `likedByCurrentUser` reflects the session that is active now (a tab
@@ -495,16 +501,45 @@ subscribeToSessionRevoked(() => {
   if (!appState.authToken) {
     return;
   }
+  // Logout first. Downgrade resets the toast listener and clears rendered toasts,
+  // so the session-ended notice is published on the local mesh that downgrade opens.
+  publishLogoutRequested();
   publishNotification({
     type: "error",
     title: "Session ended",
     message: "Your session ended on another device.",
   });
-  // Logout is a local mesh message. Closing here drops it, so the tab stays
-  // signed in until refresh. onLogoutRequested clears credentials, then
-  // downgradeToLocalMeshSession closes the authenticated socket.
-  publishLogoutRequested();
 });
+
+/**
+ * Registers this tab for one post's later like counts.
+ *
+ * @param {{ publish?: Function, whenConnected?: Function }} transport - Shell event interface.
+ * @param {string | undefined} postId - Post that just arrived and is not rendered on every page.
+ * @returns {void}
+ * @sideEffects Publishes community-likes/watching. A subscribe-only transport is ignored.
+ */
+function publishCommunityLikeWatch(transport, postId) {
+  if (typeof postId !== "string" || postId.trim() === "") {
+    return;
+  }
+  if (typeof transport.publish !== "function" || typeof transport.whenConnected !== "function") {
+    return;
+  }
+  transport
+    .whenConnected({ timeoutMs: 5000 })
+    .then(() => {
+      transport.publish({
+        topic: "community-likes",
+        event: "watching",
+        payload: { postId },
+        scope: "distributed",
+      });
+    })
+    .catch(() => {
+      // This tab keeps the like count from the created post until the next announce.
+    });
+}
 
 function applyInitialAuthGuard() {
   const currentPathName = window.location.pathname;
@@ -549,6 +584,8 @@ async function bootstrap() {
   // src/commands/postCommands.js.
   subscribeToPostCreated(shellTransport, (newPost) => {
     addPostIfMissing(appState, { ...newPost, likedByCurrentUser: false });
+    // A feed that has not rendered this post yet still needs its later like counts.
+    publishCommunityLikeWatch(shellTransport, newPost && newPost.id);
   });
   await loadMockData(appState);
   if (appState.authToken) {
