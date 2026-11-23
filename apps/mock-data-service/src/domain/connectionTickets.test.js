@@ -50,6 +50,21 @@ test("consumeConnectionTicket returns the credential once and rejects unknown va
   assert.equal(consumeConnectionTicket("not-a-ticket"), null);
 });
 
+test("consumeConnectionTicket returns a stamped token issued-at once", () => {
+  const ticketValue = issueConnectionTicket({
+    userId: "u-01",
+    roles: ["customer"],
+    tokenIssuedAt: 1_700_000_000_000,
+  });
+
+  assert.deepEqual(consumeConnectionTicket(ticketValue), {
+    userId: "u-01",
+    roles: ["customer"],
+    tokenIssuedAt: 1_700_000_000_000,
+  });
+  assert.equal(consumeConnectionTicket(ticketValue), null);
+});
+
 test("consumeConnectionTicket rejects a ticket after its TTL", (testContext) => {
   testContext.mock.timers.enable({ apis: ["Date"] });
   const ticketValue = issueConnectionTicket({ userId: "u-01", roles: ["customer"] });
