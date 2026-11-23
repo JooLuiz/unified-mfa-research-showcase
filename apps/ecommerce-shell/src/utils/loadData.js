@@ -1,4 +1,4 @@
-import fetchJson from "./fetchJson";
+import requestJson from "./requestJson";
 import { MOCK_API_BASE_URL } from "./constants";
 
 async function loadMockData(appState) {
@@ -7,9 +7,9 @@ async function loadMockData(appState) {
     showcasesResponse,
     bannersResponse,
   ] = await Promise.all([
-    fetchJson(`${MOCK_API_BASE_URL}/products`),
-    fetchJson(`${MOCK_API_BASE_URL}/showcases`),
-    fetchJson(`${MOCK_API_BASE_URL}/banners`),
+    requestJson(`${MOCK_API_BASE_URL}/products`),
+    requestJson(`${MOCK_API_BASE_URL}/showcases`),
+    requestJson(`${MOCK_API_BASE_URL}/banners`),
   ]);
 
   appState.products = productsResponse.items;

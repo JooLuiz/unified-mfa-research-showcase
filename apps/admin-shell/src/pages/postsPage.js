@@ -5,12 +5,12 @@
  *   the Likes column in place whenever a like is toggled. Never shows a toast for either live event.
  * Not in this file: Auth guard (main.js), post mutations, or table markup
  *   (src/pages/postsTableView.js).
- * Key dependencies: src/utils/fetchJson.js; src/notifications/notificationAdapter.js;
+ * Key dependencies: src/utils/requestJson.js; src/notifications/notificationAdapter.js;
  *   src/events/adminLiveEvents.js; src/pages/postsTableView.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
-import fetchJson from "../utils/fetchJson";
+import requestJson from "../utils/requestJson";
 import { navigate } from "../utils/navigate";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import { publishNotification } from "../notifications/notificationAdapter";
@@ -76,7 +76,7 @@ async function renderPostsPage(appState, pageMount, activeCleanupFunctions) {
   const tableMount = pageMount.querySelector("#postsTableMount");
 
   try {
-    const postsPayload = await fetchJson(`${MOCK_API_BASE_URL}/admin/posts`, {
+    const postsPayload = await requestJson(`${MOCK_API_BASE_URL}/admin/posts`, {
       headers: { Authorization: `Bearer ${appState.authToken}` },
     });
     renderPostsTable(tableMount, postsPayload.items);
