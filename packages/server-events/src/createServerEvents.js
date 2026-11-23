@@ -1,7 +1,7 @@
 /**
  * HTTP adapter that satisfies the shared event interface.
  * Role: Routes publish, subscribe, and request through the endpoint maps and the shared connection registry.
- * Not in this file: Window CustomEvent routing (src/composeShellTransport.js).
+ * Not in this file: Window CustomEvent routing (src/composeShellEvents.js).
  * Key dependencies: src/eventEndpoints.js; src/openEventConnection.js.
  * See also: apps/ecommerce-shell/src/events/eventBus.js.
  */

@@ -4,12 +4,12 @@
  *   prepending new rows and replacing a row when its status changes.
  * Not in this file: Auth guard (main.js), order mutations, or table markup
  *   (src/pages/ordersTableView.js).
- * Key dependencies: src/utils/fetchJson.js; src/notifications/notificationAdapter.js;
+ * Key dependencies: src/utils/requestJson.js; src/notifications/notificationAdapter.js;
  *   src/events/adminLiveEvents.js; src/pages/ordersTableView.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
-import fetchJson from "../utils/fetchJson";
+import requestJson from "../utils/requestJson";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import { publishNotification } from "../notifications/notificationAdapter";
 import { subscribeToAdminLiveEvents } from "../events/adminLiveEvents";
@@ -92,7 +92,7 @@ async function renderOrdersPage(appState, pageMount, activeCleanupFunctions) {
 
   let renderedOrders = [];
   try {
-    const ordersPayload = await fetchJson(`${MOCK_API_BASE_URL}/admin/orders`, {
+    const ordersPayload = await requestJson(`${MOCK_API_BASE_URL}/admin/orders`, {
       headers: { Authorization: `Bearer ${appState.authToken}` },
     });
     renderedOrders = Array.isArray(ordersPayload.items) ? ordersPayload.items : [];

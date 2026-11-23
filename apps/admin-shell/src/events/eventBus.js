@@ -7,7 +7,7 @@
  */
 
 import { NOTIFICATION_RAISED_EVENT, NOTIFICATION_TOPIC } from "@shared/notifications";
-import { composeShellTransport, createServerEvents } from "@shared/server-events";
+import { composeShellEvents, createServerEvents } from "@shared/server-events";
 import {
   AUTH_LOGOUT_REQUESTED_EVENT,
   AUTH_SESSION_CHANGED_EVENT,
@@ -89,7 +89,7 @@ function createShellTransport({ getAuthToken }) {
     getAuthToken,
     endpoints: createAdminEndpoints(),
   });
-  return composeShellTransport({
+  return composeShellEvents({
     browserTransport,
     serverEvents,
     isWindowContract(topic, event) {

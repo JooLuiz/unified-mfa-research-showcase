@@ -1,4 +1,4 @@
-async function fetchJson(url, options = {}) {
+async function requestJson(url, options = {}) {
   const response = await fetch(url, options);
   if (!response.ok) {
     throw new Error(
@@ -8,4 +8,4 @@ async function fetchJson(url, options = {}) {
   return response.json();
 }
 
-export default fetchJson;
+export default requestJson;

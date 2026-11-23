@@ -7,7 +7,7 @@
  */
 
 import { MOCK_API_BASE_URL } from "../utils/constants";
-import fetchJson from "../utils/fetchJson";
+import requestJson from "../utils/requestJson";
 
 /**
  * Persists a FAQ answer, optionally with the authenticated user's token.
@@ -19,7 +19,7 @@ import fetchJson from "../utils/fetchJson";
  */
 async function persistFaqAnswerToApi(appState, faqPayload) {
   try {
-    await fetchJson(`${MOCK_API_BASE_URL}/faq`, {
+    await requestJson(`${MOCK_API_BASE_URL}/faq`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

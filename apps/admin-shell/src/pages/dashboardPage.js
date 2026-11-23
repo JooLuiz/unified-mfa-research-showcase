@@ -4,12 +4,12 @@
  *   live by re-fetching whenever a new order or post is broadcast over SSE.
  * Not in this file: Table rendering (orders/posts pages), auth guard (main.js), or the SSE
  *   transport itself (src/events/adminLiveEvents.js).
- * Key dependencies: src/utils/fetchJson.js; src/notifications/notificationAdapter.js;
+ * Key dependencies: src/utils/requestJson.js; src/notifications/notificationAdapter.js;
  *   src/events/adminLiveEvents.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
-import fetchJson from "../utils/fetchJson";
+import requestJson from "../utils/requestJson";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import { publishNotification } from "../notifications/notificationAdapter";
 import { subscribeToAdminLiveEvents } from "../events/adminLiveEvents";
@@ -44,8 +44,8 @@ async function loadAndRenderSummary(appState, cardsMount) {
       headers: { Authorization: `Bearer ${appState.authToken}` },
     };
     const [ordersPayload, postsPayload] = await Promise.all([
-      fetchJson(`${MOCK_API_BASE_URL}/admin/orders`, requestOptions),
-      fetchJson(`${MOCK_API_BASE_URL}/admin/posts`, requestOptions),
+      requestJson(`${MOCK_API_BASE_URL}/admin/orders`, requestOptions),
+      requestJson(`${MOCK_API_BASE_URL}/admin/posts`, requestOptions),
     ]);
 
     const totalRevenue = ordersPayload.items.reduce(

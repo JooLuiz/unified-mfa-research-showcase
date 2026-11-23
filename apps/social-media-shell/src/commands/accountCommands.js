@@ -8,7 +8,7 @@
 
 import { setAuthSession } from "../utils/authActions";
 import { MOCK_API_BASE_URL } from "../utils/constants";
-import fetchJson from "../utils/fetchJson";
+import requestJson from "../utils/requestJson";
 import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
@@ -24,7 +24,7 @@ async function persistAccountUpdate(appState, updatePayload) {
     return { ok: false };
   }
   try {
-    const updatedUser = await fetchJson(`${MOCK_API_BASE_URL}/users/me`, {
+    const updatedUser = await requestJson(`${MOCK_API_BASE_URL}/users/me`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

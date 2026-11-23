@@ -31,7 +31,7 @@ export declare function createServerEvents(input: {
   };
 }): ServerEventTransport;
 
-export declare function composeShellTransport(input: {
+export declare function composeShellEvents(input: {
   browserTransport: {
     publish(message: ServerEventMessage): void;
     subscribe(

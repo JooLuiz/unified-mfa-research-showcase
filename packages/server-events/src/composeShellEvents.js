@@ -10,7 +10,7 @@
  * @param {{ browserTransport: { publish: Function, subscribe: Function }, serverEvents: { publish: Function, subscribe: Function, request: Function, whenConnected: Function }, isWindowContract: (topic: string, event: string) => boolean }} compositionInput
  * @returns {{ publish: Function, subscribe: Function, request: Function, whenConnected: Function }}
  */
-function composeShellTransport({ browserTransport, serverEvents, isWindowContract }) {
+function composeShellEvents({ browserTransport, serverEvents, isWindowContract }) {
   /**
    * @param {{ topic: string, event: string, payload?: object, scope?: string }} message
    * @returns {boolean}
@@ -54,4 +54,4 @@ function composeShellTransport({ browserTransport, serverEvents, isWindowContrac
   };
 }
 
-export { composeShellTransport };
+export { composeShellEvents };

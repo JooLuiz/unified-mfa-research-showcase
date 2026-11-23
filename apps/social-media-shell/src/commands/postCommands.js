@@ -7,7 +7,7 @@
  */
 
 import { MOCK_API_BASE_URL } from "../utils/constants";
-import fetchJson from "../utils/fetchJson";
+import requestJson from "../utils/requestJson";
 import { publishNotification } from "../notifications/notificationAdapter";
 import { addPostIfMissing } from "../utils/postsState";
 
@@ -29,7 +29,7 @@ async function persistNewPost(appState, postPayload) {
     return { ok: false };
   }
   try {
-    const createdPost = await fetchJson(`${MOCK_API_BASE_URL}/posts`, {
+    const createdPost = await requestJson(`${MOCK_API_BASE_URL}/posts`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
