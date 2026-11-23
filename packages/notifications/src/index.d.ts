@@ -26,11 +26,9 @@ export interface NotificationMeshClient {
   ): () => void;
 }
 
-export interface MeshNotificationAdapter {
-  publishNotification(
-    notification: ShellNotification,
-    options?: { scope?: "local" | "distributed" },
-  ): void;
+export interface NotificationAdapter {
+  notify(notification: ShellNotification): void;
+  subscribeToNotifications(listener: (notification: ShellNotification) => void): () => void;
 }
 
 export interface NotificationCenterHandle {
@@ -39,9 +37,7 @@ export interface NotificationCenterHandle {
   resetNotificationDisplayListeners(): void;
 }
 
-export function createMeshNotificationAdapter(
-  input: Pick<NotificationMeshClient, "publish">,
-): MeshNotificationAdapter;
+export function createNotificationAdapter(transport: NotificationMeshClient): NotificationAdapter;
 
 export function mountNotificationCenter(
   containerElement: HTMLElement,

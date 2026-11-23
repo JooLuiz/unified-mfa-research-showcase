@@ -10,11 +10,22 @@ import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import mesh from "event-mesh/mesh";
 import { createShellEvents } from "@shared/shell-events";
-import { createMeshNotificationAdapter } from "@shared/notifications";
+import { createNotificationAdapter } from "@shared/notifications";
 import "./styles.css";
 
 const { publishAuthSessionChanged, publishPathRequested } = createShellEvents(mesh);
-const { publishNotification } = createMeshNotificationAdapter(mesh);
+
+/**
+ * Raises a page-local toast. The adapter is built per call because it reads publish and subscribe
+ * from the mesh client, and touching the client before the shell runs configureMesh would lock it.
+ *
+ * @param {{ type: "success" | "error", title: string, message: string }} notification - Toast content.
+ * @returns {void}
+ * @sideEffects Publishes a local notifications.raised message.
+ */
+function notify(notification) {
+  createNotificationAdapter(mesh).notify(notification);
+}
 
 function LoginFormView({
   apiBaseUrl,
@@ -76,7 +87,7 @@ function LoginFormView({
         requiredRole.trim() !== "" &&
         authenticatedUser?.role !== requiredRole
       ) {
-        publishNotification({
+        notify({
           type: "error",
           title: "Access denied",
           message: "This account does not have admin access.",

@@ -5,6 +5,7 @@
  *   registry (src/infrastructure/notificationInboxEvents.js).
  * Key dependencies: JSON store; src/domain/notificationInbox.js; event-mesh/gateway.
  * See also: src/server.js; src/inbound/cartUpsertHandler.js (same reply shape).
+ *   On main this is served by src/routes/notificationInboxRoutes.js (PUT read routes).
  */
 
 const {

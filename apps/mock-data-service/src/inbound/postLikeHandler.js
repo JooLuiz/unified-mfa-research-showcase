@@ -7,6 +7,7 @@
  * Key dependencies: JSON store; src/domain/postLikes.js; src/infrastructure/postLikeEvents.js;
  *   src/infrastructure/adminEvents.js.
  * See also: src/server.js; src/inbound/cartUpsertHandler.js (same reply/broadcast shape).
+ *   On main this is served by src/routes/postLikeRoutes.js.
  */
 
 const { LIKE_NOT_ALLOWED_CODE, toggleLike } = require("../domain/postLikes");

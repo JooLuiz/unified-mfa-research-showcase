@@ -1,17 +1,18 @@
 /**
  * Publishes and subscribes to admin shell events.
  * Role: Wraps the Event Mesh client and exposes the shell transport.
- * Not in this file: Route rendering or the command reply table (src/events/commandReplies.js).
- * Key dependencies: event-mesh/mesh; @shared/shell-events; @shared/account-events.
- * See also: src/main.js; src/events/commandReplies.js.
+ * Not in this file: Route rendering or the shell command map (src/events/eventEndpoints.js).
+ * Key dependencies: event-mesh/mesh; @shared/server-events; @shared/shell-events; @shared/account-events.
+ * See also: src/main.js; src/events/eventEndpoints.js.
  */
 
 import mesh from "event-mesh/mesh";
 import { configureMesh } from "event-mesh/mesh";
 import { createAccountEvents } from "@shared/account-events";
+import { composeShellTransport, createServerEvents } from "@shared/server-events";
 import { createShellEvents } from "@shared/shell-events";
 import { MOCK_API_BASE_URL } from "../utils/constants";
-import { resolveSubscribeTarget, runMeshCommand } from "./commandReplies";
+import { createAdminEndpoints } from "./eventEndpoints";
 
 const HOST_NAVIGATE_EVENT = "host:navigate";
 const HOST_LOGOUT_EVENT = "host:logout";
@@ -49,39 +50,20 @@ function bindShellTransport(readToken) {
   readAuthToken = readToken;
 }
 
-function createMeshGateway({ getAuthToken }) {
-  return {
-    publish(message) {
-      mesh.publish(message);
-    },
-    subscribe(topic, event, callback) {
-      const target = resolveSubscribeTarget(topic, event);
-      return mesh.subscribe(target.topic, target.event, callback);
-    },
-    request({ topic, event, payload }) {
-      return runMeshCommand({
-        mesh,
-        getAuthToken,
-        apiBaseUrl: MOCK_API_BASE_URL,
-        topic,
-        event,
-        payload,
-      });
-    },
-    whenConnected(options) {
-      return mesh.whenConnected(options);
-    },
-  };
-}
-
 /**
  * Builds the admin event interface.
  *
  * @param {{ getAuthToken: () => string }} transportInput - Bearer token reader.
- * @returns {{ publish: Function, subscribe: Function, request: Function, whenConnected: Function }} Mesh gateway.
+ * @returns {import("@shared/server-events").ServerEventTransport} Gateway adapter over the mesh client.
  */
 function createShellTransport({ getAuthToken }) {
-  return createMeshGateway({ getAuthToken });
+  const serverEvents = createServerEvents({
+    client: mesh,
+    getApiBaseUrl: () => MOCK_API_BASE_URL,
+    getAuthToken,
+    endpoints: createAdminEndpoints(),
+  });
+  return composeShellTransport({ serverEvents });
 }
 
 let shellTransport = createShellTransport({

@@ -9,6 +9,7 @@
  *   by post id instead of a single flat client set since a new post isn't scoped to one post.
  * Key dependencies: event-mesh/gateway.
  * See also: src/server.js; src/infrastructure/adminEvents.js (same flat-registry shape).
+ *   Mesh-only. On main, src/routes/postRoutes.js broadcasts post-created through adminEventStream and postLikeEventStream; there is no separate registry.
  */
 
 const COMMUNITY_POSTS_TOPIC = "community-posts";

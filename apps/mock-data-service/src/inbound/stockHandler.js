@@ -7,6 +7,7 @@
  *   (src/infrastructure/stockEvents.js).
  * Key dependencies: src/domain/stock.js; src/infrastructure/stockEvents.js; event-mesh/gateway.
  * See also: src/server.js; src/inbound/cartUpsertHandler.js (same requestId reply shape).
+ *   On main this is served by src/routes/stockRoutes.js.
  */
 
 const {

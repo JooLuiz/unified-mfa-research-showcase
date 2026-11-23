@@ -5,6 +5,7 @@
  * Key dependencies: JSON store; src/domain/orderProcessing.js; src/inbound/notificationEvents.js;
  *   src/infrastructure/adminEvents.js.
  * See also: src/server.js.
+ *   On main this is served by src/routes/orderRoutes.js (POST /orders).
  */
 
 const { buildPublicUser } = require("../domain/auth");

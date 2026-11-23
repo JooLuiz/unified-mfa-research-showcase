@@ -5,7 +5,7 @@
  * Not in this file: Credential storage or the live revoke push (events/sessionRevoked handling
  *   in src/main.js; @shared/session-events).
  * Key dependencies: src/events/eventBus.js.
- * See also: apps/mock-data-service/src/inbound/sessionEvents.js.
+ * See also: apps/mock-data-service/src/infrastructure/sessionEvents.js.
  */
 
 import { publishLogoutRequested } from "../events/eventBus";

@@ -5,6 +5,7 @@
  * Not in this file: HTTP cart reads or the watcher registry (src/infrastructure/cartEvents.js).
  * Key dependencies: JSON store; src/domain/cartProcessing.js; src/domain/stock.js; event-mesh/gateway.
  * See also: src/server.js; src/inbound/orderRequestHandler.js.
+ *   On main this is served by src/routes/cartRoutes.js (PUT /cart).
  */
 
 const {

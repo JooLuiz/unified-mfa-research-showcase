@@ -3,7 +3,7 @@
  * Role: Centralizes topic/event names and payload validation for notification toasts.
  * Not in this file: Mesh configuration, toast rendering, or gateway reply handling.
  * Key dependencies: None.
- * See also: src/createMeshNotificationAdapter.js; src/mountNotificationCenter.js.
+ * See also: src/createNotificationAdapter.js; src/mountNotificationCenter.js.
  */
 
 const NOTIFICATION_TOPIC = "notifications";

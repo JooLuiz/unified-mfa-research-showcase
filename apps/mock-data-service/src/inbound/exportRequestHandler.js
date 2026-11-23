@@ -4,6 +4,7 @@
  * Not in this file: CSV serialization details, ticket issuance, or HTTP download routes.
  * Key dependencies: JSON store; src/domain/exportJobs.js; src/domain/exportProcessing.js.
  * See also: src/server.js; src/inbound/exportEvents.js.
+ *   On main this is served by src/routes/exportRoutes.js.
  */
 
 const { createExportJob } = require("../domain/exportJobs");

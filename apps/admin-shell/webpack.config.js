@@ -50,6 +50,7 @@ module.exports = applyE2eCoverage({
         "@shared/order-status-events": { singleton: true },
         "@shared/session-events": { singleton: true },
         "@shared/notification-inbox-events": { singleton: true },
+        "@shared/server-events": { singleton: true },
         "event-mesh/mesh": {
           singleton: true,
           requiredVersion: false,

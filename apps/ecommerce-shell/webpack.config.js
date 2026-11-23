@@ -58,6 +58,7 @@ module.exports = applyE2eCoverage({
         notifications: "notifications@http://localhost:4314/remoteEntry.js",
       },
       shared: {
+        "@shared/server-events": { singleton: true },
         "event-mesh/mesh": {
           singleton: true,
           requiredVersion: false,

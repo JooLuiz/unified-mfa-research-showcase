@@ -4,6 +4,7 @@
  * Not in this file: Iframe DOM behavior, mesh connection authentication, or business command handling.
  * Key dependencies: event-mesh/gateway; gateway authorization in src/inbound/gatewayAuth.js.
  * See also: src/server.js; packages/iframe-bridge/src/index.js.
+ *   Mesh-only. On main the iframe bridge relays through window postMessage, with no server route.
  */
 
 const IFRAME_BRIDGE_TOPIC = "iframe-bridge";

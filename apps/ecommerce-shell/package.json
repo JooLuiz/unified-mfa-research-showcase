@@ -26,6 +26,7 @@
     "@shared/order-status-events": "*",
     "@shared/session-events": "*",
     "@shared/notification-inbox-events": "*",
+    "@shared/server-events": "*",
     "event-mesh": "*"
   }
 }

@@ -8,6 +8,7 @@
  *   src/infrastructure/adminEvents.js; src/infrastructure/stockEvents.js;
  *   src/domain/notificationTriggers.js.
  * See also: src/server.js; src/inbound/cartUpsertHandler.js (same reply/broadcast shape).
+ *   On main this is served by src/routes/orderStatusRoutes.js.
  */
 
 const {
