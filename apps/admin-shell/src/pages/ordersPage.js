@@ -38,7 +38,7 @@ function renderOrdersTable(tableMount, orderRecords) {
  * Inserts a newly placed order as the first row of the orders table.
  *
  * @param {HTMLElement} tableMount - Container element for the table.
- * @param {object} orderRecord - Order with its customer embedded, as broadcast over SSE.
+ * @param {object} orderRecord - Order with its customer embedded, as broadcast live.
  * @returns {void}
  * @sideEffects Mutates the table mount's DOM.
  */
@@ -71,7 +71,7 @@ function updateOrderRow(tableMount, orderRecord) {
 
 /**
  * Renders the orders page with a table of all users' orders, kept live by prepending new
- * rows whenever an order is broadcast over SSE.
+ * rows whenever an order is broadcast live.
  *
  * @param {object} appState - Shell state holding the auth session.
  * @param {HTMLElement} pageMount - Route container element.

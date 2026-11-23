@@ -1,7 +1,7 @@
 /**
  * Pure domain logic for durable notification inbox items.
  * Role: Constructs rows, finds admin user ids, filters notifications by user and shell, and marks items read.
- * Not in this file: File system persistence, HTTP routing, or SSE streaming.
+ * Not in this file: File system persistence, HTTP routing, or live push.
  * Key dependencies: src/domain/identifiers.js.
  * See also: src/domain/notificationTriggers.js, apps/mock-data-service/data/notificationInbox.json.
  */

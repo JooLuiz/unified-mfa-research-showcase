@@ -1,7 +1,7 @@
 /**
  * Orchestrates creating notification inbox rows and pushing them over the live stream.
  * Role: Provides high-level trigger functions executed by domain mutation endpoints.
- * Not in this file: HTTP routing or low-level SSE formatting.
+ * Not in this file: HTTP routing or live push delivery.
  * Key dependencies: src/domain/notificationInbox.js.
  * See also: src/routes/orderRoutes.js, src/routes/orderStatusRoutes.js, src/routes/postRoutes.js, src/routes/postLikeRoutes.js.
  */
