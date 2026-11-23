@@ -8,6 +8,7 @@
  *   src/domain/postLikes.js.
  * See also: src/server.js; src/routes/postRoutes.js (GET /posts annotates `likes` from the
  *   same domain module); src/routes/adminRoutes.js (GET /admin/posts, same annotation).
+ *   Mesh branch: same domain calls served from src/inbound/postLikeHandler.js; this file is transport-only.
  */
 
 const express = require("express");
