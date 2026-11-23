@@ -7,6 +7,7 @@
  * Key dependencies: orders.json via the JSON store; src/domain/auth.js; src/domain/connectionTickets.js;
  *   src/infrastructure/stockEvents.js for the cancel broadcast.
  * See also: src/server.js; src/routes/orderRoutes.js; src/routes/adminRoutes.js.
+ *   Mesh branch: same domain calls served from src/inbound/orderStatusHandler.js; this file is transport-only.
  */
 
 const express = require("express");

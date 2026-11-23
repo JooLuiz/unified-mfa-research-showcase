@@ -8,6 +8,7 @@
  *   src/infrastructure/stockEvents.js.
  * See also: src/server.js; src/routes/cartRoutes.js (guest-hold release on login merge);
  *   src/routes/orderRoutes.js (broadcast after a sale).
+ *   Mesh branch: same domain calls served from src/inbound/stockHandler.js; this file is transport-only.
  */
 
 const express = require("express");
