@@ -1,15 +1,16 @@
 /**
  * Routes for the notification inbox.
  * Role: Handles GET /notifications?shell=X, PUT /notifications/read-all?shell=X,
- *   PUT /notifications/:notificationId/read, and GET /notifications/stream?shell=X.
+ *   and PUT /notifications/:notificationId/read.
  * Not in this file: Trigger side-effects or connection storage internals.
- * Key dependencies: src/domain/auth.js, src/domain/notificationInbox.js, src/domain/identifiers.js.
+ * Key dependencies: src/domain/auth.js, src/domain/notificationInbox.js.
  * See also: src/domain/notificationTriggers.js, src/infrastructure/notificationInboxEvents.js.
+ *   On main this file also serves GET /notifications/stream; this branch publishes through the
+ *   gateway (src/infrastructure/notificationInboxEvents.js).
  */
 
 const express = require("express");
 const { resolveAuthenticatedUserId } = require("../domain/auth");
-const { generateIdentifier } = require("../domain/identifiers");
 const {
   listNotificationsForUser,
   markNotificationRead,
@@ -18,7 +19,6 @@ const {
 } = require("../domain/notificationInbox");
 
 const NOTIFICATION_INBOX_FILE_NAME = "notificationInbox.json";
-const NOTIFICATION_SSE_HEARTBEAT_INTERVAL_MS = 20_000;
 const ALLOWED_SHELLS = new Set(["ecommerce", "social", "admin"]);
 
 /**
@@ -29,10 +29,8 @@ const ALLOWED_SHELLS = new Set(["ecommerce", "social", "admin"]);
  *   writeJsonFile: (fileName: string, data: any) => Promise<void>
  * }} jsonStore - JSON store bound to data folder.
  * @param {{
- *   rememberClient: (userId: string, shell: string, clientId: string, response: import("express").Response) => void,
- *   forgetClient: (clientId: string) => void,
  *   broadcastNotificationChanged: (userId: string, shell: string, notification: object) => void
- * }} notificationInboxEventStream - SSE registry for live inbox push.
+ * }} notificationInboxEventStream - Live inbox publisher.
  * @returns {import("express").Router}
  */
 function createNotificationInboxRouter(jsonStore, notificationInboxEventStream) {
@@ -150,7 +148,7 @@ function createNotificationInboxRouter(jsonStore, notificationInboxEventStream) 
   /**
    * PUT /notifications/:notificationId/read
    * Auth: Bearer token.
-   * Marks row read, persists file, pushes updated row via SSE, returns updated row.
+   * Marks row read, persists file, pushes the updated row live, returns updated row.
    */
   router.put("/notifications/:notificationId/read", async (request, response) => {
     try {
@@ -195,42 +193,6 @@ function createNotificationInboxRouter(jsonStore, notificationInboxEventStream) 
         details: error.message,
       });
     }
-  });
-
-  /**
-   * GET /notifications/stream?shell=X
-   * Auth: Bearer token via Authorization header or ?token= query parameter.
-   * Holds open SSE stream for (userId, shell), broadcasts notification-inbox.changed.
-   */
-  router.get("/notifications/stream", async (request, response) => {
-    const userId = await resolveCallerUserId(request);
-    if (!userId) {
-      response.status(401).json({ message: "Missing or invalid token" });
-      return;
-    }
-
-    const shell = typeof request.query.shell === "string" ? request.query.shell : "";
-    if (!ALLOWED_SHELLS.has(shell)) {
-      response.status(400).json({ message: "Valid shell query parameter required" });
-      return;
-    }
-
-    response.setHeader("Content-Type", "text/event-stream");
-    response.setHeader("Cache-Control", "no-cache");
-    response.setHeader("Connection", "keep-alive");
-    response.flushHeaders();
-
-    const clientId = generateIdentifier("notification-client");
-    notificationInboxEventStream.rememberClient(userId, shell, clientId, response);
-
-    const heartbeatIntervalId = setInterval(() => {
-      response.write(": ping\n\n");
-    }, NOTIFICATION_SSE_HEARTBEAT_INTERVAL_MS);
-
-    response.on("close", () => {
-      clearInterval(heartbeatIntervalId);
-      notificationInboxEventStream.forgetClient(clientId);
-    });
   });
 
   return router;
