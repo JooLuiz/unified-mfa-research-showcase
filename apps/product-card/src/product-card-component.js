@@ -80,7 +80,6 @@ export const ProductCardComponent = {
       productRef: productData,
       getApiBaseUrl: () => props.apiBaseUrl,
       quantityRef: quantityValue,
-      transport: mesh,
     });
     const isOutOfStock = computed(() => availableCount.value === 0);
     const isAtMaxQuantity = computed(

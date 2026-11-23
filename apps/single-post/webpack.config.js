@@ -63,6 +63,10 @@ module.exports = applyE2eCoverage({
           singleton: true,
           requiredVersion: false,
         },
+        "@shared/post-like-events": {
+          singleton: true,
+        },
+        "@shared/server-events": { singleton: true },
       },
     }),
     new HtmlWebpackPlugin({

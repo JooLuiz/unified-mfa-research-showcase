@@ -4,11 +4,23 @@
  *   removing subscriptions as the rendered line set changes, and reporting each line's live
  *   "available" count back through a callback.
  * Not in this file: Component state or rendering (src/checkout-items.ts).
- * Key dependencies: @shared/stock-events. The caller supplies the transport.
+ * Key dependencies: @shared/server-events; @shared/stock-events.
  * See also: src/checkout-items.ts.
  */
 
-import { createStockWatchClient, type StockWatchTransport } from "@shared/stock-events";
+import { createServerEvents } from "@shared/server-events";
+import {
+  createStockWatchClient,
+  getOrCreateGuestStockSessionId,
+} from "@shared/stock-events";
+
+let readCheckoutApiBaseUrl = (): string => "";
+
+const checkoutStockTransport = createServerEvents({
+  getApiBaseUrl: () => readCheckoutApiBaseUrl(),
+  getAuthToken: () => "",
+  getStockSessionId: () => getOrCreateGuestStockSessionId(),
+});
 
 export type AvailabilityByProductIdChangeCallback = (
   productId: string,
@@ -18,10 +30,13 @@ export type AvailabilityByProductIdChangeCallback = (
 export class CheckoutAvailabilityWatcher {
   private readonly stopWatchingByProductId = new Map<string, () => void>();
 
-  constructor(
-    private readonly onAvailableChange: AvailabilityByProductIdChangeCallback,
-    private readonly transport: StockWatchTransport | null = null,
-  ) {}
+  private apiBaseUrl: string | null = null;
+
+  constructor(private readonly onAvailableChange: AvailabilityByProductIdChangeCallback) {}
+
+  setApiBaseUrl(apiBaseUrl: string | null): void {
+    this.apiBaseUrl = apiBaseUrl;
+  }
 
   /**
    * Starts watching any newly-rendered product ids and stops watching ones no longer rendered.
@@ -29,7 +44,7 @@ export class CheckoutAvailabilityWatcher {
    * @param productIds - The product ids currently rendered as checkout lines.
    */
   syncWatchedProductIds(productIds: string[]): void {
-    if (!this.transport) {
+    if (!this.apiBaseUrl) {
       return;
     }
 
@@ -42,7 +57,8 @@ export class CheckoutAvailabilityWatcher {
       }
     }
 
-    const stockClient = createStockWatchClient(this.transport);
+    readCheckoutApiBaseUrl = () => this.apiBaseUrl || "";
+    const stockClient = createStockWatchClient(checkoutStockTransport);
     for (const productId of nextProductIds) {
       if (this.stopWatchingByProductId.has(productId)) {
         continue;

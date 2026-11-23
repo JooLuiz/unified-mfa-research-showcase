@@ -2,20 +2,30 @@
  * Gateway adapter that satisfies the shared event interface.
  * Role: Routes publish, subscribe, and request through the endpoint maps and the injected client.
  * Not in this file: Alias resolution and reply waiting (src/openEventConnection.js).
- * Key dependencies: src/eventEndpoints.js; src/openEventConnection.js; the client the shell passes in.
+ * Key dependencies: src/eventEndpoints.js; src/openEventConnection.js; event-mesh/mesh.
  * See also: apps/ecommerce-shell/src/events/eventBus.js.
  *   On main this adapter sends HTTP requests and opens EventSource streams; this branch publishes
  *   gateway commands and keeps HTTP only for the reads the gateway does not serve.
+ *   MFEs call this without `client` and get the shared mesh singleton; shells pass it explicitly.
  */
 
+import mesh from "event-mesh/mesh";
 import { createSharedEndpoints } from "./eventEndpoints.js";
 import { requestReply, subscribeToEventConnection } from "./openEventConnection.js";
 
 /**
- * @param {{ client: { publish: Function, subscribe: Function, whenConnected: Function }, getApiBaseUrl: () => string, getAuthToken?: () => string, endpoints?: { requests?: object, connections?: object } }} serverInput
+ * @param {{ client?: { publish: Function, subscribe: Function, whenConnected: Function }, getApiBaseUrl: () => string, getAuthToken?: () => string, getStockSessionId?: () => string, endpoints?: { requests?: object, connections?: object } }} serverInput
+ *   `client` defaults to the event-mesh/mesh singleton. `getStockSessionId` is accepted so callers
+ *   match main; it is unused here because the gateway assigns the stock watch streamId.
  * @returns {{ publish: Function, subscribe: Function, request: Function, whenConnected: Function }}
  */
-function createServerEvents({ client, getApiBaseUrl, getAuthToken = () => "", endpoints = {} }) {
+function createServerEvents({
+  client = mesh,
+  getApiBaseUrl,
+  getAuthToken = () => "",
+  getStockSessionId,
+  endpoints = {},
+}) {
   const sharedEndpoints = createSharedEndpoints();
   const requests = { ...sharedEndpoints.requests, ...(endpoints.requests || {}) };
   const connections = { ...sharedEndpoints.connections, ...(endpoints.connections || {}) };

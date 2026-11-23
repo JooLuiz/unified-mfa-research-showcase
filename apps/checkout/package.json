@@ -25,6 +25,7 @@
     "@shared/checkout-events": "*",
     "@shared/shell-events": "*",
     "@shared/stock-events": "*",
+    "@shared/server-events": "*",
     "event-mesh": "*",
     "@angular/common": "^21.2.8",
     "@angular/core": "^21.2.8",

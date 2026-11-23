@@ -31,9 +31,10 @@ export type ServerEventClient = {
 };
 
 export declare function createServerEvents(input: {
-  client: ServerEventClient;
+  client?: ServerEventClient;
   getApiBaseUrl: () => string;
   getAuthToken?: () => string;
+  getStockSessionId?: () => string;
   endpoints?: {
     requests?: object;
     connections?: object;

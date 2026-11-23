@@ -55,6 +55,7 @@ export function mountCheckoutItems(
     componentRef = applicationRef.bootstrap(CheckoutItemsComponent, containerElement);
     syncCartItems(props.cartItems);
     componentRef.setInput("productsById", props.productsById ?? {});
+    componentRef.setInput("apiBaseUrl", props.apiBaseUrl ?? null);
 
     componentRef.instance.quantityChange.subscribe((payload) => {
       publishCartItemUpdateRequested({

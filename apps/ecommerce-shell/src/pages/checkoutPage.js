@@ -8,6 +8,7 @@
 
 import { publishRenderRequested } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
+import { MOCK_API_BASE_URL } from "../utils/constants";
 import {
   isAuthenticated,
   rememberPostLoginRedirect,
@@ -78,6 +79,7 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
     modules.mountCheckoutItems(checkoutItemsMount, {
       cartItems: appState.cartItems,
       productsById: appState.productsById,
+      apiBaseUrl: MOCK_API_BASE_URL,
       // Cart listeners are called with no payload. The line list reads the cart this page already committed.
       subscribeToCartChanges: (listener) =>
         subscribeToCartChanges(() => {

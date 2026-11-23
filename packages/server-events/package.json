@@ -8,6 +8,9 @@
   "exports": {
     ".": "./src/index.js"
   },
+  "peerDependencies": {
+    "event-mesh": "*"
+  },
   "scripts": {
     "build": "node -e \"process.stdout.write('server-events build not required\\n')\"",
     "lint": "node -e \"process.stdout.write('server-events lint not configured\\n')\""

@@ -20,7 +20,6 @@ import {
 import { CommonModule } from "@angular/common";
 import "./styles.css";
 import { CheckoutAvailabilityWatcher } from "./checkout-availability-watcher";
-import mesh from "event-mesh/mesh";
 
 type Product = {
   id: string;
@@ -43,6 +42,7 @@ type SubscribeToCartChanges = (
 export type CheckoutItemsProps = {
   cartItems: CartItem[];
   productsById: ProductsById;
+  apiBaseUrl?: string | null;
   subscribeToCartChanges: SubscribeToCartChanges;
 };
 
@@ -144,6 +144,8 @@ export class CheckoutItemsComponent implements OnChanges, OnDestroy {
 
   @Input() productsById: ProductsById = {};
 
+  @Input() apiBaseUrl: string | null = null;
+
   @Output() quantityChange = new EventEmitter<{
     productId: string;
     quantity: number;
@@ -157,7 +159,6 @@ export class CheckoutItemsComponent implements OnChanges, OnDestroy {
     (productId, nextAvailable) => {
       this.applyAvailable(productId, nextAvailable);
     },
-    mesh,
   );
 
   constructor(private readonly changeDetectorRef: ChangeDetectorRef) {}
@@ -174,7 +175,10 @@ export class CheckoutItemsComponent implements OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes["cartItems"]) {
+    if (changes["apiBaseUrl"]) {
+      this.availabilityWatcher.setApiBaseUrl(this.apiBaseUrl);
+    }
+    if (changes["cartItems"] || changes["apiBaseUrl"]) {
       this.availabilityWatcher.syncWatchedProductIds(
         this.cartItems.map((cartItem) => cartItem.productId),
       );

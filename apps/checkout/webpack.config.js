@@ -66,6 +66,7 @@ module.exports = applyE2eCoverage({
           requiredVersion: false,
         },
         "@shared/stock-events": { singleton: true },
+        "@shared/server-events": { singleton: true },
       },
     }),
     new AngularWebpackPlugin({

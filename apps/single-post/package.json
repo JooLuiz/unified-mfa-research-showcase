@@ -11,7 +11,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "@shared/post-like-events": "*",
-    "@shared/community-events": "*"
+    "@shared/server-events": "*",
+    "event-mesh": "*"
   },
   "devDependencies": {
     "@babel/core": "^7.26.9",

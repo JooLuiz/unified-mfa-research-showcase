@@ -34,7 +34,6 @@ import {
   readProductIdFromQueryParams,
 } from "./product-loader";
 import { ProductAvailabilityWatcher } from "./product-availability-watcher";
-import mesh from "event-mesh/mesh";
 import { PRODUCT_DETAILS_TEMPLATE } from "./product-details.template";
 
 const normalizeQuantity = (nextQuantity: number): number => {
@@ -85,7 +84,7 @@ export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDest
       this.quantityValue = nextAvailable;
     }
     this.changeDetectorRef.detectChanges();
-  }, mesh);
+  });
 
   get isOutOfStock(): boolean {
     return this.availableCount === 0;
@@ -159,7 +158,7 @@ export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDest
       this.product = this.inputProduct;
       this.isLoading = false;
       this.isMissingProductId = false;
-      this.availableCount = this.availabilityWatcher.startWatching(this.product);
+      this.availableCount = this.availabilityWatcher.startWatching(this.product, this.apiBaseUrl);
       if (this.hasViewInitialized) {
         queueMicrotask(() => this.renderSimilarProducts());
       }
@@ -173,7 +172,7 @@ export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDest
       this.product = null;
       this.isLoading = false;
       this.isMissingProductId = !currentProductId;
-      this.availableCount = this.availabilityWatcher.startWatching(null);
+      this.availableCount = this.availabilityWatcher.startWatching(null, null);
       this.requestTracker.reset();
       if (this.hasViewInitialized) {
         queueMicrotask(() => this.renderSimilarProducts());
@@ -198,7 +197,10 @@ export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDest
         }
         this.product = fetchedProduct;
         this.isLoading = false;
-        this.availableCount = this.availabilityWatcher.startWatching(this.product);
+        this.availableCount = this.availabilityWatcher.startWatching(
+          this.product,
+          currentApiBaseUrl,
+        );
         this.changeDetectorRef.detectChanges();
         if (this.hasViewInitialized) {
           queueMicrotask(() => this.renderSimilarProducts());
@@ -212,7 +214,7 @@ export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDest
         console.warn(error);
         this.product = null;
         this.isLoading = false;
-        this.availableCount = this.availabilityWatcher.startWatching(null);
+        this.availableCount = this.availabilityWatcher.startWatching(null, null);
         this.changeDetectorRef.detectChanges();
       });
   }
