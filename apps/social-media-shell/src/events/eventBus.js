@@ -11,7 +11,7 @@ import { configureMesh } from "event-mesh/mesh";
 import { createAccountEvents } from "@shared/account-events";
 import { createCatalogEvents } from "@shared/catalog-events";
 import { createCommunityEvents } from "@shared/community-events";
-import { composeShellTransport, createServerEvents } from "@shared/server-events";
+import { composeShellEvents, createServerEvents } from "@shared/server-events";
 import { createShellEvents } from "@shared/shell-events";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import { createSocialEndpoints } from "./eventEndpoints";
@@ -65,7 +65,7 @@ function createShellTransport({ getAuthToken }) {
     getAuthToken,
     endpoints: createSocialEndpoints(),
   });
-  return composeShellTransport({ serverEvents });
+  return composeShellEvents({ serverEvents });
 }
 
 let shellTransport = createShellTransport({

@@ -1,5 +1,5 @@
 /**
- * Authenticated JSON fetch helper for admin-shell API calls.
+ * Authenticated JSON request helper for admin-shell API calls.
  * Role: Wraps fetch with JSON parsing and a shared 401 fallback for when a session revoke
  *   broadcast was missed (socket was down, tab was backgrounded, etc).
  * Not in this file: Credential storage or the live revoke push (events/sessionRevoked handling
@@ -11,7 +11,7 @@
 import { publishLogoutRequested } from "../events/eventBus";
 
 /**
- * Fetches a URL and parses the JSON body, throwing on a non-OK response.
+ * Requests a URL and parses the JSON body, throwing on a non-OK response.
  *
  * @param {string} url - Request URL.
  * @param {RequestInit} [options] - Standard fetch options.
@@ -22,7 +22,7 @@ import { publishLogoutRequested } from "../events/eventBus";
  *   session/revoked mesh push already clears the session on the tabs it reaches; this covers
  *   the tab whose socket was down when the server broadcast it.
  */
-async function fetchJson(url, options = {}) {
+async function requestJson(url, options = {}) {
   const response = await fetch(url, options);
   if (!response.ok) {
     if (response.status === 401 && options.headers?.Authorization) {
@@ -35,4 +35,4 @@ async function fetchJson(url, options = {}) {
   return response.json();
 }
 
-export default fetchJson;
+export default requestJson;

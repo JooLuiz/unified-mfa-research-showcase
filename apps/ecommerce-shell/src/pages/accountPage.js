@@ -15,7 +15,7 @@ import {
 import { publishLogoutRequested, shellTransport } from "../events/eventBus";
 import { requestSignOutEverywhere } from "@shared/session-events";
 import { MOCK_API_BASE_URL } from "../utils/constants";
-import fetchJson from "../utils/fetchJson";
+import requestJson from "../utils/requestJson";
 import { persistAccountUpdate } from "../commands/accountCommands";
 import { requestCsvExport } from "../exports/requestCsvExport";
 import { publishNotification } from "../notifications/notificationAdapter";
@@ -128,7 +128,7 @@ async function renderMyOrdersList(appState, ordersContainer, activeCleanupFuncti
 
   let userOrders = [];
   try {
-    const ordersResponse = await fetchJson(`${MOCK_API_BASE_URL}/orders`, {
+    const ordersResponse = await requestJson(`${MOCK_API_BASE_URL}/orders`, {
       headers: {
         Authorization: `Bearer ${appState.authToken}`,
       },

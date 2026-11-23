@@ -41,6 +41,6 @@ export declare function createServerEvents(input: {
   };
 }): ServerEventTransport;
 
-export declare function composeShellTransport(input: {
+export declare function composeShellEvents(input: {
   serverEvents: ServerEventTransport;
 }): ServerEventTransport;

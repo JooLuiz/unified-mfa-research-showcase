@@ -9,7 +9,7 @@
 import mesh from "event-mesh/mesh";
 import { configureMesh } from "event-mesh/mesh";
 import { createAccountEvents } from "@shared/account-events";
-import { composeShellTransport, createServerEvents } from "@shared/server-events";
+import { composeShellEvents, createServerEvents } from "@shared/server-events";
 import { createShellEvents } from "@shared/shell-events";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import { createAdminEndpoints } from "./eventEndpoints";
@@ -63,7 +63,7 @@ function createShellTransport({ getAuthToken }) {
     getAuthToken,
     endpoints: createAdminEndpoints(),
   });
-  return composeShellTransport({ serverEvents });
+  return composeShellEvents({ serverEvents });
 }
 
 let shellTransport = createShellTransport({

@@ -18,7 +18,7 @@ import {
   createPlpFiltersSnapshot,
 } from "@shared/catalog-events";
 import { createCheckoutEvents } from "@shared/checkout-events";
-import { composeShellTransport, createServerEvents } from "@shared/server-events";
+import { composeShellEvents, createServerEvents } from "@shared/server-events";
 import { createShellEvents } from "@shared/shell-events";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import { CATALOG_FILTERS_CHANGED_EVENT } from "./eventContracts";
@@ -73,7 +73,7 @@ function createShellTransport({ getAuthToken }) {
     getAuthToken,
     endpoints: createEcommerceEndpoints(),
   });
-  return composeShellTransport({ serverEvents });
+  return composeShellEvents({ serverEvents });
 }
 
 let shellTransport = createShellTransport({

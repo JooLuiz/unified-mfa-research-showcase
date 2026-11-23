@@ -12,7 +12,7 @@
  * @param {{ serverEvents: { publish: Function, subscribe: Function, request: Function, whenConnected: Function } }} compositionInput
  * @returns {{ publish: Function, subscribe: Function, request: Function, whenConnected: Function }}
  */
-function composeShellTransport({ serverEvents }) {
+function composeShellEvents({ serverEvents }) {
   return {
     publish: serverEvents.publish,
     subscribe: serverEvents.subscribe,
@@ -21,4 +21,4 @@ function composeShellTransport({ serverEvents }) {
   };
 }
 
-export { composeShellTransport };
+export { composeShellEvents };
