@@ -1,6 +1,8 @@
 /**
  * Installs the browser globals shell modules touch while a unit test drives them.
- * Role: Provides window, CustomEvent, and in-memory storage before those modules publish.
+ * Role: Provides window, CustomEvent, in-memory storage, and inert EventSource/WebSocket stand-ins
+ *   before those modules publish. The stand-ins never connect, so a module that subscribes on mount
+ *   behaves the same on main and on mesh branches. Tests that need live fakes install their own later.
  * Not in this file: Assertions or a particular shell's event names.
  * Key dependencies: None.
  * See also: apps/ecommerce-shell/src/events/eventBus.test.js; apps/ecommerce-shell/src/utils/cartSync.test.js.
@@ -91,6 +93,57 @@ globalThis.CustomEvent = class CustomEvent extends Event {
     this.detail = init.detail;
   }
 };
+/** EventSource stand-in that never opens and never emits. */
+class InertEventSource {
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSED = 2;
+
+  constructor(url) {
+    this.url = url;
+    this.readyState = InertEventSource.CONNECTING;
+    this.onmessage = null;
+    this.onerror = null;
+  }
+
+  addEventListener() {}
+
+  removeEventListener() {}
+
+  close() {
+    this.readyState = InertEventSource.CLOSED;
+  }
+}
+
+/** WebSocket stand-in that stays CONNECTING and never calls its handlers. */
+class InertWebSocket {
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSING = 2;
+  static CLOSED = 3;
+
+  constructor(url) {
+    this.url = url;
+    this.readyState = InertWebSocket.CONNECTING;
+    this.onopen = null;
+    this.onmessage = null;
+    this.onerror = null;
+    this.onclose = null;
+  }
+
+  addEventListener() {}
+
+  removeEventListener() {}
+
+  send() {}
+
+  close() {
+    this.readyState = InertWebSocket.CLOSED;
+  }
+}
+
+globalThis.EventSource = InertEventSource;
+globalThis.WebSocket = InertWebSocket;
 globalThis.window = browserWindow;
 globalThis.localStorage = createMemoryStorage();
 globalThis.sessionStorage = browserWindow.sessionStorage;
