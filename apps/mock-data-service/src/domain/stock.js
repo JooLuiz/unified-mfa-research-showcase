@@ -3,7 +3,7 @@
  * Role: Computes "available" (stock minus every active hold), and reserves, releases, and
  *   consumes holds. A hold is a saved-cart line (signed-in) or a guestHolds.json line (guest).
  * Not in this file: HTTP routing (src/routes/stockRoutes.js, src/routes/catalogRoutes.js) or the
- *   SSE watcher registry (src/infrastructure/stockEvents.js).
+ *   live watcher registry (src/infrastructure/stockEvents.js).
  * Key dependencies: products.json; src/domain/cartProcessing.js; src/domain/guestHolds.js.
  * See also: src/domain/orderProcessing.js (consumes stock on sale); src/domain/orderStatus.js
  *   (restores stock when an order is cancelled).
@@ -275,7 +275,7 @@ async function setAbsoluteStock({ jsonStore, holder, productId, quantity }) {
 }
 
 /**
- * Releases every hold a guest session has, for the stock SSE stream's `close` handler.
+ * Releases every hold a guest session has, when the guest's live stock watch disconnects.
  *
  * @param {{ jsonStore: object, sessionId: string }} releaseInput - Store and the guest session that disconnected.
  * @returns {Promise<{ ok: true, affectedProducts: Array<{ productId: string, available: number }> } | { ok: false, code: string }>} Products whose availability changed, for the caller to broadcast.
