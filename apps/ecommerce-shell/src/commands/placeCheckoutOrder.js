@@ -1,6 +1,6 @@
 /**
  * Places a checkout order from shell-owned cart and coupon state.
- * Role: Builds the order payload, calls the mesh order command, and clears the cart on success.
+ * Role: Builds the order payload, calls the order command through the injected transport, clears the cart, and navigates on success.
  * Not in this file: Checkout remotes, cart line mutations, or coupon validation UI.
  * Key dependencies: src/commands/placeOrder.js; src/utils/cartActions.js; src/utils/cartSync.js.
  * See also: src/pages/checkoutPage.js; MESH_IMPLEMENTATIONS/remote-intents.md.
@@ -8,7 +8,6 @@
 
 import { calculateCartTotals } from "../utils/cartActions";
 import { clearLocalCart, flushCartPersist, resumeCartPersist, scheduleCartPersist, suspendCartPersist } from "../utils/cartSync";
-import { shellTransport } from "../events/eventBus";
 import { placeOrder } from "./placeOrder";
 import { navigate } from "../utils/navigate";
 
@@ -24,13 +23,14 @@ function calculateCheckoutTotals(appState) {
 }
 
 /**
- * Places the current cart as an order via mesh and navigates on success.
+ * Places the current cart as an order and navigates on success.
  *
+ * @param {{ request: Function }} transport - Shell event interface.
  * @param {object} appState - Shell state holding cart, coupon, products, and user.
  * @returns {Promise<{ ok: boolean }>} Whether the server accepted the order.
  * @sideEffects On success clears the local cart and navigates to /order-placed. The order write removes the saved row and pushes an empty cart.
  */
-async function placeCheckoutOrder(appState) {
+async function placeCheckoutOrder(transport, appState) {
   await flushCartPersist();
   suspendCartPersist();
   const orderItems = appState.cartItems.map((cartItem) => {
@@ -45,7 +45,7 @@ async function placeCheckoutOrder(appState) {
   const orderTotals = calculateCheckoutTotals(appState);
   const totalAmount = orderTotals.subtotal - orderTotals.discountAmount;
 
-  const orderResult = await placeOrder(shellTransport, {
+  const orderResult = await placeOrder(transport, {
     items: orderItems,
     subtotal: orderTotals.subtotal,
     discountAmount: orderTotals.discountAmount,

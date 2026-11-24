@@ -561,7 +561,7 @@ function handleCouponApplied(coupon) {
  * @sideEffects Starts the place-order command asynchronously.
  */
 function handlePlaceOrderRequested() {
-  void placeCheckoutOrder(appState);
+  void placeCheckoutOrder(shellTransport, appState);
 }
 
 const catalogIntentHandlers = {

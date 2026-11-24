@@ -1,6 +1,7 @@
 /**
  * Admin shell subscriptions that are not shared with other shells.
- * Role: Maps the admin live contracts onto the gateway's admin topic.
+ * Role: Maps the admin live contracts onto the gateway's admin topic, and builds the admin
+ *   order read path the order-details remote calls.
  * Not in this file: Order status commands (packages/server-events/src/eventEndpoints.js).
  * Key dependencies: None.
  * See also: src/events/eventBus.js; src/events/adminLiveEvents.js.
@@ -30,4 +31,14 @@ function createAdminEndpoints() {
   };
 }
 
-export { createAdminEndpoints };
+/**
+ * Builds the admin read path for one order.
+ *
+ * @param {string} orderId - Order to read.
+ * @returns {string} Path under the mock API base url.
+ */
+function buildAdminOrderPath(orderId) {
+  return `/admin/orders/${encodeURIComponent(orderId)}`;
+}
+
+export { buildAdminOrderPath, createAdminEndpoints };

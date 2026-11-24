@@ -1,6 +1,6 @@
 /**
  * Toggles likes for the social media shell.
- * Role: Owns the like/unlike HTTP command, keeps appState.posts in sync with the result, and
+ * Role: Sends the like/unlike command through the injected transport, keeps appState.posts in sync with the result, and
  *   fires the liker's own "Post Liked" toast. The author's persisted toast is a separate concern
  *   (the shell publishes it when a new inbox row arrives), since the owner is not the one
  *   making this request.
@@ -12,7 +12,6 @@
  */
 
 import { togglePostLike } from "@shared/post-like-events";
-import { shellTransport } from "../events/eventBus";
 import { publishNotification } from "../notifications/notificationAdapter";
 
 /**
@@ -35,12 +34,13 @@ function patchPostInAppState(appState, postId, patch) {
  * rejected by the server; this command surfaces that as a quiet no-op rather than a toast,
  * since the UI already disables the button for both cases.
  *
+ * @param {{ request: Function }} transport - Shell event interface.
  * @param {object} appState - Shell state holding the authenticated session and live posts.
  * @param {object} post - Post to like or unlike.
  * @returns {Promise<{ liked: boolean, likes: number } | null>} The new toggle state, or null when the request did not succeed.
- * @sideEffects Performs the HTTP toggle write, patches appState.posts on success, and fires the "Post Liked" toast when the result is a like.
+ * @sideEffects Sends the toggle write, patches appState.posts on success, and fires the "Post Liked" toast when the result is a like.
  */
-async function toggleLikeForPost(appState, post) {
+async function toggleLikeForPost(transport, appState, post) {
   if (!post || !appState.authToken) {
     publishNotification({
       type: "error",
@@ -50,7 +50,7 @@ async function toggleLikeForPost(appState, post) {
     return null;
   }
 
-  const toggleResult = await togglePostLike(shellTransport, { postId: post.id });
+  const toggleResult = await togglePostLike(transport, { postId: post.id });
   if (!toggleResult.ok) {
     return null;
   }

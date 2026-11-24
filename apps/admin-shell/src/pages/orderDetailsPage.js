@@ -10,6 +10,7 @@
 import { navigate } from "../utils/navigate";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import { shellTransport } from "../events/eventBus";
+import { buildAdminOrderPath } from "../events/eventEndpoints";
 import { publishNotification } from "../notifications/notificationAdapter";
 
 const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
@@ -79,7 +80,7 @@ async function renderOrderDetailsPage(appState, pageMount, modules, activeCleanu
       actor: "admin",
       authToken: appState.authToken,
       transport: shellTransport,
-      buildOrderRequestPath: (id) => `/admin/orders/${id}`,
+      buildOrderRequestPath: buildAdminOrderPath,
       onStatusRejected: () => {
         publishNotification({
           type: "error",

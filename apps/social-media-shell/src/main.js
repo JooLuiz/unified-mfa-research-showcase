@@ -389,7 +389,7 @@ const accountIntentHandlers = {
 const communityIntentHandlers = {
   onPostLiked: ({ postId }) => {
     const likedPost = appState.posts.find((post) => post.id === postId);
-    void toggleLikeForPost(appState, likedPost);
+    void toggleLikeForPost(shellTransport, appState, likedPost);
   },
   onAuthorSelected: ({ author }) => {
     if (author?.username) {

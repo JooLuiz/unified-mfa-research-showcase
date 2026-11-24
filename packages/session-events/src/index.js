@@ -10,7 +10,6 @@
 export {
   SESSION_TOPIC,
   SESSION_REVOKED_EVENT,
-  SIGN_OUT_EVERYWHERE_PATH,
 } from "./sessionEventsContracts.js";
 export {
   startSessionStream as startSessionLiveEvents,
