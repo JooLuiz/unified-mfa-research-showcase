@@ -5,7 +5,7 @@
  * Key dependencies: src/domain/identifiers.js.
  * See also: Not called by any `main` HTTP route today — `main` downloads CSVs
  *   synchronously (see src/domain/exportProcessing.js). Kept here for
- *   branch-structure parity; the mesh branch's src/event-mesh/exportRequestHandler.js
+ *   branch-structure parity; the mesh branch's src/inbound/exportRequestHandler.js
  *   uses this module to track async export jobs.
  */
 

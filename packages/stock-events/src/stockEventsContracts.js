@@ -4,7 +4,8 @@
  *   both the reservation commands and the watch stream/client on this branch.
  * Not in this file: HTTP calls or the stream connection. Both live behind the injected transport.
  * Key dependencies: None.
- * See also: apps/mock-data-service/src/routes/stockRoutes.js.
+ * See also: main: apps/mock-data-service/src/routes/stockRoutes.js;
+ *   mesh: apps/mock-data-service/src/inbound/stockHandler.js.
  */
 
 const STOCK_RESERVATIONS_PATH = "/stock/reservations";
