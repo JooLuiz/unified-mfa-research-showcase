@@ -6,7 +6,12 @@
  * See also: src/utils/renderActions.js (public barrel).
  */
 
-import { publishCartChanged, publishRenderRequested, subscribeToCartChanges } from "../events/eventBus";
+import {
+  publishCartChanged,
+  publishRenderRequested,
+  shellTransport,
+  subscribeToCartChanges,
+} from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 import {
   STOCK_ISSUE_NOTIFICATION_MESSAGE,
@@ -136,7 +141,7 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
     subtotal: initialTotals.subtotal,
     discountAmount: initialTotals.discountAmount,
     onPlaceOrder: async () => {
-      const orderResult = await placeCheckoutOrder(appState);
+      const orderResult = await placeCheckoutOrder(shellTransport, appState);
       if (!orderResult.ok) {
         publishNotification({
           type: "error",

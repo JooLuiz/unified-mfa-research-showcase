@@ -1,16 +1,14 @@
 /**
- * Shared constants for the live-stock HTTP + SSE transport.
- * Role: Route paths, header names, SSE event names, and the insufficient-stock code, used by
- *   both the reservation commands and the watch stream/client on this branch.
- * Not in this file: HTTP calls or the stream connection. Both live behind the injected transport.
+ * Shared constants for the live-stock contract.
+ * Role: Header names, topic and event names, and the insufficient-stock code, used by both the
+ *   reservation commands and the watch client.
+ * Not in this file: Paths (packages/server-events/src/eventEndpoints.js), or the requests and the
+ *   live connection. Both live behind the injected transport.
  * Key dependencies: None.
  * See also: main: apps/mock-data-service/src/routes/stockRoutes.js;
  *   mesh: apps/mock-data-service/src/inbound/stockHandler.js.
  */
 
-const STOCK_RESERVATIONS_PATH = "/stock/reservations";
-const STOCK_STREAM_PATH = "/stock/stream";
-const STOCK_WATCHING_PATH = "/stock/watching";
 
 const STOCK_SESSION_HEADER_NAME = "X-Stock-Session";
 
@@ -26,9 +24,6 @@ const STOCK_STREAM_READY_EVENT_NAME = "stock_stream_ready";
 const STOCK_INSUFFICIENT_CODE = "insufficient-stock";
 
 export {
-  STOCK_RESERVATIONS_PATH,
-  STOCK_STREAM_PATH,
-  STOCK_WATCHING_PATH,
   STOCK_SESSION_HEADER_NAME,
   STOCK_SESSION_RELEASE_HEADER_NAME,
   STOCK_TOPIC,

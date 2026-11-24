@@ -8,8 +8,6 @@
 
 export {
   SESSION_REVOKED_EVENT_NAME,
-  SESSION_STREAM_PATH,
-  SIGN_OUT_EVERYWHERE_PATH,
 } from "./sessionEventsContracts.js";
 export {
   startSessionStream,

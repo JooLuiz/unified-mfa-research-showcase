@@ -2,8 +2,6 @@ export declare const POST_LIKES_CHANGED_EVENT_NAME: string;
 
 export declare const POST_CREATED_EVENT_NAME: string;
 
-export declare const POST_LIKES_STREAM_PATH: string;
-
 export type PostLikesChangedEvent = {
   postId: string;
   likes: number;

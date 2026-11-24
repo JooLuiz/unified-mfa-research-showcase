@@ -42,7 +42,7 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
   const trendingPostsMount = pageMount.querySelector("#trendingPostsMount");
 
   const handleLike = (postId) =>
-    toggleLikeForPost(appState, appState.posts.find((post) => post.id === postId));
+    toggleLikeForPost(shellTransport, appState, appState.posts.find((post) => post.id === postId));
 
   const handleAuthorClick = (author) => {
     if (author?.username) {

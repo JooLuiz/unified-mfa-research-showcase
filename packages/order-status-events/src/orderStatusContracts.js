@@ -1,7 +1,8 @@
 /**
- * Shared names for the order-status HTTP and SSE contract.
- * Role: Keeps the customer and admin clients on the same paths, shared topic, and SSE event name as the mock API.
- * Not in this file: The stream connection or the status write. Both live behind the injected transport.
+ * Shared names for the order-status contract.
+ * Role: Keeps the customer and admin clients on the same topic, event name, and status labels as the mock API.
+ * Not in this file: Paths (packages/server-events/src/eventEndpoints.js), the live connection, or
+ *   the status write. Both live behind the injected transport.
  * Key dependencies: None.
  * See also: main: apps/mock-data-service/src/routes/orderStatusRoutes.js;
  *   mesh: apps/mock-data-service/src/inbound/orderStatusHandler.js.
@@ -10,10 +11,6 @@
 const ORDERS_TOPIC = "orders";
 const ORDERS_STATUS_CHANGED_EVENT = "status-changed";
 const ORDER_STATUS_CHANGED_EVENT_NAME = "orders.status-changed";
-const CUSTOMER_ORDER_STATUS_TICKET_PATH = "/orders/connection-tickets";
-const CUSTOMER_ORDER_STATUS_STREAM_PATH = "/orders/stream";
-const ADMIN_ORDER_STATUS_TICKET_PATH = "/admin/orders/connection-tickets";
-const ADMIN_ORDER_STATUS_STREAM_PATH = "/admin/orders/stream";
 
 const ORDER_STATUS_LABELS = {
   placed: "Placed",
@@ -40,9 +37,5 @@ export {
   ORDERS_TOPIC,
   ORDERS_STATUS_CHANGED_EVENT,
   ORDER_STATUS_CHANGED_EVENT_NAME,
-  CUSTOMER_ORDER_STATUS_TICKET_PATH,
-  CUSTOMER_ORDER_STATUS_STREAM_PATH,
-  ADMIN_ORDER_STATUS_TICKET_PATH,
-  ADMIN_ORDER_STATUS_STREAM_PATH,
   formatOrderStatus,
 };
