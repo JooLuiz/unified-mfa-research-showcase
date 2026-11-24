@@ -1,86 +1,17 @@
 /**
  * Publishes and subscribes to distributed iframe-bridge messages.
  * Role: Adapts either a configured Event Mesh client or an injected transport to iframe messages.
- * Not in this file: Mesh configuration, gateway relay persistence, or iframe DOM creation.
+ * Not in this file: Mesh configuration, gateway relay persistence, iframe DOM creation, or the
+ *   postMessage wire format (packages/server-events/src/createFrameMessageEvents.js).
  * Key dependencies: An Event Mesh client supplied by the parent shell or iframe, or a recording transport in tests.
  * See also: src/iframeBridgeContracts.js; src/index.js; apps/mock-data-service/src/inbound/iframeBridgeHandler.js.
  */
 
-import {
-  FAQ_SUBMITTED_EVENT,
-  GO_SHOPPING_EVENT,
-  IFRAME_BRIDGE_MESSAGE_EVENT,
-  IFRAME_BRIDGE_TOPIC,
-  POST_SUBMITTED_EVENT,
-  RESIZED_EVENT,
-} from "./iframeBridgeContracts.js";
+import { IFRAME_BRIDGE_MESSAGE_EVENT, IFRAME_BRIDGE_TOPIC } from "./iframeBridgeContracts.js";
 
 const IFRAME_CHANNEL_REGISTERED_EVENT = "registered";
 const IFRAME_CHANNEL_UNREGISTERED_EVENT = "unregistered";
 const IFRAME_MESSAGE_EVENT = IFRAME_BRIDGE_MESSAGE_EVENT;
-
-const EVENT_BY_WINDOW_MESSAGE_TYPE = {
-  "iframe:resize": RESIZED_EVENT,
-  "faq:form-submitted": FAQ_SUBMITTED_EVENT,
-  "post:form-submitted": POST_SUBMITTED_EVENT,
-  "checkout:go-shopping": GO_SHOPPING_EVENT,
-};
-
-const WINDOW_MESSAGE_TYPE_BY_EVENT = {
-  [RESIZED_EVENT]: "iframe:resize",
-  [FAQ_SUBMITTED_EVENT]: "faq:form-submitted",
-  [POST_SUBMITTED_EVENT]: "post:form-submitted",
-  [GO_SHOPPING_EVENT]: "checkout:go-shopping",
-};
-
-/**
- * Creates a postMessage transport that keeps the current host message shapes.
- *
- * @returns {{ publish: Function, subscribe: Function }} Transport whose wire format is postMessage.
- * @sideEffects Posts messages to the parent window and listens on this window.
- */
-function createPostMessageTransport() {
-  function publish({ event, payload }) {
-    if (event !== IFRAME_BRIDGE_MESSAGE_EVENT) {
-      return;
-    }
-    const action = payload && typeof payload === "object" ? payload.event : undefined;
-    const messageType = WINDOW_MESSAGE_TYPE_BY_EVENT[action];
-    if (!messageType) {
-      return;
-    }
-    const innerPayload = payload && typeof payload === "object" ? payload.payload : undefined;
-    const message =
-      innerPayload === undefined ? { type: messageType } : { type: messageType, payload: innerPayload };
-    const targetWindow = window.parent === window ? window : window.parent;
-    targetWindow.postMessage(message, "*");
-  }
-
-  function subscribe(_topic, event, callback) {
-    if (event !== IFRAME_BRIDGE_MESSAGE_EVENT) {
-      return function unsubscribeUnmappedIframeMessage() {};
-    }
-
-    function handleMessage(domEvent) {
-      const messageData = domEvent.data;
-      if (!messageData || typeof messageData !== "object") {
-        return;
-      }
-      const action = EVENT_BY_WINDOW_MESSAGE_TYPE[messageData.type];
-      if (!action) {
-        return;
-      }
-      callback({ payload: { event: action, payload: messageData.payload } });
-    }
-
-    window.addEventListener("message", handleMessage);
-    return function unsubscribeFromIframeMessage() {
-      window.removeEventListener("message", handleMessage);
-    };
-  }
-
-  return { publish, subscribe };
-}
 
 function isValidChannelId(channelId) {
   return typeof channelId === "string" && /^[a-z0-9-]{36}$/.test(channelId);
@@ -262,5 +193,4 @@ export {
   IFRAME_MESSAGE_EVENT,
   createIframeBridge,
   createIframeChannel,
-  createPostMessageTransport,
 };

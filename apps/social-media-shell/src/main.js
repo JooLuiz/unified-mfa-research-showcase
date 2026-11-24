@@ -379,10 +379,10 @@ const catalogIntentHandlers = {
 
 const accountIntentHandlers = {
   onProfileSaveRequested: (profilePayload) => {
-    void persistAccountUpdate(appState, profilePayload);
+    void persistAccountUpdate(shellTransport, appState, profilePayload);
   },
   onAddressSaveRequested: (addressPayload) => {
-    void persistAccountUpdate(appState, { address: addressPayload });
+    void persistAccountUpdate(shellTransport, appState, { address: addressPayload });
   },
 };
 
@@ -401,7 +401,7 @@ const communityIntentHandlers = {
     if (!isAuthenticated(appState)) {
       return;
     }
-    void persistNewPost(appState, {
+    void persistNewPost(shellTransport, appState, {
       content: payload.content,
       imageUrl: payload.imageUrl,
       authorId: appState.currentUser?.id,

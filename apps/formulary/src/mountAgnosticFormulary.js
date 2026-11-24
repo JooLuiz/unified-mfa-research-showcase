@@ -2,18 +2,18 @@
  * Mounts the agnostic FAQ and new-post formulary into the iframe document.
  * Role: Owns the form definitions, query-parameter reader, Vue form, and submit/resize bridge calls for the faq-formulary.html page.
  * Not in this file: The host-side iframe URL builder (src/faq-formulary.js, src/new-post-formulary.js).
- * Key dependencies: vue; @shared/iframe-bridge; src/iframe-bridge-client.js.
+ * Key dependencies: vue; @shared/server-events (createFrameMessageEvents); src/iframe-bridge-client.js.
  * See also: public/faq-formulary.html; src/iframe-bridge-client.js.
  */
 
 import { createApp, reactive, h, onMounted, watch } from "vue";
-import { createPostMessageTransport } from "@shared/iframe-bridge";
+import { createFrameMessageEvents } from "@shared/server-events";
 import {
   publishIframeResize,
   publishFormularySubmitted,
 } from "./iframe-bridge-client";
 
-const formularyTransport = createPostMessageTransport();
+const formularyTransport = createFrameMessageEvents();
 
 const FORMULARY_TYPE_FAQ = "faq";
 const FORMULARY_TYPE_POST = "post";

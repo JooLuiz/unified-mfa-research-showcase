@@ -86,7 +86,7 @@ async function renderAccountPage(appState, pageMount, activeCleanupFunctions) {
     accountProfileModule.mountAccountProfile(accountProfileMount, {
       user: appState.currentUser,
       onSaveProfile: (profilePayload) =>
-        persistAccountUpdate(appState, profilePayload),
+        persistAccountUpdate(shellTransport, appState, profilePayload),
     }),
   );
 
@@ -94,7 +94,7 @@ async function renderAccountPage(appState, pageMount, activeCleanupFunctions) {
     accountAddressModule.mountAccountAddress(accountAddressMount, {
       address: appState.currentUser?.address,
       onSaveAddress: (addressPayload) =>
-        persistAccountUpdate(appState, { address: addressPayload }),
+        persistAccountUpdate(shellTransport, appState, { address: addressPayload }),
     }),
   );
 

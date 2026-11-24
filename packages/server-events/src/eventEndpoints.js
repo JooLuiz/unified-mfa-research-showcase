@@ -7,12 +7,13 @@
  * See also: src/createServerEvents.js; src/openEventConnection.js;
  *   apps/mock-data-service/src/inbound/ (the gateway handlers that reply).
  *   On main every descriptor is an HTTP route; this branch publishes gateway commands. A descriptor
- *   with publishTopic is a gateway command; a descriptor with method is an HTTP read.
+ *   with publishTopic is a gateway command; a descriptor with method is an HTTP read or write.
  */
 
 import {
   readAcceptedOutcome,
   readItemListOutcome,
+  readJsonOutcome,
   readLikeOutcome,
   readOrderStatusOutcome,
   readStockOutcome,
@@ -76,6 +77,26 @@ function createSharedEndpoints() {
         };
       },
       toOutcome: readOrderStatusOutcome,
+    },
+    "account:update": {
+      method: "PUT",
+      path() {
+        return "/users/me";
+      },
+      headers(authToken) {
+        return bearerHeaders(authToken, { "Content-Type": "application/json" });
+      },
+      body(payload) {
+        return payload.update;
+      },
+      rejectWithoutAuth: true,
+      missingAuthResult: { ok: false },
+      networkResult() {
+        return { ok: false };
+      },
+      parse(response) {
+        return readJsonOutcome(response, "user");
+      },
     },
     "community-likes:toggle": {
       publishTopic: "community-likes",
@@ -151,4 +172,4 @@ function createSharedEndpoints() {
   return { requests, connections: {} };
 }
 
-export { createSharedEndpoints, bearerHeaders, readAcceptedOutcome };
+export { createSharedEndpoints, bearerHeaders, readAcceptedOutcome, readJsonOutcome };

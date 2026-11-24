@@ -5,7 +5,7 @@
  * Key dependencies: src/eventEndpoints.js; src/openEventConnection.js; event-mesh/mesh.
  * See also: apps/ecommerce-shell/src/events/eventBus.js.
  *   On main this adapter sends HTTP requests and opens EventSource streams; this branch publishes
- *   gateway commands and keeps HTTP only for the reads the gateway does not serve.
+ *   gateway commands and keeps HTTP only for the reads and writes the gateway does not serve.
  *   MFEs call this without `client` and get the shared mesh singleton; shells pass it explicitly.
  */
 

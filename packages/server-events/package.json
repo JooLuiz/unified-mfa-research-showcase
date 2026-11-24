@@ -8,6 +8,9 @@
   "exports": {
     ".": "./src/index.js"
   },
+  "dependencies": {
+    "@shared/iframe-bridge": "*"
+  },
   "peerDependencies": {
     "event-mesh": "*"
   },

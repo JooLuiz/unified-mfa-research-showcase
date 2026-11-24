@@ -8,7 +8,7 @@
 
 import { MOCK_API_BASE_URL, FORMULARY_REMOTE_BASE_URL } from "../utils/constants";
 import { persistFaqAnswerToApi } from "../commands/faqCommands";
-import { publishRenderRequested } from "../events/eventBus";
+import { publishRenderRequested, shellTransport } from "../events/eventBus";
 import mesh from "event-mesh/mesh";
 import {
   createIframeBridge,
@@ -107,7 +107,7 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
         if (event === "faq-submitted") {
           appState.isFormularySubmitted = true;
           appState.lastIframeMessage = `FAQ submitted by ${payload.name} (${payload.email})`;
-          void persistFaqAnswerToApi(appState, payload);
+          void persistFaqAnswerToApi(shellTransport, appState, payload);
           publishRenderRequested();
         }
       },

@@ -62,7 +62,7 @@ function mountNewPostFormularyWithProps(containerElement, appState, modules) {
         if (!isAuthenticated(appState)) {
           return;
         }
-        void persistNewPost(appState, {
+        void persistNewPost(shellTransport, appState, {
           content: payload.content,
           imageUrl: payload.imageUrl,
           authorId: appState.currentUser?.id,

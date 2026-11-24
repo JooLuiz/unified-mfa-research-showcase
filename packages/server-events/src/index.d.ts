@@ -1,3 +1,5 @@
+import type { IframeTransport } from "@shared/iframe-bridge";
+
 export type ServerEventMessage = {
   topic: string;
   event: string;
@@ -44,3 +46,5 @@ export declare function createServerEvents(input: {
 export declare function composeShellEvents(input: {
   serverEvents: ServerEventTransport;
 }): ServerEventTransport;
+
+export declare function createFrameMessageEvents(): IframeTransport;

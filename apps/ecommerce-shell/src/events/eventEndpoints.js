@@ -1,13 +1,18 @@
 /**
  * Ecommerce commands that are not shared with other shells.
- * Role: Maps cart commands, order placement, the orders CSV export, and the cart live alias.
+ * Role: Maps cart commands, FAQ submission, order placement, the orders CSV export, and the cart live alias.
  * Not in this file: Stock, likes, session, and inbox commands (packages/server-events/src/eventEndpoints.js).
  * Key dependencies: @shared/server-events.
  * See also: src/events/eventBus.js; apps/mock-data-service/src/inbound/.
  *   On main these are HTTP routes and SSE streams; this branch publishes gateway commands.
  */
 
-import { bearerHeaders, downloadCsvFile, readAcceptedOutcome } from "@shared/server-events";
+import {
+  bearerHeaders,
+  downloadCsvFile,
+  readAcceptedOutcome,
+  readJsonOutcome,
+} from "@shared/server-events";
 
 const ORDERS_EXPORT_FILE_NAME = "my-orders.csv";
 
@@ -59,6 +64,24 @@ function createEcommerceEndpoints() {
           };
         },
         toOutcome: readAcceptedOutcome,
+      },
+      "faq:submit": {
+        method: "POST",
+        path() {
+          return "/faq";
+        },
+        headers(authToken) {
+          return bearerHeaders(authToken, { "Content-Type": "application/json" });
+        },
+        body(payload) {
+          return payload.answer;
+        },
+        networkResult() {
+          return { ok: false };
+        },
+        parse(response) {
+          return readJsonOutcome(response, "answer");
+        },
       },
       "orders:place": {
         publishTopic: "orders",

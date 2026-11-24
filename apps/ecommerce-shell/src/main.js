@@ -580,10 +580,10 @@ const checkoutIntentHandlers = {
 
 const accountIntentHandlers = {
   onProfileSaveRequested: (profilePayload) => {
-    void persistAccountUpdate(appState, profilePayload);
+    void persistAccountUpdate(shellTransport, appState, profilePayload);
   },
   onAddressSaveRequested: (addressPayload) => {
-    void persistAccountUpdate(appState, { address: addressPayload });
+    void persistAccountUpdate(shellTransport, appState, { address: addressPayload });
   },
 };
 

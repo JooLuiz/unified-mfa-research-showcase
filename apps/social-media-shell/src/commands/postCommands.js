@@ -1,25 +1,27 @@
 /**
  * Persists new posts for the social media shell.
- * Role: Owns the post HTTP command and reports failures through the shell notifier.
+ * Role: Owns the post create command and reports failures through the shell notifier.
  * Not in this file: New-post form mounting or feed rendering (src/pages/postsPage.js, src/pages/feedPage.js).
- * Key dependencies: Mock data service POST /api/posts; src/notifications/notificationAdapter.js.
+ * Key dependencies: An injected shell transport (community-posts:create); src/notifications/notificationAdapter.js.
  * See also: src/pages/postsPage.js.
  */
 
-import { MOCK_API_BASE_URL } from "../utils/constants";
-import requestJson from "../utils/requestJson";
 import { publishNotification } from "../notifications/notificationAdapter";
 import { addPostIfMissing } from "../utils/postsState";
+
+const COMMUNITY_POSTS_TOPIC = "community-posts";
+const POST_CREATE_EVENT = "create";
 
 /**
  * Persists a new post and retains the current feed when the command fails.
  *
+ * @param {{ request: (message: { topic: string, event: string, payload?: object }) => Promise<{ ok: boolean, post?: object, code?: string }> }} transport - Shell transport that runs the post create request.
  * @param {object} appState - Shell state containing the authenticated session and posts.
- * @param {object} postPayload - Content values accepted by the post endpoint.
+ * @param {object} postPayload - Content values accepted by the post create request.
  * @returns {Promise<{ ok: boolean, post?: object }>} Created post result.
- * @sideEffects Adds the created post to shell state and emits a local failure notification.
+ * @sideEffects Requests community-posts:create, adds the created post to shell state, and emits a local failure notification.
  */
-async function persistNewPost(appState, postPayload) {
+async function persistNewPost(transport, appState, postPayload) {
   if (!appState.authToken) {
     publishNotification({
       type: "error",
@@ -28,23 +30,13 @@ async function persistNewPost(appState, postPayload) {
     });
     return { ok: false };
   }
-  try {
-    const createdPost = await requestJson(`${MOCK_API_BASE_URL}/posts`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${appState.authToken}`,
-      },
-      body: JSON.stringify(postPayload),
-    });
-    // Guarded (not a raw prepend): the server's live post-created push (src/main.js) reaches
-    // this same tab too, and the HTTP response here and that SSE push can arrive in either
-    // order, so whichever runs second must not insert the post a second time.
-    addPostIfMissing(appState, createdPost);
-    return { ok: true, post: createdPost };
-  } catch (error) {
-    console.warn("persistNewPost - error");
-    console.warn(error);
+
+  const outcome = await transport.request({
+    topic: COMMUNITY_POSTS_TOPIC,
+    event: POST_CREATE_EVENT,
+    payload: { authToken: appState.authToken, post: postPayload },
+  });
+  if (!outcome.ok) {
     publishNotification({
       type: "error",
       title: "Post not published",
@@ -52,6 +44,12 @@ async function persistNewPost(appState, postPayload) {
     });
     return { ok: false };
   }
+
+  // Guarded (not a raw prepend): the server's live post-created push (src/main.js) reaches
+  // this same tab too, and the request reply here and that push can arrive in either
+  // order, so whichever runs second must not insert the post a second time.
+  addPostIfMissing(appState, outcome.post);
+  return { ok: true, post: outcome.post };
 }
 
 export { persistNewPost };

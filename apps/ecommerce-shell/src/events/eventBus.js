@@ -73,7 +73,18 @@ function createShellTransport({ getAuthToken }) {
     getAuthToken,
     endpoints: createEcommerceEndpoints(),
   });
-  return composeShellEvents({ serverEvents });
+  const composedEvents = composeShellEvents({ serverEvents });
+  // Mesh-only 401 backstop. A write the gateway does not serve still goes over HTTP; when it
+  // replies "unauthorized", the live session/revoked push may have missed this tab (socket down),
+  // so request a local logout. main has no backstop: its revoke stream is the only path.
+  async function requestWithLogoutBackstop(message) {
+    const outcome = await composedEvents.request(message);
+    if (outcome && outcome.ok === false && outcome.code === "unauthorized") {
+      publishLogoutRequested();
+    }
+    return outcome;
+  }
+  return { ...composedEvents, request: requestWithLogoutBackstop };
 }
 
 let shellTransport = createShellTransport({
