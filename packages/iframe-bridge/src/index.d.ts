@@ -26,5 +26,4 @@ export interface IframeBridge {
   subscribeToIframeEvent(eventName: string, listener: (payload: unknown) => void): () => void;
 }
 
-export function createPostMessageTransport(): IframeTransport;
 export function createIframeBridge(transport: IframeTransport): IframeBridge;

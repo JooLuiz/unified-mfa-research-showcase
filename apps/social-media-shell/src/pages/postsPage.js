@@ -11,7 +11,7 @@
  * See also: src/utils/renderActions.js (public barrel).
  */
 
-import { createPostMessageTransport } from "@shared/iframe-bridge";
+import { createFrameMessageEvents } from "@shared/server-events";
 import { subscribeToPostLikesChanged, subscribeToPostCreated } from "@shared/post-like-events";
 import { publishRenderRequested, shellTransport } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
@@ -63,7 +63,7 @@ function mountNewPostFormularyWithProps(containerElement, appState, modules) {
         if (!isAuthenticated(appState)) {
           return;
         }
-        void persistNewPost(appState, {
+        void persistNewPost(shellTransport, appState, {
           content: payload.content,
           imageUrl: payload.imageUrl,
           authorId: appState.currentUser?.id,
@@ -79,7 +79,7 @@ function mountNewPostFormularyWithProps(containerElement, appState, modules) {
         });
       },
     },
-    createPostMessageTransport(),
+    createFrameMessageEvents(),
   );
 }
 

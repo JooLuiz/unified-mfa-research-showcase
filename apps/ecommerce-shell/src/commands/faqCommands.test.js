@@ -1,8 +1,9 @@
 /**
- * Verifies FAQ answers are sent with the signed-in token and a failed send stays quiet.
- * Role: Locks the token header and the failure outcome of persistFaqAnswerToApi.
+ * Verifies FAQ answers are sent with the signed-in token and a failed send resolves.
+ * Role: Locks the request payload and the failure outcome of persistFaqAnswerToApi.
  * Not in this file: The FAQ form.
- * Key dependencies: node:test; src/commands/faqCommands.js; test/support/loadAppModule.js.
+ * Key dependencies: node:test; src/commands/faqCommands.js; test/support/loadAppModule.js;
+ *   test/support/createRecordingTransport.js.
  * See also: src/commands/faqCommands.js.
  */
 
@@ -10,34 +11,37 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import "../../../../test/support/installBrowserGlobals.js";
 import { loadAppModule } from "../../../../test/support/loadAppModule.js";
+import { createRecordingTransport } from "../../../../test/support/createRecordingTransport.js";
 
 const { persistFaqAnswerToApi } = await loadAppModule(
   new URL("./faqCommands.js", import.meta.url).href,
 );
 
 test("a signed-in FAQ answer is sent with that token, and a failed send resolves", async () => {
-  const originalFetch = globalThis.fetch;
   const originalWarn = console.warn;
   console.warn = () => {};
-  const seenHeaders = [];
-  globalThis.fetch = async (_url, options) => {
-    seenHeaders.push(options.headers);
-    if (seenHeaders.length === 1) {
-      return { ok: true, json: async () => ({ id: "faq-01" }) };
-    }
-    throw new Error("offline");
-  };
+  const transport = createRecordingTransport({
+    requestReplies: [{ ok: true }, { ok: false }],
+  });
+  const answer = { name: "Ada", email: "ada@example.com", question: "Where is my order?" };
 
   try {
-    await persistFaqAnswerToApi(
-      { authToken: "token-01" },
-      { name: "Ada", email: "ada@example.com", question: "Where is my order?" },
+    const sent = await persistFaqAnswerToApi(transport, { authToken: "token-01" }, answer);
+    const failed = await persistFaqAnswerToApi(
+      transport,
+      { authToken: "" },
+      { name: "Ada", email: "ada@example.com", question: "Again" },
     );
-    await persistFaqAnswerToApi({ authToken: "" }, { name: "Ada", email: "ada@example.com", question: "Again" });
-    assert.equal(seenHeaders[0].Authorization, "Bearer token-01");
-    assert.equal(seenHeaders[1].Authorization, undefined);
+
+    assert.deepEqual(sent, { ok: true });
+    assert.deepEqual(failed, { ok: false });
+    assert.deepEqual(transport.published[0], {
+      topic: "faq",
+      event: "submit",
+      payload: { authToken: "token-01", answer },
+    });
+    assert.equal(transport.published[1].payload.authToken, "");
   } finally {
-    globalThis.fetch = originalFetch;
     console.warn = originalWarn;
   }
 });

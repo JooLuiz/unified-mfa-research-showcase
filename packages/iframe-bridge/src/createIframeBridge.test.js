@@ -1,7 +1,7 @@
 /**
  * Verifies iframe-bridge messages on an injected transport.
  * Role: Locks topic, event, payload, and distributed scope for createIframeBridge.
- * Not in this file: createPostMessageTransport and host iframe mounting.
+ * Not in this file: createFrameMessageEvents (packages/server-events) and host iframe mounting.
  * Key dependencies: node:test; src/createIframeBridge.js; test/support/createRecordingTransport.js.
  * See also: src/createIframeBridge.js.
  */

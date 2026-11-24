@@ -76,6 +76,25 @@ async function readItemListOutcome(response) {
 }
 
 /**
+ * Reads a JSON body and stores it under one key.
+ *
+ * @param {Response} response - Write response whose body is the saved resource.
+ * @param {string} key - Outcome property that receives the parsed body.
+ * @returns {Promise<{ ok: true, [key: string]: unknown } | { ok: false, code: string }>}
+ */
+async function readJsonOutcome(response, key) {
+  if (response.status === 401) {
+    return { ok: false, code: "unauthorized" };
+  }
+  if (!response.ok) {
+    const errorBody = await readErrorBody(response);
+    return { ok: false, code: errorBody.code || "request-failed" };
+  }
+  const resource = await response.json();
+  return { ok: true, [key]: resource };
+}
+
+/**
  * Confirms a response is ok and parses JSON so an empty body still fails.
  *
  * @param {Response} response - Cart or order command response.
@@ -92,6 +111,7 @@ async function readAcceptedOutcome(response) {
 export {
   readAcceptedOutcome,
   readItemListOutcome,
+  readJsonOutcome,
   readLikeOutcome,
   readOrderStatusOutcome,
   readStockOutcome,

@@ -9,6 +9,7 @@
 import {
   readAcceptedOutcome,
   readItemListOutcome,
+  readJsonOutcome,
   readLikeOutcome,
   readOrderStatusOutcome,
   readStockOutcome,
@@ -94,6 +95,26 @@ function createSharedEndpoints({ getStockSessionId, inboxShell }) {
         return { status: payload.status, actor: payload.actor };
       },
       parse: readOrderStatusOutcome,
+    },
+    "account:update": {
+      method: "PUT",
+      path() {
+        return "/users/me";
+      },
+      headers(authToken) {
+        return bearerHeaders(authToken, { "Content-Type": "application/json" });
+      },
+      body(payload) {
+        return payload.update;
+      },
+      rejectWithoutAuth: true,
+      missingAuthResult: { ok: false },
+      networkResult() {
+        return { ok: false };
+      },
+      parse(response) {
+        return readJsonOutcome(response, "user");
+      },
     },
     "community-likes:toggle": {
       method: "POST",
@@ -254,4 +275,10 @@ function stockHeaders(authToken, payload) {
   return headers;
 }
 
-export { createSharedEndpoints, exchangeTicket, bearerHeaders, readAcceptedOutcome };
+export {
+  createSharedEndpoints,
+  exchangeTicket,
+  bearerHeaders,
+  readAcceptedOutcome,
+  readJsonOutcome,
+};

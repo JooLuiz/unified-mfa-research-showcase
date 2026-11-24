@@ -2,7 +2,8 @@
  * Mounts the empty-checkout iframe and synchronizes its height with the host page.
  * Role: Provides the checkout remote's isolated empty-cart view and navigation bridge.
  * Not in this file: The child page UI and its Angular bootstrap.
- * Key dependencies: The checkout-empty.html entry point and @shared/iframe-bridge.
+ * Key dependencies: The checkout-empty.html entry point and @shared/iframe-bridge;
+ *   @shared/server-events (createFrameMessageEvents).
  * See also: src/checkout-empty-page.ts.
  */
 
@@ -10,8 +11,8 @@ import {
   GO_SHOPPING_EVENT,
   RESIZED_EVENT,
   createIframeBridge,
-  createPostMessageTransport,
 } from "@shared/iframe-bridge";
+import { createFrameMessageEvents } from "@shared/server-events";
 
 declare const __webpack_public_path__: string;
 
@@ -96,7 +97,7 @@ export function mountCheckoutEmpty(
     iframeElement.style.height = `${CHECKOUT_EMPTY_FALLBACK_HEIGHT_PX}px`;
   }
 
-  const iframeBridge = createIframeBridge(createPostMessageTransport());
+  const iframeBridge = createIframeBridge(createFrameMessageEvents());
   const unsubscribeFromResize = iframeBridge.subscribeToIframeEvent(
     RESIZED_EVENT,
     (payload: unknown) => {
