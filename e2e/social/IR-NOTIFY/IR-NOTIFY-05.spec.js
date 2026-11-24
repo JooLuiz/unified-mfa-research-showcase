@@ -62,15 +62,18 @@ test("clicking the like toast opens the post and marks the notice read", async (
   await expect(toast.getByText(NOTICE_MESSAGE)).toBeVisible();
   await toast.click();
   await expect(page).toHaveURL(new RegExp(`/posts/${POST_ID}$`));
-  await expect(async () => {
-    await page.goto("/notifications", { waitUntil: "domcontentloaded" });
-    const noticeRow = page
-      .locator(".notification-item")
-      .filter({ hasText: NOTICE_TITLE });
-    await expect(noticeRow).toBeVisible();
-    await expect(
-      noticeRow.getByRole("button", { name: "Mark as read", exact: true }),
-    ).toHaveCount(0);
-    await expect(page.locator(".notification-bell-badge")).toHaveCount(0);
-  }).toPass();
+  await expect(page.locator(".notification-bell-badge")).toHaveCount(0);
+  await bell.click();
+  await page
+    .locator(".notification-dropdown")
+    .getByRole("button", { name: "See all" })
+    .click();
+  await expect(page).toHaveURL(/\/notifications$/);
+  const noticeRow = page
+    .locator(".notification-item")
+    .filter({ hasText: NOTICE_TITLE });
+  await expect(noticeRow).toBeVisible();
+  await expect(
+    noticeRow.getByRole("button", { name: "Mark as read", exact: true }),
+  ).toHaveCount(0);
 });
