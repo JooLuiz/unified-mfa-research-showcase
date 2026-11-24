@@ -2,8 +2,9 @@
  * Owns the live-stock rule shared by every product read and cart edit.
  * Role: Computes "available" (stock minus every active hold), and reserves, releases, and
  *   consumes holds. A hold is a saved-cart line (signed-in) or a guestHolds.json line (guest).
- * Not in this file: HTTP routing (src/routes/stockRoutes.js, src/routes/catalogRoutes.js) or the
- *   live watcher registry (src/infrastructure/stockEvents.js).
+ * Not in this file: HTTP routing (src/routes/catalogRoutes.js; main: src/routes/stockRoutes.js;
+ *   mesh: src/inbound/stockHandler.js) or the live watcher registry
+ *   (src/infrastructure/stockEvents.js).
  * Key dependencies: products.json; src/domain/cartProcessing.js; src/domain/guestHolds.js.
  * See also: src/domain/orderProcessing.js (consumes stock on sale); src/domain/orderStatus.js
  *   (restores stock when an order is cancelled).

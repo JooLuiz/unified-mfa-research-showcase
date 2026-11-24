@@ -4,6 +4,8 @@
  * Not in this file: Export job state, CSV serialization, or HTTP routing.
  * Key dependencies: The linked event-mesh/gateway package.
  * See also: src/inbound/exportRequestHandler.js; src/domain/exportJobs.js.
+ *   Mesh-only. On main, exports are synchronous CSV downloads from src/routes/exportRoutes.js,
+ *   so there is no completion reply.
  */
 
 const EXPORT_TOPIC = "exports";

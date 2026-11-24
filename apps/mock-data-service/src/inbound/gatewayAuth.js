@@ -4,6 +4,8 @@
  * Not in this file: Ticket issuance or export job handling.
  * Key dependencies: src/domain/connectionTickets.js consumeConnectionTicket callback.
  * See also: src/server.js.
+ *   Mesh-only. On main there is no gateway; src/routes/adminRoutes.js, cartRoutes.js, and
+ *   orderStatusRoutes.js consume connection tickets for their SSE streams.
  */
 
 const EXPORT_TOPIC = "exports";

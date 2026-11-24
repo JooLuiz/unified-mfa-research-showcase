@@ -4,7 +4,8 @@
  * Not in this file: Token helpers (src/domain/auth.js), id generation
  *   (src/domain/identifiers.js), the admin broadcast implementation
  *   (src/infrastructure/adminEvents.js), or the like toggle/stream
- *   (src/routes/postLikeRoutes.js, src/infrastructure/postLikeEvents.js).
+ *   (src/infrastructure/postLikeEvents.js; main: src/routes/postLikeRoutes.js;
+ *   mesh: src/inbound/postLikeHandler.js).
  * Key dependencies: posts.json and users.json via the JSON store; src/domain/postLikes.js.
  * See also: src/server.js; src/routes/adminRoutes.js (admin live-notifications stream).
  */

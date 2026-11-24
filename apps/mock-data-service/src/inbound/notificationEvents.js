@@ -4,6 +4,8 @@
  * Not in this file: Order persistence, CSV exports, or HTTP routing.
  * Key dependencies: The linked event-mesh/gateway package.
  * See also: src/inbound/orderRequestHandler.js.
+ *   Mesh-only. On main, POST /orders in src/routes/orderRoutes.js returns the outcome in the HTTP
+ *   response, so there is no separate reply module.
  */
 
 const NOTIFICATION_TOPIC = "notifications";
