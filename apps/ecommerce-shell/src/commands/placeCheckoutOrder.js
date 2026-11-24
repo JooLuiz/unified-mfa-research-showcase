@@ -1,6 +1,6 @@
 /**
  * Places a checkout order from shell-owned cart and coupon state.
- * Role: Builds the order payload, calls the HTTP order command, and clears the cart on success.
+ * Role: Builds the order payload, calls the order command through the injected transport, and clears the cart on success.
  * Not in this file: Checkout remotes, toast copy, or post-order navigation (src/pages/checkoutPage.js).
  * Key dependencies: src/commands/placeOrder.js; src/utils/cartActions.js; src/utils/cartSync.js.
  * See also: src/pages/checkoutPage.js.
@@ -8,7 +8,6 @@
 
 import { calculateCartTotals } from "../utils/cartActions";
 import { clearLocalCart, flushCartPersist, resumeCartPersist, scheduleCartPersist, suspendCartPersist } from "../utils/cartSync";
-import { shellTransport } from "../events/eventBus";
 import { placeOrder } from "./placeOrder";
 
 /**
@@ -25,11 +24,12 @@ function calculateCheckoutTotals(appState) {
 /**
  * Places the current cart as an order and clears the cart when the server accepts it.
  *
+ * @param {{ request: Function }} transport - Shell event interface.
  * @param {object} appState - Shell state holding cart, coupon, products, and user.
  * @returns {Promise<{ ok: boolean }>} Whether the server accepted the order.
  * @sideEffects On success clears the local cart and tells other tabs. The order write removes the saved row.
  */
-async function placeCheckoutOrder(appState) {
+async function placeCheckoutOrder(transport, appState) {
   await flushCartPersist();
   suspendCartPersist();
   const orderItems = appState.cartItems.map((cartItem) => {
@@ -44,7 +44,7 @@ async function placeCheckoutOrder(appState) {
   const orderTotals = calculateCheckoutTotals(appState);
   const totalAmount = orderTotals.subtotal - orderTotals.discountAmount;
 
-  const orderResult = await placeOrder(shellTransport, {
+  const orderResult = await placeOrder(transport, {
     items: orderItems,
     subtotal: orderTotals.subtotal,
     discountAmount: orderTotals.discountAmount,
