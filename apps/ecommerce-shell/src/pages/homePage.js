@@ -10,9 +10,9 @@ import {
   FAQ_SUBMITTED_EVENT,
   RESIZED_EVENT,
   createIframeBridge,
-  createPostMessageTransport,
 } from "@shared/iframe-bridge";
-import { publishRenderRequested } from "../events/eventBus";
+import { createFrameMessageEvents } from "@shared/server-events";
+import { publishRenderRequested, shellTransport } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 import { dispatchAddToCartEvent } from "../utils/cartActions";
 import { MOCK_API_BASE_URL, FORMULARY_REMOTE_BASE_URL } from "../utils/constants";
@@ -96,7 +96,7 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
       faqIframeElement.style.height = "0px";
     }
 
-    const iframeBridge = createIframeBridge(createPostMessageTransport());
+    const iframeBridge = createIframeBridge(createFrameMessageEvents());
     const unsubscribeFromResize = iframeBridge.subscribeToIframeEvent(RESIZED_EVENT, (payload) => {
       if (!payload || typeof payload !== "object") {
         return;
@@ -119,7 +119,7 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
         }
         appState.isFormularySubmitted = true;
         appState.lastIframeMessage = `FAQ submitted by ${payload.name} (${payload.email})`;
-        void persistFaqAnswerToApi(appState, payload);
+        void persistFaqAnswerToApi(shellTransport, appState, payload);
         publishRenderRequested();
       },
     );

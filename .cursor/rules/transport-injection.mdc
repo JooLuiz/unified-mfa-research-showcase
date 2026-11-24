@@ -9,5 +9,6 @@ Client modules in `packages/` and shell command modules in `apps/*/src/commands/
 
 - The shell creates the transport in `src/events/eventBus.js` with `createShellTransport` and passes it to each client.
 - On `main` the transport wraps `fetch` and `EventSource` in `packages/server-events`. On `mesh` the same path wraps the Event Mesh client.
+- Exception: `packages/server-events` is the transport itself and may import `event-mesh/mesh` on mesh branches. It also owns the iframe `postMessage` channel (`createFrameMessageEvents`), so `packages/iframe-bridge` stays transport-injected.
 - Tests use `createRecordingTransport` from `test/support/`.
 - Shared command and stream URLs live in `packages/server-events/src/eventEndpoints.js`. Shell-only routes live in `apps/*/src/events/eventEndpoints.js`.

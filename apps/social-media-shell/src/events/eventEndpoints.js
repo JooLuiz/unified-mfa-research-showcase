@@ -1,12 +1,12 @@
 /**
  * Social shell HTTP routes that are not shared with other shells.
- * Role: Maps the posts CSV download. Live likes and session streams stay in the shared endpoint map.
+ * Role: Maps post creation and the posts CSV download. Live likes and session streams stay in the shared endpoint map.
  * Not in this file: Post-like commands (packages/server-events/src/eventEndpoints.js).
  * Key dependencies: @shared/server-events.
  * See also: src/events/eventBus.js.
  */
 
-import { bearerHeaders, downloadCsvFile } from "@shared/server-events";
+import { bearerHeaders, downloadCsvFile, readJsonOutcome } from "@shared/server-events";
 
 const csvExportByKind = {
   posts: { endpointPath: "/exports/posts.csv", fileName: "my-posts.csv" },
@@ -18,6 +18,26 @@ const csvExportByKind = {
 function createSocialEndpoints() {
   return {
     requests: {
+      "community-posts:create": {
+        method: "POST",
+        path() {
+          return "/posts";
+        },
+        headers(authToken) {
+          return bearerHeaders(authToken, { "Content-Type": "application/json" });
+        },
+        body(payload) {
+          return payload.post;
+        },
+        rejectWithoutAuth: true,
+        missingAuthResult: { ok: false },
+        networkResult() {
+          return { ok: false };
+        },
+        parse(response) {
+          return readJsonOutcome(response, "post");
+        },
+      },
       "exports:csv": {
         method: "GET",
         path(payload) {

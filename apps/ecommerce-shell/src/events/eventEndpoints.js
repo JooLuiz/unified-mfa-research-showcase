@@ -1,6 +1,6 @@
 /**
  * Ecommerce HTTP routes that are not shared with other shells.
- * Role: Maps cart commands, order placement, the orders CSV download, the cart live stream, and the customer order-status stream.
+ * Role: Maps cart commands, FAQ submission, order placement, the orders CSV download, the cart live stream, and the customer order-status stream.
  * Not in this file: Stock, likes, session, and inbox routes (packages/server-events/src/eventEndpoints.js).
  * Key dependencies: @shared/server-events.
  * See also: src/events/eventBus.js.
@@ -11,6 +11,7 @@ import {
   downloadCsvFile,
   exchangeTicket,
   readAcceptedOutcome,
+  readJsonOutcome,
 } from "@shared/server-events";
 
 const STOCK_SESSION_RELEASE_HEADER_NAME = "X-Stock-Session-To-Release";
@@ -63,6 +64,24 @@ function createEcommerceEndpoints() {
           return { ok: false };
         },
         parse: readAcceptedOutcome,
+      },
+      "faq:submit": {
+        method: "POST",
+        path() {
+          return "/faq";
+        },
+        headers(authToken) {
+          return bearerHeaders(authToken, { "Content-Type": "application/json" });
+        },
+        body(payload) {
+          return payload.answer;
+        },
+        networkResult() {
+          return { ok: false };
+        },
+        parse(response) {
+          return readJsonOutcome(response, "answer");
+        },
       },
       "orders:place": {
         method: "POST",

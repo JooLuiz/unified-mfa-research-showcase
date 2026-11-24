@@ -2,7 +2,7 @@
  * Posts empty-checkout iframe messages to the host window.
  * Role: Owns resize and go-shopping calls for the checkout empty iframe.
  * Not in this file: Angular template rendering or host-side message listeners.
- * Key dependencies: @shared/iframe-bridge.
+ * Key dependencies: @shared/iframe-bridge; @shared/server-events (createFrameMessageEvents).
  * See also: src/checkout-empty-page.ts.
  */
 
@@ -10,10 +10,10 @@ import {
   GO_SHOPPING_EVENT,
   RESIZED_EVENT,
   createIframeBridge,
-  createPostMessageTransport,
 } from "@shared/iframe-bridge";
+import { createFrameMessageEvents } from "@shared/server-events";
 
-const iframeBridge = createIframeBridge(createPostMessageTransport());
+const iframeBridge = createIframeBridge(createFrameMessageEvents());
 
 /**
  * Posts the current document height for the empty-checkout frame.

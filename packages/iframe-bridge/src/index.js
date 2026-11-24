@@ -6,4 +6,4 @@ export {
   POST_SUBMITTED_EVENT,
   RESIZED_EVENT,
 } from "./iframeBridgeContracts.js";
-export { createIframeBridge, createPostMessageTransport } from "./createIframeBridge.js";
+export { createIframeBridge } from "./createIframeBridge.js";

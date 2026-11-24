@@ -1,38 +1,34 @@
 /**
  * Persists FAQ form submissions for the ecommerce shell.
- * Role: Owns the FAQ HTTP command so page modules stay free of request details.
+ * Role: Owns the FAQ submit command so page modules stay free of request details.
  * Not in this file: FAQ iframe rendering or message handling (src/pages/homePage.js), notifications.
- * Key dependencies: Mock data service POST /api/faq.
+ * Key dependencies: An injected shell transport (faq:submit).
  * See also: src/pages/homePage.js.
  */
 
-import { MOCK_API_BASE_URL } from "../utils/constants";
-import requestJson from "../utils/requestJson";
+const FAQ_TOPIC = "faq";
+const FAQ_SUBMIT_EVENT = "submit";
 
 /**
  * Persists a FAQ answer, optionally with the authenticated user's token.
  *
+ * @param {{ request: (message: { topic: string, event: string, payload?: object }) => Promise<{ ok: boolean }> }} transport - Shell transport that runs the FAQ submit request.
  * @param {object} appState - Shell state containing the optional auth token.
- * @param {object} faqPayload - FAQ fields accepted by the FAQ endpoint.
- * @returns {Promise<void>}
- * @sideEffects Performs the HTTP FAQ command.
+ * @param {object} faqPayload - FAQ fields accepted by the FAQ submit request.
+ * @returns {Promise<{ ok: boolean }>} Whether the server accepted the answer.
+ * @sideEffects Requests faq:submit and logs a warning when it fails.
  */
-async function persistFaqAnswerToApi(appState, faqPayload) {
-  try {
-    await requestJson(`${MOCK_API_BASE_URL}/faq`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(appState.authToken
-          ? { Authorization: `Bearer ${appState.authToken}` }
-          : {}),
-      },
-      body: JSON.stringify(faqPayload),
-    });
-  } catch (error) {
-    console.warn("persistFaqAnswerToApi - error");
-    console.warn(error);
+async function persistFaqAnswerToApi(transport, appState, faqPayload) {
+  const outcome = await transport.request({
+    topic: FAQ_TOPIC,
+    event: FAQ_SUBMIT_EVENT,
+    payload: { authToken: appState.authToken || "", answer: faqPayload },
+  });
+  if (!outcome.ok) {
+    console.warn("persistFaqAnswerToApi - request failed");
+    return { ok: false };
   }
+  return { ok: true };
 }
 
 export { persistFaqAnswerToApi };
