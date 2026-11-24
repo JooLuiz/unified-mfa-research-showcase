@@ -72,3 +72,20 @@ test("consumeConnectionTicket rejects a ticket after its TTL", (testContext) => 
 
   assert.equal(consumeConnectionTicket(ticketValue), null);
 });
+
+test("consumeConnectionTicket rejects a ticket that expires during the lookup", (testContext) => {
+  const issuedAt = 1_700_000_000_000;
+  let consumeReadings = null;
+  testContext.mock.method(Date, "now", () => {
+    if (!consumeReadings) {
+      return issuedAt;
+    }
+    return consumeReadings.length > 1 ? consumeReadings.shift() : consumeReadings[0];
+  });
+  const ticketValue = issueConnectionTicket({ userId: "u-01", roles: ["customer"] });
+  // Purge still sees the ticket alive; the expiry check one millisecond later does not.
+  consumeReadings = [issuedAt + CONNECTION_TICKET_TTL_MS - 1, issuedAt + CONNECTION_TICKET_TTL_MS];
+
+  assert.equal(consumeConnectionTicket(ticketValue), null);
+  assert.equal(consumeConnectionTicket(ticketValue), null);
+});
