@@ -3,7 +3,10 @@
  * Role: Provides high-level trigger functions executed by domain mutation endpoints.
  * Not in this file: HTTP routing or live push delivery.
  * Key dependencies: src/domain/notificationInbox.js.
- * See also: src/routes/orderRoutes.js, src/routes/orderStatusRoutes.js, src/routes/postRoutes.js, src/routes/postLikeRoutes.js.
+ * See also: src/routes/orderRoutes.js (mesh also: src/inbound/orderRequestHandler.js);
+ *   src/routes/postRoutes.js;
+ *   order status (main: src/routes/orderStatusRoutes.js; mesh: src/inbound/orderStatusHandler.js);
+ *   post likes (main: src/routes/postLikeRoutes.js; mesh: src/inbound/postLikeHandler.js).
  */
 
 const {

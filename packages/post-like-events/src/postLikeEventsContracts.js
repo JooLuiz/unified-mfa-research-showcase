@@ -6,8 +6,9 @@
  *   (apps/mock-data-service/src/infrastructure/postLikeEvents.js).
  * Not in this file: The stream connection or the toggle write (src/togglePostLike.js). Both live behind the injected transport.
  * Key dependencies: None.
- * See also: apps/mock-data-service/src/routes/postLikeRoutes.js;
- *   apps/mock-data-service/src/routes/postRoutes.js.
+ * See also: apps/mock-data-service/src/routes/postRoutes.js;
+ *   main: apps/mock-data-service/src/routes/postLikeRoutes.js;
+ *   mesh: apps/mock-data-service/src/inbound/postLikeHandler.js.
  */
 
 const COMMUNITY_LIKES_TOPIC = "community-likes";

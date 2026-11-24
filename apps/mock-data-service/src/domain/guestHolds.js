@@ -2,7 +2,7 @@
  * Persists guest stock holds for the mock data service.
  * Role: Reads, writes, and removes per-session hold lines in guestHolds.json.
  * Not in this file: Availability math or holder resolution (src/domain/stock.js) or HTTP routing
- *   (src/routes/stockRoutes.js).
+ *   (main: src/routes/stockRoutes.js; mesh: src/inbound/stockHandler.js).
  * Key dependencies: JSON store.
  * See also: src/domain/stock.js.
  */

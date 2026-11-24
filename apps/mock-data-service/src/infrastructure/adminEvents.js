@@ -4,9 +4,8 @@
  * Not in this file: Route handling, authentication, or event-specific payload shaping.
  * Key dependencies: None (pure Node `http.ServerResponse` writes).
  * See also: src/routes/adminRoutes.js (registers clients); src/routes/orderRoutes.js and
- *   src/routes/postRoutes.js (broadcast on mutation). This is the non-mesh transport for
- *   admin live updates; the mesh branch's equivalent is
- *   apps/mock-data-service/src/event-mesh/notificationEvents.js.
+ *   src/routes/postRoutes.js (broadcast on mutation). On the mesh branch this module
+ *   publishes through the gateway; this branch writes Server-Sent Events.
  */
 
 /**

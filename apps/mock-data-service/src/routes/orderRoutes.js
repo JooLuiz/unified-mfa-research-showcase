@@ -6,7 +6,8 @@
  *   (src/infrastructure/adminEvents.js, src/infrastructure/cartEvents.js,
  *   src/infrastructure/stockEvents.js).
  * Key dependencies: orders.json and users.json via the JSON store.
- * See also: src/server.js; src/routes/adminRoutes.js; src/routes/cartRoutes.js; src/routes/stockRoutes.js.
+ * See also: src/server.js; src/routes/adminRoutes.js; src/routes/cartRoutes.js; live stock
+ *   (main: src/routes/stockRoutes.js; mesh: src/inbound/stockHandler.js).
  */
 
 const express = require("express");
