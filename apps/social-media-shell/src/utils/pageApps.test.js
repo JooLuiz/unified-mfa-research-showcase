@@ -67,3 +67,42 @@ test("unmount clears the page even when a cleanup throws", async () => {
     globalThis.__federatedRemoteCleanup = undefined;
   }
 });
+
+test("a remote with no cleanup, or no mount function, still leaves an empty page on unmount", async () => {
+  const { default: loadRemoteModules } = await loadAppModule(
+    new URL("./loadRemoteModules.js", import.meta.url).href,
+  );
+  const modules = await loadRemoteModules;
+  const { mountNotificationsPage, mountSinglePost } = modules;
+  globalThis.__federatedRemoteCleanup = "not-a-function";
+
+  try {
+    const notificationsRoot = { innerHTML: "<p>Inbox</p>" };
+    await notificationsPageApp.mount({ appState: { authToken: "token-01" }, domElement: notificationsRoot });
+    await notificationsPageApp.unmount();
+    assert.equal(notificationsRoot.innerHTML, "");
+
+    window.location.pathname = "/posts/post-01";
+    const postRoot = { innerHTML: "<p>Post</p>" };
+    await singlePostPageApp.mount({ appState: { authToken: "token-01" }, domElement: postRoot });
+    await singlePostPageApp.unmount();
+    assert.equal(postRoot.innerHTML, "");
+
+    delete modules.mountNotificationsPage;
+    delete modules.mountSinglePost;
+    const emptyInboxRoot = { innerHTML: "" };
+    await notificationsPageApp.mount({ appState: { authToken: "token-01" }, domElement: emptyInboxRoot });
+    assert.equal(emptyInboxRoot.innerHTML, "");
+    await notificationsPageApp.unmount();
+    const emptyPostRoot = { innerHTML: "" };
+    await singlePostPageApp.mount({ appState: { authToken: "token-01" }, domElement: emptyPostRoot });
+    assert.equal(emptyPostRoot.innerHTML, "");
+    await singlePostPageApp.unmount();
+
+    assert.equal(typeof (await notificationsPageApp.unmount()), "undefined");
+  } finally {
+    modules.mountNotificationsPage = mountNotificationsPage;
+    modules.mountSinglePost = mountSinglePost;
+    globalThis.__federatedRemoteCleanup = undefined;
+  }
+});

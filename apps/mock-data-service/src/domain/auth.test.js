@@ -84,3 +84,11 @@ test("isAdminUser is true only for the admin role", () => {
 test("resolveAuthenticatedUserId returns null when the header has no user id", () => {
   assert.equal(resolveAuthenticatedUserId("not-a-token", []), null);
 });
+
+test("extractUserIdFromToken returns null when the user segment is empty", () => {
+  assert.equal(extractUserIdFromToken("Bearer mock-token..1728000000000"), null);
+});
+
+test("extractTokenIssuedAt returns null when the timestamp segment is not a number", () => {
+  assert.equal(extractTokenIssuedAt("Bearer mock-token.user-1.not-a-time"), null);
+});

@@ -187,3 +187,57 @@ test("an unwritable post file returns 500 and leaves posts.json unchanged", asyn
   });
   assert.deepEqual(store.files["posts.json"], [storedPost]);
 });
+
+test("a post whose author no longer exists is returned with a null author", async () => {
+  const orphanPost = { ...storedPost, id: "post-02", authorId: "ghost-01" };
+  const store = createMemoryJsonStore({
+    "users.json": [shopper],
+    "posts.json": [orphanPost],
+  });
+
+  const listResponse = await invokeRouter(postRouter(store), { method: "GET", path: "/posts" });
+  const singleResponse = await invokeRouter(postRouter(store), { method: "GET", path: "/posts/post-02" });
+
+  assert.equal(listResponse.status, 200);
+  assert.equal(listResponse.body.items[0].author, null);
+  assert.equal(singleResponse.status, 200);
+  assert.equal(singleResponse.body.author, null);
+});
+
+test("creating a post with no body is rejected and leaves posts.json unchanged", async () => {
+  const store = createMemoryJsonStore({
+    "users.json": [shopper],
+    "posts.json": [storedPost],
+  });
+
+  const response = await invokeRouter(postRouter(store), {
+    method: "POST",
+    path: "/posts",
+    headers: bearerFor(shopper),
+    parseJson: false,
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(response.body, { message: "Post content is required" });
+  assert.deepEqual(store.files["posts.json"], [storedPost]);
+});
+
+test("a post router without a notification inbox still stores the post", async () => {
+  const store = createMemoryJsonStore({
+    "users.json": [shopper],
+    "posts.json": [],
+  });
+  const stream = silentStream();
+
+  const response = await invokeRouter(createPostRouter(store, stream, stream), {
+    method: "POST",
+    path: "/posts",
+    headers: bearerFor(shopper),
+    body: { content: "No inbox", imageUrl: "  " },
+  });
+
+  assert.equal(response.status, 201);
+  assert.equal(response.body.imageUrl, null);
+  assert.equal(store.files["posts.json"][0].content, "No inbox");
+  assert.equal(store.files["notificationInbox.json"], undefined);
+});

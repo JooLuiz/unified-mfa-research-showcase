@@ -190,3 +190,38 @@ test("the social header shows the signed-in name, and unmount removes the header
   await footerApp.unmount();
   assert.equal(pageRoot.children.length, 0);
 });
+
+test("a signed-in header without a bell slot mounts no bell", async () => {
+  const headerApp = createHeaderApp();
+  const pageRoot = {
+    children: [],
+    appendChild(child) {
+      child.parentNode = this;
+      this.children.push(child);
+      return child;
+    },
+    removeChild(child) {
+      this.children = this.children.filter((entry) => entry !== child);
+      child.parentNode = null;
+    },
+  };
+  let bellMounts = 0;
+  const mountPromise = headerApp.mount({
+    appState: { authToken: "token-01", currentUser: { username: "ada" } },
+    domElement: pageRoot,
+    modules: {
+      mountNotificationBell() {
+        bellMounts += 1;
+        return function cleanupBell() {};
+      },
+    },
+  });
+  pageRoot.children[0].bellSlot = null;
+  await mountPromise;
+  await waitForMountTimer();
+
+  assert.equal(pageRoot.children[0].state.currentUserName, "ada");
+  assert.equal(bellMounts, 0);
+  await headerApp.unmount();
+  assert.equal(pageRoot.children.length, 0);
+});
