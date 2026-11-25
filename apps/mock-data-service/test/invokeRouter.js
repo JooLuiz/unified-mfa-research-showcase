@@ -1,6 +1,6 @@
 /**
  * Calls one mock-data router against an in-memory JSON store.
- * Role: Gives route tests a memory store, a silent event stream, and one HTTP round-trip.
+ * Role: Gives route tests a memory store, a failing store, a silent event stream, and one HTTP round-trip.
  * Not in this file: Route behavior or SSE streams.
  * Key dependencies: express; node:http; src/domain/auth.js.
  * See also: src/routes/cartRoutes.test.js.
@@ -40,6 +40,32 @@ function createMemoryJsonStore(initialFiles) {
     },
     async writeJsonFile(fileName, data) {
       files[fileName] = structuredClone(data);
+    },
+  };
+}
+
+/**
+ * Creates an in-memory JSON store that throws when reading or writing the named files.
+ *
+ * @param {Record<string, unknown>} initialFiles - File name to stored JSON value.
+ * @param {{ failOnRead?: string[], failOnWrite?: string[] }} failures - Files whose read or write throws.
+ * @returns {ReturnType<typeof createMemoryJsonStore>} Store whose `files` still holds the stored state.
+ */
+function createFailingJsonStore(initialFiles, { failOnRead = [], failOnWrite = [] } = {}) {
+  const store = createMemoryJsonStore(initialFiles);
+  return {
+    ...store,
+    async readJsonFile(fileName) {
+      if (failOnRead.includes(fileName)) {
+        throw new Error(`Cannot read ${fileName}`);
+      }
+      return store.readJsonFile(fileName);
+    },
+    async writeJsonFile(fileName, data) {
+      if (failOnWrite.includes(fileName)) {
+        throw new Error(`Cannot write ${fileName}`);
+      }
+      return store.writeJsonFile(fileName, data);
     },
   };
 }
@@ -124,6 +150,7 @@ function invokeRouter(router, { method, path, headers = {}, body }) {
 
 module.exports = {
   bearerFor,
+  createFailingJsonStore,
   createMemoryJsonStore,
   invokeRouter,
   silentStream,

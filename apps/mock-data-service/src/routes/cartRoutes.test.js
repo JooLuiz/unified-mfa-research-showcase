@@ -1,6 +1,7 @@
 /**
  * Verifies the cart HTTP routes against an in-memory store.
- * Role: Asserts status, response body, and the cart and guest-hold files left behind.
+ * Role: Asserts status, response body, and the cart and guest-hold files left behind,
+ *   including the 500 responses.
  * Not in this file: The cart SSE stream.
  * Key dependencies: node:test; src/routes/cartRoutes.js; test/invokeRouter.js.
  * See also: src/domain/cartProcessing.js.
@@ -11,6 +12,7 @@ const test = require("node:test");
 const { createCartRouter } = require("./cartRoutes");
 const {
   bearerFor,
+  createFailingJsonStore,
   createMemoryJsonStore,
   invokeRouter,
   silentStream,
@@ -159,5 +161,53 @@ test("a failed cart write returns 500 and leaves the previous cart", async () =>
 
   assert.equal(response.status, 500);
   assert.equal(response.body.message, "Unable to save cart");
+  assert.deepEqual(store.files["carts.json"], [storedCart]);
+});
+
+test("an invalid stored cart file returns 500 from GET /cart", async () => {
+  const store = createMemoryJsonStore({
+    "users.json": [shopper],
+    "carts.json": {},
+  });
+
+  const response = await invokeRouter(cartRouter(store), {
+    method: "GET",
+    path: "/cart",
+    headers: bearerFor(shopper),
+  });
+
+  assert.equal(response.status, 500);
+  assert.deepEqual(response.body, { message: "Unable to load cart" });
+});
+
+test("unreadable users return 500 from both cart routes and leave the cart", async () => {
+  const store = createFailingJsonStore(
+    { "users.json": [shopper], "carts.json": [storedCart] },
+    { failOnRead: ["users.json"] },
+  );
+  const router = cartRouter(store);
+
+  const readResponse = await invokeRouter(router, {
+    method: "GET",
+    path: "/cart",
+    headers: bearerFor(shopper),
+  });
+  const saveResponse = await invokeRouter(router, {
+    method: "PUT",
+    path: "/cart",
+    headers: bearerFor(shopper),
+    body: { items: [{ productId: "p-01", quantity: 2 }], appliedCoupon: null },
+  });
+
+  assert.equal(readResponse.status, 500);
+  assert.deepEqual(readResponse.body, {
+    message: "Unable to load cart",
+    details: "Cannot read users.json",
+  });
+  assert.equal(saveResponse.status, 500);
+  assert.deepEqual(saveResponse.body, {
+    message: "Unable to save cart",
+    details: "Cannot read users.json",
+  });
   assert.deepEqual(store.files["carts.json"], [storedCart]);
 });

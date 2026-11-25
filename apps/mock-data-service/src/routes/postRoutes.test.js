@@ -1,6 +1,7 @@
 /**
  * Verifies the post HTTP routes against an in-memory store.
- * Role: Asserts the public post list and that a rejected create leaves posts.json.
+ * Role: Asserts the listed posts, what creating a post stores, and the 401, 404, and 500
+ *   responses.
  * Not in this file: Post likes.
  * Key dependencies: node:test; src/routes/postRoutes.js; test/invokeRouter.js.
  * See also: src/domain/postLikes.js.
@@ -11,6 +12,7 @@ const test = require("node:test");
 const { createPostRouter } = require("./postRoutes");
 const {
   bearerFor,
+  createFailingJsonStore,
   createMemoryJsonStore,
   invokeRouter,
   silentStream,
@@ -122,4 +124,66 @@ test("a post with content is stored first", async () => {
   assert.equal(response.body.content, "Hello");
   assert.equal(store.files["posts.json"][0].content, "Hello");
   assert.equal(store.files["posts.json"][1].id, "post-01");
+});
+
+test("creating a post for an unknown user leaves posts.json unchanged", async () => {
+  const store = createMemoryJsonStore({
+    "users.json": [shopper],
+    "posts.json": [storedPost],
+  });
+
+  const response = await invokeRouter(postRouter(store), {
+    method: "POST",
+    path: "/posts",
+    headers: bearerFor({ ...shopper, id: "ghost-01" }),
+    body: { content: "Hi" },
+  });
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(response.body, { message: "User not found" });
+  assert.deepEqual(store.files["posts.json"], [storedPost]);
+});
+
+test("unreadable posts return 500 from the post list and the single post", async () => {
+  const router = postRouter(
+    createFailingJsonStore(
+      { "users.json": [shopper], "posts.json": [storedPost] },
+      { failOnRead: ["posts.json"] },
+    ),
+  );
+
+  const listResponse = await invokeRouter(router, { method: "GET", path: "/posts" });
+  const singleResponse = await invokeRouter(router, { method: "GET", path: "/posts/post-01" });
+
+  assert.equal(listResponse.status, 500);
+  assert.deepEqual(listResponse.body, {
+    message: "Unable to load posts",
+    details: "Cannot read posts.json",
+  });
+  assert.equal(singleResponse.status, 500);
+  assert.deepEqual(singleResponse.body, {
+    message: "Unable to load post",
+    details: "Cannot read posts.json",
+  });
+});
+
+test("an unwritable post file returns 500 and leaves posts.json unchanged", async () => {
+  const store = createFailingJsonStore(
+    { "users.json": [shopper], "posts.json": [storedPost] },
+    { failOnWrite: ["posts.json"] },
+  );
+
+  const response = await invokeRouter(postRouter(store), {
+    method: "POST",
+    path: "/posts",
+    headers: bearerFor(shopper),
+    body: { content: "Hi" },
+  });
+
+  assert.equal(response.status, 500);
+  assert.deepEqual(response.body, {
+    message: "Unable to create post",
+    details: "Cannot write posts.json",
+  });
+  assert.deepEqual(store.files["posts.json"], [storedPost]);
 });
