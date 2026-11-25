@@ -1,6 +1,7 @@
 /**
  * Verifies saved-cart reads and the cart left after the session ends.
- * Role: Locks the cart read and local clear outcomes shared by both comparison branches.
+ * Role: Locks the cart read, guest merge, tab notice, and local clear outcomes shared by both
+ *   comparison branches.
  * Not in this file: A guest stock session id.
  * Key dependencies: node:test; src/utils/cartSync.js; test/support/createRecordingTransport.js; test/support/installBrowserGlobals.js.
  * See also: src/utils/cartSync.js; src/commands/cartCommands.js.
@@ -13,11 +14,14 @@ import { createRecordingTransport } from "../../../../test/support/createRecordi
 import "../../../../test/support/installBrowserGlobals.js";
 
 const openedCartChannels = [];
+const postedCartMessages = [];
 globalThis.BroadcastChannel = class RecordingChannel {
   constructor() {
     openedCartChannels.push(this);
   }
-  postMessage() {}
+  postMessage(message) {
+    postedCartMessages.push(message);
+  }
 };
 
 const extensionlessRegistration = register(
@@ -141,7 +145,7 @@ test("saved carts and guest merges", async (parentTest) => {
     assert.equal(appState.appliedCoupon, null);
   });
 
-  await parentTest.test("a live cart is ignored while the shopper is signed out", () => {
+  await parentTest.test("a live cart is ignored while signed out, and another tab's notices apply only to this user", () => {
     const appState = createCartState([{ productId: "local", quantity: 1 }]);
     const transport = createRecordingTransport();
     startCartTabSync(appState);
@@ -177,6 +181,30 @@ test("saved carts and guest merges", async (parentTest) => {
       },
     });
     assert.equal(appState.cartItems[0].productId, "remote");
+
+    channel.onmessage({ data: null });
+    assert.equal(appState.cartItems[0].productId, "remote");
+
+    clearLocalCart(createCartState([{ productId: "x", quantity: 1 }], "token-02"));
+    const ownMessage = postedCartMessages.at(-1);
+    channel.onmessage({
+      data: { ...ownMessage, userId: "u-01", items: [{ productId: "echo", quantity: 5 }] },
+    });
+    assert.equal(appState.cartItems[0].productId, "remote");
+
+    channel.onmessage({
+      data: { type: "session-ended", sourceTabId: "other-tab", userId: "someone-else" },
+    });
+    assert.equal(appState.authToken, "token-01");
+    assert.equal(appState.cartItems[0].productId, "remote");
+
+    channel.onmessage({
+      data: { type: "session-ended", sourceTabId: "other-tab", userId: "u-01" },
+    });
+    assert.deepEqual(appState.cartItems, []);
+    assert.equal(appState.appliedCoupon, null);
+    assert.equal(appState.authToken, null);
+    assert.equal(appState.currentUser, null);
   });
 
   await parentTest.test("a saved cart does not replace the local cart while a save is in progress", async () => {
@@ -214,4 +242,29 @@ test("saved carts and guest merges", async (parentTest) => {
     assert.equal(appState.cartItems[0].productId, "guest");
   });
 
+  await parentTest.test("a guest merge adds guest lines to the saved cart, keeps the guest coupon, and saves the result", async () => {
+    const guestCoupon = { code: "GUEST", discountPercentage: 10 };
+    const transport = createRecordingTransport({
+      requestReplies: [
+        {
+          ok: true,
+          cart: {
+            items: [{ productId: "p-01", quantity: 1 }, { productId: "p-02", quantity: 2 }],
+            appliedCoupon: { code: "SERVER", discountPercentage: 5 },
+            updatedAt: "2026-12-03T00:00:00.000Z",
+          },
+        },
+        { ok: true },
+      ],
+    });
+    const appState = createCartState([{ productId: "p-01", quantity: 2 }]);
+    appState.appliedCoupon = guestCoupon;
+    const mergeResult = await mergeGuestCartOnLogin(appState, "token-01", "u-01", transport);
+    const mergedItems = [{ productId: "p-01", quantity: 3 }, { productId: "p-02", quantity: 2 }];
+    assert.deepEqual(mergeResult, { needsPersist: false });
+    assert.deepEqual(appState.cartItems, mergedItems);
+    assert.equal(appState.appliedCoupon.code, "GUEST");
+    const savedCart = transport.published.find((message) => message.payload?.cart).payload.cart;
+    assert.deepEqual(savedCart, { items: mergedItems, appliedCoupon: guestCoupon });
+  });
 });
