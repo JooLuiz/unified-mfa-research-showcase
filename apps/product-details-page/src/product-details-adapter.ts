@@ -21,7 +21,7 @@ const { publishCartItemAddRequested } = createCatalogEvents(mesh);
  * Mounts the product details page into a host container.
  *
  * @param containerElement - Host-owned mount element.
- * @param props - Product details props (product or apiBaseUrl, mountSimilarProducts).
+ * @param props - Product details props (apiBaseUrl, mountSimilarProducts).
  * @returns Cleanup that destroys the Angular application.
  */
 export function mountProductDetails(
@@ -40,7 +40,6 @@ export function mountProductDetails(
 
     applicationRef = nextApplicationRef;
     componentRef = applicationRef.bootstrap(ProductDetailsComponent, containerElement);
-    componentRef.setInput("inputProduct", props.product ?? null);
     componentRef.setInput("apiBaseUrl", props.apiBaseUrl ?? null);
     componentRef.setInput("mountSimilarProducts", props.mountSimilarProducts);
 
