@@ -86,3 +86,17 @@ test("catalog lookups return 500 when their file cannot be read", async (testCon
     assert.equal(typeof response.body.details, "string", path);
   }
 });
+
+test("GET /products searches by name when a product has no id", async (testContext) => {
+  const response = await getCatalog(
+    testContext,
+    { "products.json": [{ name: "Green Mug", price: 8, stock: 1 }, ...products], "carts.json": [] },
+    "/products?search=green",
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(
+    response.body.items.map((product) => product.name),
+    ["Green Mug"],
+  );
+});

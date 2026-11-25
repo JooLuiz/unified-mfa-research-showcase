@@ -187,3 +187,36 @@ test("a signed-in shopper and an empty guest cart skip guest re-reserve", async 
     assert.equal(transport.published.length, 0);
   });
 });
+
+test("a signed-in add with no quantity adds one after the server grants it", async () => {
+  const appState = createCartState([], "token-01");
+
+  await withInstalledTransport({ requestReply: { ok: true, quantity: 1, available: 3 } }, async () => {
+    const result = await addCartItemWithStockCheck(appState, "mug");
+
+    assert.equal(result.ok, true);
+    assert.deepEqual(appState.cartItems, [{ productId: "mug", quantity: 1 }]);
+  });
+});
+
+test("a stock edit sets the granted quantity, and a rejected one leaves the cart unchanged", async () => {
+  const appState = createCartState([{ productId: "mug", quantity: 1 }]);
+
+  await withInstalledTransport(
+    {
+      requestReplies: [
+        { ok: true, quantity: 3, available: 2 },
+        { ok: false, code: "insufficient" },
+      ],
+    },
+    async () => {
+      const granted = await setCartItemQuantityWithStockCheck(appState, "mug", 3);
+      assert.equal(granted.ok, true);
+      assert.deepEqual(appState.cartItems, [{ productId: "mug", quantity: 3 }]);
+
+      const rejected = await setCartItemQuantityWithStockCheck(appState, "mug", Number.NaN);
+      assert.deepEqual(rejected, { ok: false, code: "insufficient" });
+      assert.deepEqual(appState.cartItems, [{ productId: "mug", quantity: 3 }]);
+    },
+  );
+});

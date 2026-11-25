@@ -225,3 +225,31 @@ test("restoreStockForOrder adds the cancelled quantities back onto stock", async
   assert.deepEqual(restoreResult.affectedProducts, [{ productId: "p-01", available: 2 }]);
   assert.equal(jsonStore.files["products.json"][0].stock, 2);
 });
+
+test("consumeStockForSale counts a product with no stored stock and a line with no quantity as 0", async () => {
+  const jsonStore = createMemoryJsonStore({
+    "products.json": [{ id: "p-01", name: "Minimalist Desk Lamp", price: 45 }],
+    "carts.json": [],
+    "guestHolds.json": {},
+  });
+
+  const saleResult = await consumeStockForSale({ jsonStore, items: [{ productId: "p-01" }] });
+
+  assert.equal(saleResult.ok, true);
+  assert.deepEqual(saleResult.affectedProducts, [{ productId: "p-01", available: 0 }]);
+  assert.equal(jsonStore.files["products.json"][0].stock, 0);
+});
+
+test("restoreStockForOrder counts a product with no stored stock and a line with no quantity as 0", async () => {
+  const jsonStore = createMemoryJsonStore({
+    "products.json": [{ id: "p-01", name: "Minimalist Desk Lamp", price: 45 }],
+    "carts.json": [],
+    "guestHolds.json": {},
+  });
+
+  const restoreResult = await restoreStockForOrder({ jsonStore, items: [{ productId: "p-01" }] });
+
+  assert.equal(restoreResult.ok, true);
+  assert.deepEqual(restoreResult.affectedProducts, [{ productId: "p-01", available: 0 }]);
+  assert.equal(jsonStore.files["products.json"][0].stock, 0);
+});

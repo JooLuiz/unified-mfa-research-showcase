@@ -89,3 +89,27 @@ queueTest("skips the showcase when it has no products", async () => {
   );
   assert.equal(pageRoot.querySelector("angular-product-showcase"), null);
 });
+
+queueTest("skips the showcase when there is no showcase and tolerates a showcase already removed", async () => {
+  const pageRoot = createPageRoot();
+  await renderFeedPage(
+    { posts: [], currentUser: null, showcases: [], productsById: {} },
+    pageRoot,
+    createRemoteRecorder(),
+    [],
+  );
+  assert.equal(pageRoot.querySelector("angular-product-showcase"), null);
+
+  const showcaseRoot = createPageRoot();
+  const cleanups = [];
+  await renderFeedPage(
+    { posts: [], currentUser: null, showcases: [{ productIds: ["mug"] }], productsById: { mug: { id: "mug" } } },
+    showcaseRoot,
+    createRemoteRecorder(),
+    cleanups,
+  );
+  const showcase = showcaseRoot.querySelector("angular-product-showcase");
+  showcase.parentNode.removeChild(showcase);
+  assert.doesNotThrow(() => cleanups.forEach((cleanup) => cleanup()));
+  assert.equal(showcaseRoot.querySelector("angular-product-showcase"), null);
+});

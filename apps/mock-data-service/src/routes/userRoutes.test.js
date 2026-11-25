@@ -137,3 +137,18 @@ test("an unwritable user file returns 500 and leaves the profile unchanged", asy
   });
   assert.equal(store.files["users.json"][0].fullName, "Ada");
 });
+
+test("PUT /users/me with no body returns the user unchanged", async () => {
+  const store = createMemoryJsonStore({ "users.json": [structuredClone(shopper)] });
+
+  const response = await invokeRouter(createUserRouter(store), {
+    method: "PUT",
+    path: "/users/me",
+    headers: bearerFor(shopper),
+    parseJson: false,
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.fullName, "Ada");
+  assert.deepEqual(store.files["users.json"], [shopper]);
+});

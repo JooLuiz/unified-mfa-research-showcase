@@ -47,3 +47,12 @@ test("isTokenRevoked compares tokenIssuedAt strictly against revokedAt", () => {
   // If tokenIssuedAt > revokedAt, it is valid (not revoked => false)
   assert.equal(isTokenRevoked(1001, 1000), false);
 });
+
+test("getRevokedAtForUser returns null for a blank user or a non-numeric timestamp", () => {
+  assert.equal(getRevokedAtForUser([{ userId: "u-01", revokedAt: 1000 }], ""), null);
+  assert.equal(getRevokedAtForUser([{ userId: "u-01", revokedAt: "later" }], "u-01"), null);
+});
+
+test("revokeAllSessionsForUser treats a stored value that is not an array as empty", () => {
+  assert.deepEqual(revokeAllSessionsForUser({ broken: true }, "u-01", 5000), [{ userId: "u-01", revokedAt: 5000 }]);
+});
