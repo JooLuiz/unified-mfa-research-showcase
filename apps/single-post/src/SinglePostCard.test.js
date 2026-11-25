@@ -1,6 +1,6 @@
 /**
  * Verifies the single-post card text and disabled like button a shopper can see.
- * Role: Locks author fallback, like counts, and disabled likes shared by both comparison branches.
+ * Role: Locks author and date fallbacks, like counts, disabled likes, and the no-token like guard shared by both comparison branches.
  * Not in this file: The like write, live like delivery, and post loading.
  * Key dependencies: node:test; src/SinglePostCard.js; test/support/installDomDocument.js.
  * See also: src/SinglePostCard.js; src/SinglePostView.test.js.
@@ -141,6 +141,59 @@ test("a like button is disabled when this host does not allow likes", () => {
 
   try {
     assert.equal(findLikeButton(mounted.root).disabled, true);
+  } finally {
+    mounted.unmount();
+  }
+});
+
+/**
+ * Reads the date text a mounted card shows.
+ *
+ * @param {object} root - Mounted card root.
+ * @returns {string} Date text.
+ */
+function readDateText(root) {
+  return findElement(
+    root,
+    (node) => node.classList && node.classList.contains("single-post-date"),
+  ).textContent;
+}
+
+test("a card with no date shows no date, and an invalid date shows the raw value", () => {
+  const undated = mountCard({ post: { id: "post-06", content: "Hello" } });
+  try {
+    assert.equal(readDateText(undated.root), "");
+  } finally {
+    undated.unmount();
+  }
+
+  const invalid = mountCard({ post: { id: "post-07", content: "Hello", createdAt: "not-a-date" } });
+  try {
+    assert.equal(readDateText(invalid.root), "not-a-date");
+  } finally {
+    invalid.unmount();
+  }
+});
+
+test("a like click without a session token changes nothing", async () => {
+  const mounted = mountCard({
+    post: {
+      id: "post-08",
+      content: "Hello",
+      likes: 1,
+      author: { id: "author-01", fullName: "Ada" },
+    },
+    currentUserId: "user-02",
+  });
+
+  try {
+    const likeButton = findLikeButton(mounted.root);
+    assert.equal(likeButton.disabled, false);
+    await act(async () => {
+      likeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    assert.match(mounted.root.textContent, /Like \(1\)/);
+    assert.equal(findLikeButton(mounted.root).disabled, false);
   } finally {
     mounted.unmount();
   }
