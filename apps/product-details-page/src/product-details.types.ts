@@ -32,7 +32,6 @@ export type MountSimilarProducts = (
 ) => (() => void) | void;
 
 export type ProductDetailsProps = {
-  product?: Product;
   apiBaseUrl?: string;
   onAddToCart?: (payload: AddToCartPayload) => void;
   mountSimilarProducts: MountSimilarProducts;

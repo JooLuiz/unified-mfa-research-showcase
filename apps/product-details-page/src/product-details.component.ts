@@ -18,7 +18,6 @@ import {
   OnChanges,
   OnDestroy,
   Output,
-  SimpleChanges,
   ViewChild,
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
@@ -51,8 +50,6 @@ const normalizeQuantity = (nextQuantity: number): number => {
   template: PRODUCT_DETAILS_TEMPLATE,
 })
 export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDestroy {
-  @Input() inputProduct: Product | null = null;
-
   @Input() apiBaseUrl: string | null = null;
 
   @Input() mountSimilarProducts?: MountSimilarProducts;
@@ -101,11 +98,7 @@ export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDest
     this.renderSimilarProducts();
   }
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes["inputProduct"]) {
-      this.quantityValue = 1;
-    }
-
+  ngOnChanges(): void {
     this.loadProductIfNeeded();
   }
 
@@ -152,19 +145,6 @@ export class ProductDetailsComponent implements AfterViewInit, OnChanges, OnDest
   }
 
   private loadProductIfNeeded(): void {
-    if (this.inputProduct) {
-      this.requestTracker.abort();
-      this.requestTracker.reset();
-      this.product = this.inputProduct;
-      this.isLoading = false;
-      this.isMissingProductId = false;
-      this.availableCount = this.availabilityWatcher.startWatching(this.product, this.apiBaseUrl);
-      if (this.hasViewInitialized) {
-        queueMicrotask(() => this.renderSimilarProducts());
-      }
-      return;
-    }
-
     const currentProductId = readProductIdFromQueryParams();
     const currentApiBaseUrl = this.apiBaseUrl;
 
