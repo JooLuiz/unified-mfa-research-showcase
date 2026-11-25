@@ -58,6 +58,8 @@ const TEST_FILES = [
   "apps/social-media-shell/src/utils/authActions.test.js",
   "apps/admin-shell/src/utils/authActions.test.js",
   "apps/order-details/src/order-details-utils.test.js",
+  "apps/order-details/src/useOrderDetails.test.js",
+  "apps/banners/src/promotional-banner.test.js",
   "apps/notifications/src/selectBellNotifications.test.js",
   "apps/notifications/src/NotificationItemRow.test.js",
   "apps/notifications/src/NotificationBellView.test.js",

@@ -1,6 +1,6 @@
 /**
  * Verifies the post card text and disabled like button a shopper can see.
- * Role: Locks author fallback, like counts, and disabled likes shared by both comparison branches.
+ * Role: Locks author and date fallbacks, like counts, disabled likes, and author vs card clicks shared by both comparison branches.
  * Not in this file: The like write and live like delivery.
  * Key dependencies: node:test; src/post-card.js; test/support/installDomDocument.js.
  * See also: src/post-card.js; src/post-feed.test.js.
@@ -126,6 +126,67 @@ test("the author's own like button is disabled", () => {
     const likeButton = findLikeButton(mounted.root);
     assert.equal(likeButton.disabled, true);
     assert.equal(likeButton.getAttribute("title"), "You cannot like your own post");
+  } finally {
+    mounted.unmount();
+  }
+});
+
+/**
+ * Finds the first element in a mounted card that has a class.
+ *
+ * @param {object} root - Mounted card root.
+ * @param {string} className - Class to look for.
+ * @returns {object | null} The element.
+ */
+function findByClass(root, className) {
+  return findElement(root, (node) => node.classList && node.classList.contains(className));
+}
+
+test("a card with no date shows no date, and an invalid date shows the raw value", () => {
+  const undated = mountCard({ post: { id: "post-05", content: "Hello" } });
+  try {
+    assert.equal(findByClass(undated.root, "post-card-date").textContent, "");
+  } finally {
+    undated.unmount();
+  }
+
+  const invalid = mountCard({ post: { id: "post-06", content: "Hello", createdAt: "not-a-date" } });
+  try {
+    assert.equal(findByClass(invalid.root, "post-card-date").textContent, "not-a-date");
+  } finally {
+    invalid.unmount();
+  }
+});
+
+test("clicking the author does not open the post, and clicking the card does", async () => {
+  const post = {
+    id: "post-07",
+    content: "Hello",
+    author: { id: "author-01", username: "ada", fullName: "Ada" },
+  };
+  const openedPosts = [];
+  const mounted = mountCard({
+    post,
+    onPostClick(clickedPost) {
+      openedPosts.push(clickedPost);
+    },
+    onAuthorClick() {},
+  });
+
+  try {
+    await act(async () => {
+      findByClass(mounted.root, "post-card-author-button").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+    assert.deepEqual(openedPosts, []);
+
+    await act(async () => {
+      findByClass(mounted.root, "post-card-content").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+    assert.deepEqual(openedPosts, [post]);
   } finally {
     mounted.unmount();
   }

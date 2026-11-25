@@ -1,7 +1,7 @@
 /**
- * Verifies the single-post view message a shopper sees when the post cannot be requested.
+ * Verifies the single-post view message a shopper sees when the post cannot be requested or loaded.
  * Role: Locks the missing-post copy shared by both comparison branches.
- * Not in this file: A successful post load and the card like control.
+ * Not in this file: A successful post render and the card like control.
  * Key dependencies: node:test; src/SinglePostView.js; test/support/installDomDocument.js.
  * See also: src/SinglePostView.js; src/SinglePostCard.test.js.
  */
@@ -68,4 +68,80 @@ test("a view with no post id shows post not found", async () => {
   } finally {
     mounted.unmount();
   }
+});
+
+/**
+ * Lets pending fetch promises and the state updates they trigger settle.
+ *
+ * @returns {Promise<void>}
+ */
+async function flushRequests() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
+/**
+ * Replaces fetch for one test and restores it afterwards.
+ *
+ * @param {(url: string) => Promise<object>} fetchStub - Stand-in fetch.
+ * @param {() => Promise<void>} run - Test body.
+ * @returns {Promise<void>}
+ */
+async function withFetch(fetchStub, run) {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = fetchStub;
+  try {
+    await run();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+test("a non-OK post response shows the failed status", async () => {
+  const requestedUrls = [];
+  await withFetch(async (url) => {
+    requestedUrls.push(String(url));
+    return { ok: false, status: 404, json: async () => ({}) };
+  }, async () => {
+    const mounted = await mountView({ apiBaseUrl: "http://localhost:4000", postId: "post-01" });
+    try {
+      await flushRequests();
+      assert.match(mounted.root.textContent, /Failed to load post: 404/);
+      assert.match(requestedUrls[0], /\/posts\/post-01$/);
+    } finally {
+      mounted.unmount();
+    }
+  });
+});
+
+test("a rejected post request with no message shows Failed to load post", async () => {
+  await withFetch(async () => {
+    throw new Error("");
+  }, async () => {
+    const mounted = await mountView({ apiBaseUrl: "http://localhost:4000", postId: "post-01" });
+    try {
+      await flushRequests();
+      assert.equal(mounted.root.textContent, "Failed to load post");
+    } finally {
+      mounted.unmount();
+    }
+  });
+});
+
+test("unmounting before the post arrives leaves the page empty", async () => {
+  let resolvePost = () => {};
+  await withFetch(
+    () =>
+      new Promise((resolve) => {
+        resolvePost = () => resolve({ ok: true, status: 200, json: async () => ({ id: "post-01", content: "Late" }) });
+      }),
+    async () => {
+      const mounted = await mountView({ apiBaseUrl: "http://localhost:4000", postId: "post-01" });
+      mounted.unmount();
+      resolvePost();
+      await flushRequests();
+      assert.equal(mounted.root.textContent, "");
+    },
+  );
 });
