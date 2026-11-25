@@ -6,11 +6,10 @@
  * See also: src/mountNotificationCenter.js.
  */
 
-export { createNotificationAdapter } from "./createNotificationAdapter.js";
 export {
-  NOTIFICATION_RAISED_EVENT,
+  createNotificationAdapter,
   NOTIFICATION_TOPIC,
-  createNotificationPayload,
-  isValidNotificationPayload,
-} from "./notificationPayload.js";
+  NOTIFICATION_RAISED_EVENT,
+} from "./createNotificationAdapter.js";
+export { createNotificationPayload } from "./notificationPayload.js";
 export { mountNotificationCenter } from "./mountNotificationCenter.js";

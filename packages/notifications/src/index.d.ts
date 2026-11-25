@@ -10,8 +10,6 @@ export interface ShellNotification {
   notificationId?: string;
 }
 
-export function isValidNotificationPayload(notificationPayload: unknown): notificationPayload is ShellNotification;
-
 export interface NotificationMeshClient {
   publish(input: {
     topic: string;
