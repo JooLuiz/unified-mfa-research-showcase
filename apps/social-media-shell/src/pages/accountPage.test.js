@@ -107,3 +107,13 @@ queueTest("counts the member's posts and opens the one they choose", async () =>
   );
   assert.match(onePostRoot.textContent, /1 post shared/);
 });
+
+queueTest("shows the empty posts message when the shell has no post list yet", async () => {
+  installFetch(() => ({ body: {} }));
+  resetLocation("/account");
+  const pageRoot = createPageRoot();
+  const appState = createMember([]);
+  delete appState.posts;
+  await renderAccountPage(appState, pageRoot, createRemoteRecorder(), []);
+  assert.match(pageRoot.textContent, /You have not shared any posts yet/);
+});

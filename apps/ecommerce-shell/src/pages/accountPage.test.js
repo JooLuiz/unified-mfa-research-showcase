@@ -15,6 +15,11 @@ import {
   resetLocation,
 } from "../../../../test/support/createPageDocument.js";
 import { loadAppModule } from "../../../../test/support/loadAppModule.js";
+import { createRecordingTransport } from "../../../../test/support/createRecordingTransport.js";
+import {
+  startCustomerOrderStatusStream,
+  stopCustomerOrderStatusStream,
+} from "@shared/order-status-events";
 
 const { createPageRoot } = await installPageDocument();
 const { renderAccountPage } = await loadAppModule(new URL("./accountPage.js", import.meta.url).href);
@@ -152,4 +157,49 @@ queueTest("lists orders and opens the one the shopper chooses", async () => {
   assert.match(pageRoot.textContent, /ord-new/);
   cleanups.forEach((cleanup) => cleanup());
   assert.match(pageRoot.textContent, /My Orders/);
+});
+
+queueTest("an orders reply without items shows the empty state", async () => {
+  installFetch((url) => (url.includes("/orders") ? { body: {} } : { body: {} }));
+  const pageRoot = createPageRoot();
+  await renderAccountPage(createShopper(), pageRoot, []);
+  assert.match(pageRoot.textContent, /You have not placed any orders yet/);
+});
+
+queueTest("an order without an id stays on the page and live statuses update only listed orders", async () => {
+  const transport = createRecordingTransport();
+  startCustomerOrderStatusStream(transport);
+  installFetch((url) =>
+    url.includes("/orders")
+      ? {
+          body: {
+            items: [
+              { placedAt: "2026-01-01T00:00:00.000Z", items: [], totalAmount: 5, status: "placed" },
+              { id: "ord-live", placedAt: "2026-02-01T00:00:00.000Z", items: [], status: "placed" },
+            ],
+          },
+        }
+      : { body: {} },
+  );
+  resetLocation("/account");
+  const pageRoot = createPageRoot();
+  const cleanups = [];
+  try {
+    await renderAccountPage(createShopper(), pageRoot, cleanups);
+    assert.match(pageRoot.textContent, /2 orders placed/);
+    assert.match(pageRoot.textContent, /\$0\.00/);
+
+    findOrderRow(pageRoot, "undefined").click();
+    assert.equal(window.location.pathname, "/account");
+
+    const textBefore = pageRoot.textContent;
+    transport.deliver("orders", "status-changed", { orderId: "ord-missing", status: "shipped" });
+    assert.equal(pageRoot.textContent, textBefore);
+
+    transport.deliver("orders", "status-changed", { orderId: "ord-live", status: "shipped" });
+    assert.match(pageRoot.textContent, /Shipped/);
+  } finally {
+    cleanups.forEach((cleanup) => cleanup());
+    stopCustomerOrderStatusStream();
+  }
 });

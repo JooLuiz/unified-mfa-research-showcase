@@ -164,3 +164,17 @@ test("failed saves and a save queued mid-send", async (parentTest) => {
     resumeCartPersist();
   }
 });
+
+test("a save for a session with no user record notifies a null user", async () => {
+  const appState = { ...createSignedInCart(), currentUser: null };
+  const transport = createRecordingTransport({ requestReply: { ok: true } });
+  const savedBefore = savedSnapshots.length;
+
+  scheduleCartPersist(appState, transport);
+  await flushCartPersist();
+
+  assert.equal(isCartPersistBusy(), false);
+  assert.equal(savedSnapshots.length, savedBefore + 1);
+  assert.equal(savedSnapshots.at(-1).userId, null);
+  assert.deepEqual(savedSnapshots.at(-1).items, [{ productId: "mug", quantity: 1 }]);
+});

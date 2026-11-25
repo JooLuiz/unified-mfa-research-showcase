@@ -103,14 +103,16 @@ function bearerFor(user) {
  * Sends one request through a router and closes the server.
  *
  * @param {import("express").Router} router - Router under test.
- * @param {{ method: string, path: string, headers?: Record<string, string>, body?: unknown }} requestInput - Method, path, headers, and optional JSON body.
+ * @param {{ method: string, path: string, headers?: Record<string, string>, body?: unknown, parseJson?: boolean }} requestInput - Method, path, headers, optional JSON body, and whether the JSON body parser runs (default true; false leaves `request.body` undefined).
  * @returns {Promise<{ status: number, body: unknown }>} Status and parsed JSON body. An empty body is null.
  * @sideEffects Listens on 127.0.0.1 and closes that server before resolving.
  */
-function invokeRouter(router, { method, path, headers = {}, body }) {
+function invokeRouter(router, { method, path, headers = {}, body, parseJson = true }) {
   return new Promise((resolve, reject) => {
     const app = express();
-    app.use(express.json());
+    if (parseJson) {
+      app.use(express.json());
+    }
     app.use(router);
     const server = app.listen(0, "127.0.0.1", () => {
       const address = server.address();

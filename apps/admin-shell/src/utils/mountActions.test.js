@@ -118,3 +118,35 @@ test("a missing admin header is ignored, and a signed-in header mounts the bell"
 
   assert.equal(guestHeader.state.appType, "admin");
 });
+
+test("a bell mount that returns no cleanup, or no cleanup list, records nothing", async () => {
+  const appState = { authToken: "token-01", currentUser: { username: "ada" } };
+  const layoutMounts = {
+    headerMount: { children: [], appendChild(child) { this.children.push(child); child.parentNode = this; } },
+    footerMount: { children: [], appendChild(child) { this.children.push(child); child.parentNode = this; } },
+  };
+  let bellMounts = 0;
+  const modules = {
+    mountNotificationBell() {
+      bellMounts += 1;
+      return undefined;
+    },
+  };
+
+  const cleanups = [];
+  nextHeaderHasBellSlot = true;
+  mountHeaderAndFooter(appState, layoutMounts, modules, cleanups);
+  await waitForMountTimer();
+  assert.equal(bellMounts, 1);
+  assert.equal(cleanups.length, 0);
+
+  nextHeaderHasBellSlot = true;
+  modules.mountNotificationBell = () => {
+    bellMounts += 1;
+    return function cleanupBell() {};
+  };
+  mountHeaderAndFooter(appState, layoutMounts, modules, undefined);
+  await waitForMountTimer();
+  assert.equal(bellMounts, 2);
+  nextHeaderHasBellSlot = false;
+});
