@@ -25,7 +25,7 @@ export interface CatalogEvents {
   subscribeToCartItemAddRequests(listener: (payload: CartAddRequest) => void): () => void;
   publishCartChanged(): void;
   subscribeToCartChanges(listener: () => void): () => void;
-  publishProductOpenRequested(payload: { productId: string }): void;
+  publishProductOpenRequested(productOpenRequest: string | { productId: string }): void;
 }
 
 export function createCatalogEvents(transport: CatalogTransport): CatalogEvents;
