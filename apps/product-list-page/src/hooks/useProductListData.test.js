@@ -1,6 +1,6 @@
 /**
  * Verifies product-list loading states a shopper can see in the hook result.
- * Role: Locks provided data, an empty base URL, filtered requests, failed loads, and aborted loads.
+ * Role: Locks provided data, an empty base URL, filtered requests, failed loads, a failed category load, and aborted loads.
  * Not in this file: Filter controls or the product grid.
  * Key dependencies: node:test; src/hooks/useProductListData.js; test/support/installDomDocument.js; test/support/loadAppModule.js.
  * See also: src/hooks/useProductListData.js; src/productListApi.js.
@@ -22,7 +22,7 @@ const API_BASE_URL = "http://localhost:4000/api";
 const LIGHTING_CATEGORY_IDS = ["lighting"];
 let previousListTest = Promise.resolve();
 
-/** Runs one hook test after the previous one so fetch stand-ins do not overlap. */
+/** Runs one hook test after the previous one so fetch stand-ins do not overlap, then restores fetch. */
 function testList(name, run) {
   test(name, async () => {
     const earlierTest = previousListTest;
@@ -31,9 +31,11 @@ function testList(name, run) {
       releaseEarlierTest = resolve;
     });
     await earlierTest;
+    const originalFetch = globalThis.fetch;
     try {
       await run();
     } finally {
+      globalThis.fetch = originalFetch;
       releaseEarlierTest();
     }
   });
@@ -87,7 +89,6 @@ async function mountProductList(input) {
 }
 
 testList("provided products and categories are returned without a request", async () => {
-  const originalFetch = globalThis.fetch;
   let fetchCalls = 0;
   globalThis.fetch = async () => {
     fetchCalls += 1;
@@ -110,12 +111,10 @@ testList("provided products and categories are returned without a request", asyn
     assert.equal(mounted.read().productsLoadError, null);
   } finally {
     await mounted.unmount();
-    globalThis.fetch = originalFetch;
   }
 });
 
 testList("a missing base URL leaves both lists empty", async () => {
-  const originalFetch = globalThis.fetch;
   let fetchCalls = 0;
   globalThis.fetch = async () => {
     fetchCalls += 1;
@@ -135,12 +134,10 @@ testList("a missing base URL leaves both lists empty", async () => {
     assert.equal(mounted.read().isFetchingProducts, false);
   } finally {
     await mounted.unmount();
-    globalThis.fetch = originalFetch;
   }
 });
 
 testList("filtered product requests follow the search, price, category, and sort", async () => {
-  const originalFetch = globalThis.fetch;
   const requestedUrls = [];
   globalThis.fetch = async (url) => {
     requestedUrls.push(String(url));
@@ -187,12 +184,10 @@ testList("filtered product requests follow the search, price, category, and sort
     await act(async () => {
       reactRoot.unmount();
     });
-    globalThis.fetch = originalFetch;
   }
 });
 
 testList("a non-array category body and a product body without items become empty lists", async () => {
-  const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
     if (String(url).includes("/categories")) {
       return jsonResponse({ id: "not-a-list" });
@@ -212,12 +207,10 @@ testList("a non-array category body and a product body without items become empt
     assert.equal(mounted.read().productsLoadError, null);
   } finally {
     await mounted.unmount();
-    globalThis.fetch = originalFetch;
   }
 });
 
 testList("a failed product response sets the load error, and an abort does not", async () => {
-  const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
     if (String(url).includes("/categories")) {
       return jsonResponse([]);
@@ -255,12 +248,10 @@ testList("a failed product response sets the load error, and an abort does not",
     assert.deepEqual(aborted.read().fetchedProducts, []);
   } finally {
     await aborted.unmount();
-    globalThis.fetch = originalFetch;
   }
 });
 
 testList("unmounting before the product response resolves drops the late payload", async () => {
-  const originalFetch = globalThis.fetch;
   let resolveProducts = () => {};
   globalThis.fetch = (url) => {
     if (String(url).includes("/categories")) {
@@ -285,6 +276,22 @@ testList("unmounting before the product response resolves drops the late payload
     });
     assert.deepEqual(mounted.read().fetchedProducts, []);
   } finally {
-    globalThis.fetch = originalFetch;
+  }
+});
+
+testList("a failed categories request leaves categories empty and products still load", async () => {
+  globalThis.fetch = async (url) =>
+    String(url).includes("/categories")
+      ? jsonResponse([], false)
+      : jsonResponse({ items: [{ id: "lamp-01" }] });
+
+  const mounted = await mountProductList({ apiBaseUrl: API_BASE_URL, activeFilters: createFilters(""), activeSort: "" });
+
+  try {
+    assert.deepEqual(mounted.read().availableCategories, []);
+    assert.equal(mounted.read().fetchedProducts[0].id, "lamp-01");
+    assert.equal(mounted.read().productsLoadError, null);
+  } finally {
+    await mounted.unmount();
   }
 });
