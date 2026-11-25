@@ -1,6 +1,6 @@
 /**
  * Verifies catalog and cart messages on an injected transport.
- * Role: Locks topic, event, payload, scope, and the invalid add-to-cart guard.
+ * Role: Locks topic, event, payload, scope, the invalid add-to-cart guard, and the blank product-open guard.
  * Not in this file: Cart mutation or window event names.
  * Key dependencies: node:test; src/createCatalogEvents.js; test/support/createRecordingTransport.js.
  * See also: src/createCatalogEvents.js.
@@ -88,5 +88,22 @@ test("publishCartChanged notifies a subscriber once and publishProductOpenReques
       payload: { productId: "p-01" },
       scope: "local",
     },
+  );
+});
+
+test("publishProductOpenRequested publishes only a non-empty product id", () => {
+  const transport = createRecordingTransport();
+  const catalogEvents = createCatalogEvents(transport);
+
+  catalogEvents.publishProductOpenRequested("p-01");
+  catalogEvents.publishProductOpenRequested({ productId: "p-02", extra: true });
+  catalogEvents.publishProductOpenRequested("");
+  catalogEvents.publishProductOpenRequested({ productId: "  " });
+  catalogEvents.publishProductOpenRequested({});
+  catalogEvents.publishProductOpenRequested(null);
+
+  assert.deepEqual(
+    transport.published.map((message) => message.payload),
+    [{ productId: "p-01" }, { productId: "p-02" }],
   );
 });
