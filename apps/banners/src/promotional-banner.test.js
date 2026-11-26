@@ -114,3 +114,48 @@ test("a loaded banner shows its title and the promotion button", async () => {
     }
   });
 });
+
+test("a provided banner is shown without a request", async () => {
+  let fetchCalls = 0;
+  await withFetch(async () => {
+    fetchCalls += 1;
+    throw new Error("fetch should not run");
+  }, async () => {
+    const mounted = await mountBanner({ banner: { title: "Winter Sale", imageUrl: "winter.png" }, bannerId: "b-1", apiBaseUrl: API_BASE_URL });
+    try {
+      assert.match(mounted.root.textContent, /Winter Sale/);
+      assert.equal(fetchCalls, 0);
+    } finally {
+      mounted.unmount();
+    }
+  });
+});
+
+test("a banner shows loading while its request is pending and ignores replies after unmount", async () => {
+  const pending = [];
+  await withFetch((_url, options) =>
+    new Promise((resolve, reject) => {
+      pending.push({ resolve, signal: options.signal });
+      options.signal.addEventListener("abort", () => {
+        if (pending.length > 1) {
+          const abortError = new Error("aborted");
+          abortError.name = "AbortError";
+          reject(abortError);
+        }
+      });
+    }), async () => {
+    const loading = await mountBanner({ apiBaseUrl: API_BASE_URL, bannerId: "b-1" });
+    assert.equal(loading.root.textContent, "Loading banner...");
+    loading.unmount();
+    assert.equal(pending[0].signal.aborted, true);
+    pending[0].resolve({ ok: true, status: 200, json: async () => ({ title: "Too late" }) });
+
+    const rejected = await mountBanner({ apiBaseUrl: API_BASE_URL, bannerId: "b-2" });
+    rejected.unmount();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(pending[1].signal.aborted, true);
+    assert.doesNotMatch(loading.root.textContent + rejected.root.textContent, /Too late|No banner/);
+  });
+});

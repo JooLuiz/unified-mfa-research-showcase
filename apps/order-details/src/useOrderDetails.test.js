@@ -18,9 +18,10 @@ import { createRecordingTransport } from "../../../test/support/createRecordingT
 import "../../../test/support/installBrowserGlobals.js";
 import { installDomDocument } from "../../../test/support/installDomDocument.js";
 import { loadAppModule } from "../../../test/support/loadAppModule.js";
+import { mountVueComposable } from "../../../test/support/mountVueComponent.js";
 
 installDomDocument();
-const { createApp, nextTick, reactive } = await import("vue");
+const { nextTick } = await import("vue");
 const { useOrderDetails } = await loadAppModule(
   new URL("./useOrderDetails.js", import.meta.url).href,
 );
@@ -32,27 +33,10 @@ const AUTH_TOKEN_STORAGE_KEY = "ecommerce-shell:auth-token";
  * Mounts a probe component that runs the composable.
  *
  * @param {object} props - Composable props.
- * @returns {{ read: () => object, unmount: () => void }} Latest composable result and unmount.
+ * @returns {{ read: () => object, state: object, unmount: () => void }} Latest composable result, reactive props, and unmount.
  */
 function mountOrderDetails(props) {
-  const { root } = installDomDocument();
-  const state = reactive({ ...props });
-  let latest = null;
-  const app = createApp({
-    setup() {
-      latest = useOrderDetails(state);
-      return () => null;
-    },
-  });
-  app.mount(root);
-  return {
-    read() {
-      return latest;
-    },
-    unmount() {
-      app.unmount();
-    },
-  };
+  return mountVueComposable(useOrderDetails, props);
 }
 
 /** Lets pending fetch promises settle and Vue flush. */
