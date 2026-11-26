@@ -1,26 +1,28 @@
 /**
  * Handles live-stock reserve and release requests received through the event-mesh gateway.
- * Role: Resolves the caller's holder identity (signed-in user or guest session), calls
- *   src/domain/stock.js, replies accepted or rejected, and broadcasts the resulting
- *   availability to every watcher through src/infrastructure/stockEvents.js.
- * Not in this file: Availability math (src/domain/stock.js) or the watcher registry
- *   (src/infrastructure/stockEvents.js).
- * Key dependencies: src/domain/stock.js; src/infrastructure/stockEvents.js; event-mesh/gateway.
+ * Role: Resolves the caller's holder identity (signed-in user or guest session), calls the
+ *   reserveStock / setStockReservation use cases, and replies accepted or rejected.
+ * Not in this file: Reservation steps and the availability broadcast (src/domain/reserveStock.js)
+ *   or the watcher registry (src/infrastructure/stockEvents.js).
+ * Key dependencies: src/domain/reserveStock.js; src/domain/useCaseCodes.js; event-mesh/gateway.
  * See also: src/server.js; src/inbound/cartUpsertHandler.js (same requestId reply shape).
- *   On main this is served by src/routes/stockRoutes.js.
+ *   On main the same use cases are called from src/routes/stockRoutes.js.
  */
 
-const {
-  STOCK_REQUEST_INVALID_CODE,
-  reserveAdditiveStock,
-  setAbsoluteStock,
-} = require("../domain/stock");
+const { STOCK_REQUEST_INVALID_CODE } = require("../domain/stock");
+const { reserveStock, setStockReservation } = require("../domain/reserveStock");
+const { STOCK_HOLDER_MISSING_CODE } = require("../domain/useCaseCodes");
 
 const STOCK_TOPIC = "stock";
 const STOCK_RESERVE_EVENT = "reserve";
 const STOCK_RELEASE_EVENT = "release";
 const STOCK_ACCEPTED_EVENT = "accepted";
 const STOCK_REJECTED_EVENT = "rejected";
+
+// Reply code the shells already handle for a request with no holder.
+const REJECTED_REPLY_CODES = Object.freeze({
+  [STOCK_HOLDER_MISSING_CODE]: STOCK_REQUEST_INVALID_CODE,
+});
 
 /**
  * Resolves the caller's stock holder identity from the mesh credential and payload. A
@@ -55,41 +57,34 @@ async function registerStockHandler(jsonStore, stockEventStream) {
   const gateway = gatewayModule.default;
 
   /**
-   * Shared reserve/release flow: resolve the holder, run the stock operation, and reply or
-   * broadcast depending on the outcome.
+   * Shared reserve/release flow: resolve the holder, run the use case, and reply.
    *
    * @param {object} incomingMessage - Gateway message for stock/reserve or stock/release.
-   * @param {(stockInput: { jsonStore: object, holder: object, productId: string, quantity: number }) => Promise<{ ok: boolean, code?: string, quantity?: number, available?: number }>} stockOperation - reserveAdditiveStock or setAbsoluteStock.
+   * @param {typeof reserveStock} stockUseCase - reserveStock or setStockReservation.
    * @returns {Promise<void>}
-   * @sideEffects Replies to the sender and, on success, broadcasts stock/changed.
+   * @sideEffects Replies to the sender; the use case broadcasts on success.
    */
-  async function handleStockRequest(incomingMessage, stockOperation) {
+  async function handleStockRequest(incomingMessage, stockUseCase) {
     const requestId =
       typeof incomingMessage.payload?.requestId === "string" ? incomingMessage.payload.requestId : null;
-    const productId = incomingMessage.payload?.productId;
-    const quantity = Number(incomingMessage.payload?.quantity);
 
     const holder = resolveStockHolder(incomingMessage);
-    if (!holder) {
-      gateway.reply(incomingMessage, {
-        topic: STOCK_TOPIC,
-        event: STOCK_REJECTED_EVENT,
-        payload: { requestId, code: STOCK_REQUEST_INVALID_CODE },
-      });
-      return;
-    }
-
-    if (holder.type === "guest" && incomingMessage.sourceClientId) {
+    if (holder?.type === "guest" && incomingMessage.sourceClientId) {
       stockEventStream.rememberGuestSession(incomingMessage.sourceClientId, holder.sessionId);
     }
 
-    const stockResult = await stockOperation({ jsonStore, holder, productId, quantity });
+    const stockResult = await stockUseCase({
+      jsonStore,
+      holder,
+      payload: incomingMessage.payload,
+      streams: { stock: stockEventStream },
+    });
 
     if (!stockResult.ok) {
       gateway.reply(incomingMessage, {
         topic: STOCK_TOPIC,
         event: STOCK_REJECTED_EVENT,
-        payload: { requestId, code: stockResult.code },
+        payload: { requestId, code: REJECTED_REPLY_CODES[stockResult.code] || stockResult.code },
       });
       return;
     }
@@ -97,21 +92,15 @@ async function registerStockHandler(jsonStore, stockEventStream) {
     gateway.reply(incomingMessage, {
       topic: STOCK_TOPIC,
       event: STOCK_ACCEPTED_EVENT,
-      payload: {
-        requestId,
-        productId,
-        quantity: stockResult.quantity,
-        available: stockResult.available,
-      },
+      payload: { requestId, ...stockResult.result },
     });
-    stockEventStream.broadcastStockChanged(productId, stockResult.available);
   }
 
   gateway.subscribe(STOCK_TOPIC, STOCK_RESERVE_EVENT, (incomingMessage) =>
-    handleStockRequest(incomingMessage, reserveAdditiveStock),
+    handleStockRequest(incomingMessage, reserveStock),
   );
   gateway.subscribe(STOCK_TOPIC, STOCK_RELEASE_EVENT, (incomingMessage) =>
-    handleStockRequest(incomingMessage, setAbsoluteStock),
+    handleStockRequest(incomingMessage, setStockReservation),
   );
 }
 

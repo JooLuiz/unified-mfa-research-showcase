@@ -156,7 +156,7 @@ app.use(
     notificationInboxEventStream,
   ),
 );
-app.use("/api", createCartRouter(jsonStore, cartEventStream));
+app.use("/api", createCartRouter(jsonStore, cartEventStream, stockEventStream));
 app.use("/api", createExportRouter(jsonStore));
 app.use("/api", createAdminRouter(jsonStore));
 app.use("/api", createSessionRouter(jsonStore, sessionEventStream));

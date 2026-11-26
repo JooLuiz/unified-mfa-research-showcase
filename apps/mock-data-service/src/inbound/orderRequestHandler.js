@@ -1,23 +1,21 @@
 /**
  * Handles authenticated order placement requests received through the event-mesh gateway.
- * Role: Persists orders from mesh requests and replies with targeted notifications.
- * Not in this file: HTTP order routes or mesh ticket validation.
- * Key dependencies: JSON store; src/domain/orderProcessing.js; src/inbound/notificationEvents.js;
- *   src/infrastructure/adminEvents.js.
+ * Role: Adapts orders/requested messages to the placeOrder use case and replies with the outcome.
+ * Not in this file: Placement steps (src/domain/placeOrder.js) or mesh ticket validation.
+ * Key dependencies: src/domain/placeOrder.js; src/inbound/notificationEvents.js; event-mesh/gateway.
  * See also: src/server.js.
- *   On main this is served by src/routes/orderRoutes.js (POST /orders).
+ *   On main the same use case is called from src/routes/orderRoutes.js (POST /orders).
  */
 
-const { buildPublicUser } = require("../domain/auth");
 const {
   ORDER_PERSISTENCE_FAILED_CODE,
   ORDER_REQUEST_INVALID_CODE,
-  createOrderForUser,
 } = require("../domain/orderProcessing");
-const { recordOrderPlacedNotifications } = require("../domain/notificationTriggers");
+const { placeOrder } = require("../domain/placeOrder");
 const { replyNotificationRaised } = require("./notificationEvents");
 
 const ORDERS_TOPIC = "orders";
+const ORDERS_REQUESTED_EVENT = "requested";
 const ORDERS_ACCEPTED_EVENT = "accepted";
 
 const ORDER_FAILURE_NOTIFICATIONS = Object.freeze({
@@ -34,9 +32,9 @@ const ORDER_FAILURE_NOTIFICATIONS = Object.freeze({
 });
 
 /**
- * Registers the gateway subscriber that processes orders.requested messages.
+ * Registers the gateway subscriber that processes orders/requested messages.
  *
- * @param {{ readJsonFile: (fileName: string) => Promise<unknown>, readJsonFileWithDefault: (fileName: string, defaultValue: unknown) => Promise<unknown>, writeJsonFile: (fileName: string, data: unknown) => Promise<void> }} jsonStore - JSON store bound to service data files.
+ * @param {object} jsonStore - JSON store bound to service data files.
  * @param {{ broadcastEvent: (eventType: string, payload: object) => void }} adminEventStream - Publisher for admin live order updates.
  * @param {{ broadcastCartChanged: (userId: string, cart: object) => void }} cartEventStream - Notifies that user's watching clients after the cart row is removed.
  * @param {{ broadcastStockChanged: (productId: string, available: number) => void }} stockEventStream - Notifies stock watchers after the sold products' stock is decremented.
@@ -54,26 +52,22 @@ async function registerOrderRequestHandler(
   const gatewayModule = await import("event-mesh/gateway");
   const gateway = gatewayModule.default;
 
-  gateway.subscribe("orders", "requested", async (incomingMessage) => {
+  gateway.subscribe(ORDERS_TOPIC, ORDERS_REQUESTED_EVENT, async (incomingMessage) => {
     const userId = incomingMessage.credential?.userId;
     if (!userId) {
       return;
     }
 
-    const users = await jsonStore.readJsonFile("users.json");
-    const user = users.find((userRecord) => userRecord.id === userId);
-    if (!user) {
-      await replyNotificationRaised(
-        incomingMessage,
-        ORDER_FAILURE_NOTIFICATIONS[ORDER_PERSISTENCE_FAILED_CODE],
-      );
-      return;
-    }
-
-    const orderResult = await createOrderForUser({
+    const orderResult = await placeOrder({
       jsonStore,
-      user,
-      orderPayload: incomingMessage.payload || {},
+      userId,
+      payload: incomingMessage.payload,
+      streams: {
+        admin: adminEventStream,
+        cart: cartEventStream,
+        stock: stockEventStream,
+        notificationInbox: notificationInboxEventStream,
+      },
     });
 
     if (!orderResult.ok) {
@@ -86,34 +80,12 @@ async function registerOrderRequestHandler(
     }
 
     // Dedicated accept reply, mirroring orders/status-accepted in orderStatusHandler.js: this
-    // only confirms the write succeeded. The "Order placed" toast itself comes from the
-    // persisted notification inbox broadcast below, not from this reply, so a signed-in
-    // customer never sees it twice.
+    // only confirms the write succeeded. The "Order placed" toast comes from the persisted
+    // notification inbox broadcast, not from this reply, so a customer never sees it twice.
     gateway.reply(incomingMessage, {
       topic: ORDERS_TOPIC,
       event: ORDERS_ACCEPTED_EVENT,
-      payload: { order: orderResult.order },
-    });
-
-    adminEventStream.broadcastEvent("order_created", {
-      ...orderResult.order,
-      customer: buildPublicUser(user),
-    });
-    cartEventStream.broadcastCartChanged(user.id, {
-      items: [],
-      appliedCoupon: null,
-      updatedAt: new Date().toISOString(),
-    });
-    // Defensive broadcast: decrementing stock and removing this user's hold by the same
-    // quantity nets to no visible change in `available`, but every watcher stays consistent.
-    orderResult.stockAvailability.forEach(({ productId, available }) => {
-      stockEventStream.broadcastStockChanged(productId, available);
-    });
-    await recordOrderPlacedNotifications({
-      jsonStore,
-      notificationInboxEventStream,
-      order: orderResult.order,
-      user,
+      payload: { order: orderResult.result },
     });
   });
 }

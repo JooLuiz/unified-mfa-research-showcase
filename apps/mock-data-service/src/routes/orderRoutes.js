@@ -1,8 +1,8 @@
 /**
  * Serves order routes for the mock data service.
  * Role: Handles POST /orders, GET /orders, and GET /orders/:orderId, mounted at /api.
- * Not in this file: Token helpers (src/domain/auth.js), order persistence
- *   (src/domain/orderProcessing.js), or the broadcast implementations
+ * Not in this file: Token helpers (src/domain/auth.js), the placement use case
+ *   (src/domain/placeOrder.js), or the broadcast implementations
  *   (src/infrastructure/adminEvents.js, src/infrastructure/cartEvents.js,
  *   src/infrastructure/stockEvents.js).
  * Key dependencies: orders.json and users.json via the JSON store.
@@ -11,14 +11,10 @@
  */
 
 const express = require("express");
-const { buildPublicUser, resolveAuthenticatedUserId, isAdminUser } = require("../domain/auth");
-const {
-  ORDER_REQUEST_INVALID_CODE,
-  createOrderForUser,
-} = require("../domain/orderProcessing");
-const {
-  recordOrderPlacedNotifications,
-} = require("../domain/notificationTriggers");
+const { resolveAuthenticatedUserId, isAdminUser } = require("../domain/auth");
+const { ORDER_REQUEST_INVALID_CODE } = require("../domain/orderProcessing");
+const { placeOrder } = require("../domain/placeOrder");
+const { USER_NOT_FOUND_CODE } = require("../domain/useCaseCodes");
 
 /**
  * Creates the order router.
@@ -48,23 +44,23 @@ function createOrderRouter(
         return;
       }
 
-      const usersData = await jsonStore.readJsonFile("users.json");
-      const matchingUser = usersData.find(
-        (userRecord) => userRecord.id === userIdFromToken,
-      );
-      if (!matchingUser) {
-        response.status(404).json({ message: "User not found" });
-        return;
-      }
-
-      const orderPayload = request.body || {};
-      const orderResult = await createOrderForUser({
+      const orderResult = await placeOrder({
         jsonStore,
-        user: matchingUser,
-        orderPayload,
+        userId: userIdFromToken,
+        payload: request.body,
+        streams: {
+          admin: adminEventStream,
+          cart: cartEventStream,
+          stock: stockEventStream,
+          notificationInbox: notificationInboxEventStream,
+        },
       });
 
       if (!orderResult.ok) {
+        if (orderResult.code === USER_NOT_FOUND_CODE) {
+          response.status(404).json({ message: "User not found" });
+          return;
+        }
         if (orderResult.code === ORDER_REQUEST_INVALID_CODE) {
           response.status(400).json({ message: "An order must include at least one item" });
           return;
@@ -73,31 +69,7 @@ function createOrderRouter(
         return;
       }
 
-      adminEventStream.broadcastEvent("order_created", {
-        ...orderResult.order,
-        customer: buildPublicUser(matchingUser),
-      });
-      cartEventStream.broadcastCartChanged(matchingUser.id, {
-        items: [],
-        appliedCoupon: null,
-        updatedAt: new Date().toISOString(),
-      });
-      // Defensive broadcast: decrementing stock and removing this user's hold by the same
-      // quantity nets to no visible change in `available`, but every watcher stays consistent.
-      orderResult.stockAvailability.forEach(({ productId, available }) => {
-        stockEventStream.broadcastStockChanged(productId, available);
-      });
-
-      if (notificationInboxEventStream) {
-        await recordOrderPlacedNotifications({
-          jsonStore,
-          notificationInboxEventStream,
-          order: orderResult.order,
-          user: matchingUser,
-        });
-      }
-
-      response.status(201).json(orderResult.order);
+      response.status(201).json(orderResult.result);
     } catch (error) {
       response.status(500).json({
         message: "Unable to place order",

@@ -4,7 +4,7 @@
  * Not in this file: Cart persistence (src/domain/cartProcessing.js) or the cart publisher
  *   (src/infrastructure/cartEvents.js).
  * Key dependencies: carts.json via src/domain/cartProcessing.js; src/domain/auth.js;
- *   src/domain/guestHolds.js for the login-merge hand-off.
+ *   src/domain/saveCart.js (save, broadcast, login-merge hand-off).
  * See also: src/server.js; src/routes/orderRoutes.js.
  *   On main this file also serves the cart SSE stream; this branch pushes cart changes through
  *   the gateway (src/infrastructure/cartEvents.js).
@@ -15,9 +15,8 @@ const { resolveAuthenticatedUserId } = require("../domain/auth");
 const {
   CART_REQUEST_INVALID_CODE,
   getCartForUser,
-  saveCartForUser,
 } = require("../domain/cartProcessing");
-const { deleteGuestHoldSession } = require("../domain/guestHolds");
+const { saveCart } = require("../domain/saveCart");
 
 const GUEST_STOCK_SESSION_HEADER_NAME = "x-stock-session-to-release";
 
@@ -47,9 +46,10 @@ async function resolveAuthenticatedUser(request, jsonStore) {
  *
  * @param {{ readJsonFile: (fileName: string) => Promise<any>, readJsonFileWithDefault: (fileName: string, defaultValue: any) => Promise<any>, writeJsonFile: (fileName: string, data: any) => Promise<void> }} jsonStore - JSON file store bound to the data directory.
  * @param {{ broadcastCartChanged: (userId: string, cart: object) => void }} cartEventStream - Per-user cart publisher.
+ * @param {{ broadcastStockChanged: (productId: string, available: number) => void }} stockEventStream - Notifies stock watchers when a login merge releases a guest hold.
  * @returns {import("express").Router} Router with GET /cart and PUT /cart.
  */
-function createCartRouter(jsonStore, cartEventStream) {
+function createCartRouter(jsonStore, cartEventStream, stockEventStream) {
   const router = express.Router();
 
   router.get("/cart", async (request, response) => {
@@ -85,10 +85,12 @@ function createCartRouter(jsonStore, cartEventStream) {
         return;
       }
 
-      const cartResult = await saveCartForUser({
+      const guestStockSessionIdToRelease = request.headers[GUEST_STOCK_SESSION_HEADER_NAME];
+      const cartResult = await saveCart({
         jsonStore,
         userId: authenticatedUser.userId,
-        cartPayload: request.body || {},
+        payload: { ...(request.body || {}), guestStockSessionIdToRelease },
+        streams: { cart: cartEventStream, stock: stockEventStream },
       });
       if (!cartResult.ok) {
         if (cartResult.code === CART_REQUEST_INVALID_CODE) {
@@ -99,17 +101,7 @@ function createCartRouter(jsonStore, cartEventStream) {
         return;
       }
 
-      const guestStockSessionIdToRelease = request.headers[GUEST_STOCK_SESSION_HEADER_NAME];
-      if (typeof guestStockSessionIdToRelease === "string" && guestStockSessionIdToRelease.trim() !== "") {
-        // The login merge already folded this session's guest-held quantities into the saved
-        // cart above. Deleting the guestHolds.json row here avoids double-counting the same
-        // units against `available` on both sides. No stock_changed broadcast: the hold moved
-        // from guest to user, so the available count does not change.
-        await deleteGuestHoldSession({ jsonStore, sessionId: guestStockSessionIdToRelease.trim() });
-      }
-
-      cartEventStream.broadcastCartChanged(authenticatedUser.userId, cartResult.cart);
-      response.json(cartResult.cart);
+      response.json(cartResult.result);
     } catch (error) {
       response.status(500).json({
         message: "Unable to save cart",

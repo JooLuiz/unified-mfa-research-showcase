@@ -1,25 +1,28 @@
 /**
  * Handles authenticated CSV export requests received through the event-mesh gateway.
- * Role: Creates export jobs from mesh requests and replies with targeted outcomes.
- * Not in this file: CSV serialization details, ticket issuance, or HTTP download routes.
- * Key dependencies: JSON store; src/domain/exportJobs.js; src/domain/exportProcessing.js.
+ * Role: Adapts exports/requested messages to the requestExport use case, creates the export
+ *   job, and replies with targeted outcomes.
+ * Not in this file: Request validation (src/domain/requestExport.js), CSV serialization, ticket
+ *   issuance, or HTTP download routes.
+ * Key dependencies: src/domain/requestExport.js; src/domain/exportJobs.js;
+ *   src/domain/exportProcessing.js.
  * See also: src/server.js; src/inbound/exportEvents.js.
- *   On main this is served by src/routes/exportRoutes.js.
+ *   On main the same use case is called from src/routes/exportRoutes.js.
  */
 
 const { createExportJob } = require("../domain/exportJobs");
 const {
   EXPORT_KINDS,
-  EXPORT_FILE_NAMES,
   INVALID_EXPORT_REQUEST_CODE,
   processExportJob,
 } = require("../domain/exportProcessing");
+const { requestExport } = require("../domain/requestExport");
 const { replyExportCompleted, replyExportFailed } = require("./exportEvents");
 
 /**
- * Registers the gateway subscriber that processes exports.requested messages.
+ * Registers the gateway subscriber that processes exports/requested messages.
  *
- * @param {{ readJsonFile: (fileName: string) => Promise<unknown> }} jsonStore - JSON store bound to service data files.
+ * @param {object} jsonStore - JSON store bound to service data files.
  * @returns {Promise<void>}
  * @sideEffects Subscribes to export request events on the local gateway singleton.
  */
@@ -40,7 +43,8 @@ async function registerExportRequestHandler(jsonStore) {
       return;
     }
 
-    if (!Object.values(EXPORT_KINDS).includes(kind)) {
+    const exportRequest = await requestExport({ jsonStore, userId, payload: incomingMessage.payload });
+    if (!exportRequest.ok) {
       await replyExportFailed(incomingMessage, {
         requestId,
         kind: kind || EXPORT_KINDS.orders,
@@ -49,21 +53,11 @@ async function registerExportRequestHandler(jsonStore) {
       return;
     }
 
-    const users = await jsonStore.readJsonFile("users.json");
-    const user = users.find((userRecord) => userRecord.id === userId);
-    if (!user) {
-      await replyExportFailed(incomingMessage, {
-        requestId,
-        kind,
-        code: INVALID_EXPORT_REQUEST_CODE,
-      });
-      return;
-    }
-
+    const { user, fileName } = exportRequest.result;
     const exportJob = createExportJob({
       userId: user.id,
-      kind,
-      fileName: EXPORT_FILE_NAMES[kind],
+      kind: exportRequest.result.kind,
+      fileName,
     });
 
     setImmediate(() => {
