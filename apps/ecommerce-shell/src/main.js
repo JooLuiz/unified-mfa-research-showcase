@@ -13,6 +13,7 @@ import loadMockData from "./utils/loadData";
 import {
   bindShellTransport,
   createShellSessionChannel,
+  ensureCatalogIntentListeners,
   publishLogoutRequested,
   shellTransport,
   subscribeToAuthSessionChanges,
@@ -39,6 +40,7 @@ import { publishNotification } from "./notifications/notificationAdapter";
 import { startStockGating } from "./events/stockGating";
 import { endCartSession, hydrateSavedCart, startCartTabSync } from "./utils/cartSync";
 import { navigate } from "./utils/navigate";
+import { createCatalogIntentHandlers } from "./intents/catalogIntentHandlers";
 import { createPageRenderer } from "./pages/pageRenderer";
 
 const appState = {
@@ -99,8 +101,14 @@ subscribeToNewInboxNotifications((notification) => {
   });
 });
 
+const catalogIntentHandlers = createCatalogIntentHandlers(appState);
+
 const authSession = createAuthSessionLifecycle(createShellSessionChannel(), {
   isAuthenticated: () => Boolean(appState.authToken),
+  // Window listeners last for the tab, so they are attached once and never detached.
+  attachListeners: () => {
+    ensureCatalogIntentListeners(catalogIntentHandlers);
+  },
   startLiveEvents: () => {
     void startCartLiveEvents(shellTransport);
     void startCustomerOrderStatusStream(shellTransport);

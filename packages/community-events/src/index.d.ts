@@ -1,25 +1,61 @@
-export const COMMUNITY_TOPIC: string;
-export const POST_SUBMITTED_EVENT: string;
+export type PostLikedRequest = {
+  postId: string;
+};
+
+export type AuthorSelectedRequest = {
+  author: object;
+};
 
 export type PostSubmittedRequest = {
   content: string;
   imageUrl: string;
 };
 
-export function isValidPostSubmittedRequest(value: unknown): value is PostSubmittedRequest;
-
-export interface CommunityTransport {
-  publish(message: { topic: string; event: string; payload?: object; scope: string }): void;
+export type CommunityMeshClient = {
+  publish(input: object): void;
   subscribe(
     topic: string,
     event: string,
-    callback: (message: { payload?: unknown }) => void,
+    callback: (message: { payload: unknown }) => void,
   ): () => void;
-}
+  whenConnected(options?: { timeoutMs?: number }): Promise<void>;
+};
 
-export interface CommunityEvents {
+export type CommunityIntentHandlers = {
+  onPostLiked?(payload: PostLikedRequest): void;
+  onAuthorSelected?(payload: AuthorSelectedRequest): void;
+  onPostSubmitted?(payload: PostSubmittedRequest): void;
+};
+
+export type CommunityEvents = {
+  publishPostLiked(postId: string): void;
+  publishPostLikesWatching(postId: string): void;
+  publishAuthorSelected(author: object): void;
   publishPostSubmitted(payload?: object): void;
   subscribeToPostSubmitted(listener: (payload: unknown) => void): () => void;
-}
+  ensureCommunityIntentListeners(handlers: CommunityIntentHandlers): void;
+  resetCommunityIntentListeners(): void;
+};
 
-export function createCommunityEvents(transport: CommunityTransport): CommunityEvents;
+export declare const COMMUNITY_TOPIC: "community";
+export declare const COMMUNITY_POST_LIKED_EVENT: "post-liked";
+export declare const COMMUNITY_AUTHOR_SELECTED_EVENT: "author-selected";
+export declare const COMMUNITY_POST_SUBMITTED_EVENT: "post-submitted";
+export declare const COMMUNITY_LIKES_TOPIC: "community-likes";
+export declare const COMMUNITY_LIKES_WATCHING_EVENT: "watching";
+export declare const COMMUNITY_LIKES_TOGGLE_EVENT: "toggle";
+export declare const COMMUNITY_LIKES_ACCEPTED_EVENT: "accepted";
+export declare const COMMUNITY_LIKES_REJECTED_EVENT: "rejected";
+export declare const COMMUNITY_LIKES_CHANGED_EVENT: "changed";
+
+export function isValidPostLikedRequest(
+  value: unknown,
+): value is PostLikedRequest;
+export function isValidAuthorSelectedRequest(
+  value: unknown,
+): value is AuthorSelectedRequest;
+export function isValidPostSubmittedRequest(
+  value: unknown,
+): value is PostSubmittedRequest;
+
+export function createCommunityEvents(input: CommunityMeshClient): CommunityEvents;

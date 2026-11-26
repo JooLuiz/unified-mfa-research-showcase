@@ -2,8 +2,8 @@
  * Renders the checkout and order-placed routes.
  * Role: Composes checkout item, summary, and coupon mounts and shows the failed-order toast.
  * Not in this file: Order HTTP details (src/commands/placeOrder.js) or the place-order sequence and post-order navigation (src/commands/placeCheckoutOrder.js).
- * Key dependencies: src/commands/placeCheckoutOrder.js; src/intents/catalogIntentHandlers.js (cart line edits);
- *   src/notifications/notificationAdapter.js; src/utils/cartSync.js.
+ * Key dependencies: src/commands/placeCheckoutOrder.js; src/notifications/notificationAdapter.js;
+ *   src/utils/cartSync.js. Cart line edits arrive as catalog intents (src/intents/catalogIntentHandlers.js).
  * See also: src/utils/renderActions.js (public barrel).
  */
 
@@ -25,7 +25,6 @@ import {
   calculateCheckoutTotals,
   placeCheckoutOrder,
 } from "../commands/placeCheckoutOrder";
-import { createCatalogIntentHandlers } from "../intents/catalogIntentHandlers";
 
 /**
  * Renders checkout, awaiting order persistence before clearing the cart or navigating.
@@ -90,33 +89,19 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
   const checkoutSummaryMount = pageMount.querySelector("#checkoutSummaryMount");
   const applyCouponMount = pageMount.querySelector("#applyCouponMount");
 
-  const catalogHandlers = createCatalogIntentHandlers(appState);
-  const checkoutItemsHandle = modules.mountCheckoutItems(checkoutItemsMount, {
-    productsById: appState.productsById,
-    apiBaseUrl: MOCK_API_BASE_URL,
-    onQuantityChange: async (productId, quantity) => {
-      const stockCheckResult = await catalogHandlers.onCartItemUpdateRequested({
-        productId,
-        quantity,
-      });
-      if (!stockCheckResult.ok) {
-        return;
-      }
-      checkoutItemsHandle.applyAvailable(productId, stockCheckResult.available);
-      refreshCheckoutSummary();
-    },
-    onRemoveItem: async (productId) => {
-      const stockCheckResult = await catalogHandlers.onCartItemRemoveRequested({ productId });
-      if (!stockCheckResult.ok) {
-        return;
-      }
-      checkoutItemsHandle.applyAvailable(productId, stockCheckResult.available);
-      if (appState.cartItems.length > 0) {
-        refreshCheckoutSummary();
-      }
-    },
-  });
-  activeCleanupFunctions.push(() => checkoutItemsHandle.unmount());
+  // Line edits publish cart intents. The catalog intent listeners main.js registers own the stock
+  // check and the toasts, and this page's cart subscription refreshes the summary.
+  activeCleanupFunctions.push(
+    modules.mountCheckoutItems(checkoutItemsMount, {
+      cartItems: appState.cartItems,
+      productsById: appState.productsById,
+      apiBaseUrl: MOCK_API_BASE_URL,
+      subscribeToCartChanges: (listener) =>
+        subscribeToCartChanges(() => {
+          listener(appState.cartItems);
+        }),
+    }),
+  );
 
   const initialTotals = calculateCheckoutTotals(appState);
   checkoutSummaryHandle = modules.mountCheckoutSummary(checkoutSummaryMount, {

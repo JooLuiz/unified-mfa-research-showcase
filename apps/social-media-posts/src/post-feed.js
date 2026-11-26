@@ -1,9 +1,9 @@
 /**
  * Renders a list of post cards and mounts it as a federated module.
- * Role: Owns the feed layout, title, and empty state; delegates each card's markup and like
- *   state to src/post-card.js.
- * Not in this file: Card markup/like state (src/post-card.js) or the host-owned like/author
- *   callbacks themselves (apps/social-media-shell/src/pages/*).
+ * Role: Owns the feed layout, title, and empty state; delegates each card's markup, like
+ *   button, and watch announcement to src/post-card.js.
+ * Not in this file: Card markup/like state (src/post-card.js) or the host-owned community
+ *   intent handling (apps/social-media-shell/src/main.js).
  * Key dependencies: react, react-dom; src/post-card.js.
  * See also: apps/social-media-shell/src/pages/feedPage.js, postsPage.js, accountPage.js.
  */
@@ -18,18 +18,9 @@ const DEFAULT_EMPTY_STATE_MESSAGE = "No posts available right now.";
 /**
  * Renders the feed list, or an empty-state message when there are no posts.
  *
- * @param {{ posts: object[], title?: string, layoutMode?: string, onLike?: (postId: string) => Promise<object | null>, onAuthorClick?: (author: object) => void, onPostClick?: (post: object) => void, currentUserId?: string, emptyStateMessage?: string }} feedProps - Feed data and host-owned callbacks.
+ * @param {{ posts: object[], title?: string, layoutMode?: string, onPostClick?: (post: object) => void, currentUserId?: string, emptyStateMessage?: string }} feedProps - Feed data, an optional card click handler, and the viewer's id.
  */
-function PostFeedView({
-  posts,
-  title,
-  layoutMode,
-  onLike,
-  onAuthorClick,
-  onPostClick,
-  currentUserId,
-  emptyStateMessage,
-}) {
+function PostFeedView({ posts, title, layoutMode, onPostClick, currentUserId, emptyStateMessage }) {
   if (!Array.isArray(posts) || posts.length === 0) {
     return (
       <section className="post-feed-shell">
@@ -52,8 +43,6 @@ function PostFeedView({
             key={post.id}
             post={post}
             layoutMode={layoutMode}
-            onLike={onLike}
-            onAuthorClick={onAuthorClick}
             onPostClick={onPostClick}
             currentUserId={currentUserId}
           />
@@ -81,8 +70,6 @@ export function mountPostFeed(containerElement, props) {
         posts={nextProps.posts}
         title={nextProps.title}
         layoutMode={nextProps.layoutMode}
-        onLike={nextProps.onLike}
-        onAuthorClick={nextProps.onAuthorClick}
         onPostClick={nextProps.onPostClick}
         currentUserId={nextProps.currentUserId}
         emptyStateMessage={nextProps.emptyStateMessage}

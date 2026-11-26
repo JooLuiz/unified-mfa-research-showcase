@@ -52,7 +52,7 @@ queueTest("asks a guest to log in before creating a post", async () => {
   assert.equal(pageRoot.querySelector("#goToLoginButton"), null);
 });
 
-queueTest("groups posts, opens one, and follows a banner when the page offers that action", async () => {
+queueTest("groups posts, opens one, and mounts the banner between groups", async () => {
   installFetch((url) => {
     if (url.includes("/posts")) {
       return { body: { id: "post-new", content: "Hello" } };
@@ -97,9 +97,8 @@ queueTest("groups posts, opens one, and follows a banner when the page offers th
   assert.equal(window.location.pathname, "/posts/post-1");
 
   const bannerProps = latestRemoteCall(remotes, "banner").props;
-  await invokeHandler(bannerProps, "onApplyPromotion");
-  assert.equal(window.location.pathname, "/products");
-  assert.equal(window.location.search, "?searchQuery=mug&minPrice=5&maxPrice=20&categoryIds=mugs");
+  assert.equal(bannerProps.banner.id, "banner-01");
+  assert.deepEqual(bannerProps.banner.filters.categoryIds, ["mugs"]);
 
   const formProps = latestRemoteCall(remotes, "newPost").props;
   appState.authToken = "";
@@ -126,17 +125,11 @@ queueTest("skips a banner slot when no banner is configured between groups", asy
   assert.equal(remotes.calls.some((call) => call.name === "banner"), false);
 });
 
-queueTest("opens the catalog with only the filters a banner sets", async () => {
+queueTest("mounts each configured banner with its own data", async () => {
   const pageRoot = createPageRoot();
   const remotes = createRemoteRecorder();
-  const banners = [
-    { banner: { id: "plain" }, search: "" },
-    { banner: { id: "search", filters: { searchQuery: "hat" } }, search: "?searchQuery=hat" },
-    { banner: { id: "min", filters: { minPrice: "1" } }, search: "?minPrice=1" },
-    { banner: { id: "max", filters: { maxPrice: "9" } }, search: "?maxPrice=9" },
-    { banner: { id: "empty-categories", filters: { categoryIds: [] } }, search: "" },
-  ];
-  for (const { banner, search } of banners) {
+  const banners = [{ id: "plain" }, { id: "search", filters: { searchQuery: "hat" } }];
+  for (const banner of banners) {
     resetLocation("/posts");
     remotes.calls.length = 0;
     await renderPostsPage(
@@ -150,9 +143,7 @@ queueTest("opens the catalog with only the filters a banner sets", async () => {
       remotes,
       [],
     );
-    await invokeHandler(latestRemoteCall(remotes, "banner").props, "onApplyPromotion");
-    assert.equal(window.location.pathname, "/products");
-    assert.equal(window.location.search, search);
+    assert.deepEqual(latestRemoteCall(remotes, "banner").props.banner, banner);
   }
 });
 

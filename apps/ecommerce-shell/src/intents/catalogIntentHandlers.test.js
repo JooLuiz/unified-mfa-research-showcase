@@ -30,7 +30,7 @@ const { createCatalogIntentHandlers, productDetailsPath } = await loadAppModule(
  * Builds shell state and handlers whose navigation and toasts are recorded.
  *
  * @param {object[]} [cartItems] - Lines already in the cart.
- * @returns {{ appState: object, handlers: object, paths: string[], notices: object[] }}
+ * @returns {{ appState: object, handlers: object, paths: string[], notices: object[], renders: number[] }}
  */
 function createShopperHandlers(cartItems = []) {
   const appState = {
@@ -43,11 +43,13 @@ function createShopperHandlers(cartItems = []) {
   };
   const paths = [];
   const notices = [];
+  const renders = [];
   const handlers = createCatalogIntentHandlers(appState, {
     navigate: (path) => paths.push(path),
     notify: (notice) => notices.push(notice),
+    requestRender: () => renders.push(1),
   });
-  return { appState, handlers, paths, notices };
+  return { appState, handlers, paths, notices, renders };
 }
 
 /**
@@ -140,10 +142,11 @@ test("a quantity change follows the stock outcome", async () => {
 
 test("a removal empties the line and confirms, and a refused removal keeps it", async () => {
   await withStockReply({ ok: true, quantity: 0, available: 5 }, async () => {
-    const { appState, handlers, notices } = createShopperHandlers([{ productId: "mug", quantity: 1 }]);
+    const { appState, handlers, notices, renders } = createShopperHandlers([{ productId: "mug", quantity: 1 }]);
     const result = await handlers.onCartItemRemoveRequested({ productId: "mug" });
     assert.equal(result.ok, true);
     assert.deepEqual(appState.cartItems, []);
+    assert.equal(renders.length, 1);
     assert.deepEqual(notices, [
       { type: "success", title: "Item removed", message: "Mug was removed from your cart." },
     ]);
@@ -153,5 +156,17 @@ test("a removal empties the line and confirms, and a refused removal keeps it", 
     await handlers.onCartItemRemoveRequested({ productId: "mug" });
     assert.deepEqual(appState.cartItems, [{ productId: "mug", quantity: 1 }]);
     assert.equal(notices[0].title, "Stock issue");
+  });
+});
+
+test("removing one of several lines keeps the checkout list without a re-render", async () => {
+  await withStockReply({ ok: true, quantity: 0, available: 5 }, async () => {
+    const { appState, handlers, renders } = createShopperHandlers([
+      { productId: "mug", quantity: 1 },
+      { productId: "cup", quantity: 2 },
+    ]);
+    await handlers.onCartItemRemoveRequested({ productId: "mug" });
+    assert.deepEqual(appState.cartItems, [{ productId: "cup", quantity: 2 }]);
+    assert.deepEqual(renders, []);
   });
 });

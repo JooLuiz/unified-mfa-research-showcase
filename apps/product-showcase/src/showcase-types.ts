@@ -11,20 +11,14 @@ export type Showcase = {
   productIds: string[];
 };
 
-export type AddToCartPayload = {
-  productId: string;
-  quantity: number;
-};
-
 export type MountProductCardProps = {
   product?: Product;
   productId?: string;
   apiBaseUrl?: string;
   actionLabel?: string;
+  actionIntent?: "add-to-cart" | "open-product";
   hideQuantity?: boolean;
   variant?: "default" | "compact";
-  onProductClick?: (productId: string) => void;
-  onAddToCart?: (payload: AddToCartPayload) => void;
 };
 
 export type MountProductCard = (
@@ -43,12 +37,11 @@ export type ProductShowcaseConfiguration = {
   apiBaseUrl?: string;
   fallbackTitle?: string;
   actionLabel?: string;
+  actionIntent?: "add-to-cart" | "open-product";
   hideQuantity?: boolean;
   displayMode?: ProductShowcaseDisplayMode;
   defaultCollapsed?: boolean;
   mountProductCard?: MountProductCard;
-  onProductClick?: (productId: string) => void;
-  onAddToCart?: (payload: AddToCartPayload) => void;
 };
 
 export type ProductShowcaseElementInstance = HTMLElement & {

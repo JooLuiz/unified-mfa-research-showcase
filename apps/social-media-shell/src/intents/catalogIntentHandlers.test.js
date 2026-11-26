@@ -49,6 +49,17 @@ test("a promotion opens the product list with its filters", () => {
   ]);
 });
 
+test("a promotion with one filter adds only that filter to the product list URL", () => {
+  const cases = [
+    [{ searchQuery: "hat" }, "?searchQuery=hat"],
+    [{ minPrice: "1" }, "?minPrice=1"],
+    [{ maxPrice: "9" }, "?maxPrice=9"],
+  ];
+  for (const [filters, search] of cases) {
+    assert.equal(buildEcommerceProductsUrl(filters), `${ECOMMERCE_SHELL_BASE_URL}/products${search}`);
+  }
+});
+
 test("a promotion without filters opens the plain product list", () => {
   const { handlers, openedUrls } = createRecordedHandlers();
   handlers.onPromotionApplied();

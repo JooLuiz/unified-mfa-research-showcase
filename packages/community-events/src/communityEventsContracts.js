@@ -1,26 +1,65 @@
 /**
- * Names community contracts shared by the formulary and the social shell.
- * Role: Holds the post-submitted topic and event name, and the post-submitted payload check.
- * Not in this file: Post HTTP persistence or iframe message types.
+ * Defines shared local Event Mesh contracts for community intents.
+ * Role: Centralizes topic/event names and payload validators for posts, likes, and authors.
+ * Not in this file: Mesh publishing, HTTP persistence, or UI rendering.
  * Key dependencies: None.
- * See also: src/createCommunityEvents.js.
- */
-
-/**
- * @typedef {{ content: string, imageUrl: string }} PostSubmittedRequest
+ * See also: src/createCommunityEvents.js; MESH_IMPLEMENTATIONS/remote-intents.md.
  */
 
 const COMMUNITY_TOPIC = "community";
-const POST_SUBMITTED_EVENT = "post-submitted";
+const COMMUNITY_POST_LIKED_EVENT = "post-liked";
+const COMMUNITY_AUTHOR_SELECTED_EVENT = "author-selected";
+const COMMUNITY_POST_SUBMITTED_EVENT = "post-submitted";
+
+// Distributed gateway topic for live like counts, unlike COMMUNITY_TOPIC above which never
+// leaves the browser tab. A post card publishes COMMUNITY_LIKES_WATCHING_EVENT directly (the
+// same per-entity-watch shape as @shared/stock-events' createStockWatchClient); the toggle
+// request/reply and the changed-broadcast subscription are owned by the host shell (see
+// apps/social-media-shell/src/commands/postLikeCommands.js and
+// packages/post-like-events/src/postLikeEventsClient.js).
+const COMMUNITY_LIKES_TOPIC = "community-likes";
+const COMMUNITY_LIKES_WATCHING_EVENT = "watching";
+const COMMUNITY_LIKES_TOGGLE_EVENT = "toggle";
+const COMMUNITY_LIKES_ACCEPTED_EVENT = "accepted";
+const COMMUNITY_LIKES_REJECTED_EVENT = "rejected";
+const COMMUNITY_LIKES_CHANGED_EVENT = "changed";
 
 /**
- * Checks whether a value is a non-null object.
- *
- * @param {unknown} value - Candidate payload.
- * @returns {value is Record<string, unknown>} Whether the value is an object.
+ * @typedef {{ postId: string }} PostLikedRequest
+ * @typedef {{ author: object }} AuthorSelectedRequest
+ * @typedef {{ content: string, imageUrl: string }} PostSubmittedRequest
  */
+
 function isRecord(value) {
   return Boolean(value) && typeof value === "object";
+}
+
+/**
+ * Checks whether a value can request liking a post.
+ *
+ * @param {unknown} value - Candidate like payload.
+ * @returns {value is PostLikedRequest} Whether the payload has a non-empty post id.
+ */
+function isValidPostLikedRequest(value) {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return typeof value.postId === "string" && value.postId.trim() !== "";
+}
+
+/**
+ * Checks whether a value can request selecting an author.
+ *
+ * @param {unknown} value - Candidate author payload.
+ * @returns {value is AuthorSelectedRequest} Whether the payload has an author object.
+ */
+function isValidAuthorSelectedRequest(value) {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return isRecord(value.author);
 }
 
 /**
@@ -37,4 +76,18 @@ function isValidPostSubmittedRequest(value) {
   return typeof value.content === "string" && typeof value.imageUrl === "string";
 }
 
-export { COMMUNITY_TOPIC, POST_SUBMITTED_EVENT, isValidPostSubmittedRequest };
+export {
+  COMMUNITY_AUTHOR_SELECTED_EVENT,
+  COMMUNITY_LIKES_ACCEPTED_EVENT,
+  COMMUNITY_LIKES_CHANGED_EVENT,
+  COMMUNITY_LIKES_REJECTED_EVENT,
+  COMMUNITY_LIKES_TOGGLE_EVENT,
+  COMMUNITY_LIKES_TOPIC,
+  COMMUNITY_LIKES_WATCHING_EVENT,
+  COMMUNITY_POST_LIKED_EVENT,
+  COMMUNITY_POST_SUBMITTED_EVENT,
+  COMMUNITY_TOPIC,
+  isValidAuthorSelectedRequest,
+  isValidPostLikedRequest,
+  isValidPostSubmittedRequest,
+};

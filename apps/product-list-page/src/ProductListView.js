@@ -8,6 +8,8 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPageEvents } from "@shared/server-events";
+import { createCatalogEvents } from "@shared/catalog-events";
 import { useResponsiveGrid } from "./hooks/useResponsiveGrid";
 import { useProductListFilters } from "./hooks/useProductListFilters";
 import { useProductListData } from "./hooks/useProductListData";
@@ -16,6 +18,8 @@ import { ProductFilters } from "./components/ProductFilters";
 import { ProductListToolbar } from "./components/ProductListToolbar";
 import { ActiveFilterTags } from "./components/ActiveFilterTags";
 import { ProductGrid } from "./components/ProductGrid";
+
+const { publishFiltersApplyRequested } = createCatalogEvents(createPageEvents());
 
 /**
  * Renders the product list page.
@@ -26,9 +30,6 @@ import { ProductGrid } from "./components/ProductGrid";
  * @param {string} [props.apiBaseUrl] - Mock API base URL.
  * @param {object} [props.initialFilters] - Initial filter values from the host.
  * @param {string} [props.initialSort] - Initial sort key from the host.
- * @param {(nextFilters: object) => void} [props.onFiltersChange] - Notifies the host of applied filter changes.
- * @param {(productId: string) => void} [props.onProductClick] - Handles product card clicks.
- * @param {(payload: object) => void} [props.onAddToCart] - Handles add-to-cart actions.
  * @returns {JSX.Element} Product list page.
  */
 function ProductListView({
@@ -37,9 +38,6 @@ function ProductListView({
   apiBaseUrl,
   initialFilters,
   initialSort,
-  onFiltersChange,
-  onProductClick,
-  onAddToCart,
 }) {
   const cardSlotsRef = useRef([]);
   const [isCardElementReady, setIsCardElementReady] = useState(false);
@@ -63,7 +61,7 @@ function ProductListView({
   } = useProductListFilters({
     initialFilters,
     initialSort,
-    onFiltersChange,
+    publishFiltersApply: publishFiltersApplyRequested,
     onFiltersApplied: resetVisibleCount,
   });
 
@@ -121,15 +119,13 @@ function ProductListView({
       }
 
       cardElement.props = hasProvidedProducts
-        ? { product, onProductClick, onAddToCart }
-        : { productId: product.id, apiBaseUrl, onProductClick, onAddToCart };
+        ? { product }
+        : { productId: product.id, apiBaseUrl };
     });
   }, [
     isCardElementReady,
     visibleProducts,
     hasProvidedProducts,
-    onProductClick,
-    onAddToCart,
     apiBaseUrl,
   ]);
 

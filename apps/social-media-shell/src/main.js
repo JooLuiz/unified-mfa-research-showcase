@@ -23,6 +23,8 @@ import loadRemoteModules from "./utils/loadRemoteModules";
 import {
   bindShellTransport,
   createShellSessionChannel,
+  ensureCatalogIntentListeners,
+  ensureCommunityIntentListeners,
   publishLogoutRequested,
   shellTransport,
   subscribeToAuthSessionChanges,
@@ -48,6 +50,8 @@ import {
   PAGE_APP_NAMES,
   createPageAppRegistrations,
 } from "./pages/pageRegistry";
+import { createCatalogIntentHandlers } from "./intents/catalogIntentHandlers";
+import { createCommunityIntentHandlers } from "./intents/communityIntentHandlers";
 
 const appState = {
   posts: [],
@@ -110,8 +114,16 @@ subscribeToRenderRequests(() => {
   reloadActivePageApp();
 });
 
+const catalogIntentHandlers = createCatalogIntentHandlers();
+const communityIntentHandlers = createCommunityIntentHandlers(shellTransport, appState);
+
 const authSession = createAuthSessionLifecycle(createShellSessionChannel(), {
   isAuthenticated: () => Boolean(appState.authToken),
+  // Window listeners last for the tab, so they are attached once and never detached.
+  attachListeners: () => {
+    ensureCatalogIntentListeners(catalogIntentHandlers);
+    ensureCommunityIntentListeners(communityIntentHandlers);
+  },
   startLiveEvents: () => {
     void startNotificationInboxLiveEvents(shellTransport, { shell: "social" });
   },

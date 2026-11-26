@@ -1,7 +1,8 @@
 /**
  * Renders the ecommerce home route.
  * Role: Composes banner, showcase, FAQ formulary iframe, and latest-message notice mounts.
- * Not in this file: FAQ persistence (src/commands/faqCommands.js) or promotion filter storage (src/pages/promotionsPage.js).
+ * Not in this file: FAQ persistence (src/commands/faqCommands.js) or promotion and product intents
+ *   (src/intents/catalogIntentHandlers.js).
  * Key dependencies: Formulary remote iframe at FORMULARY_REMOTE_BASE_URL; @shared/iframe-bridge.
  * See also: src/utils/renderActions.js (public barrel).
  */
@@ -13,10 +14,7 @@ import {
 } from "@shared/iframe-bridge";
 import { createFrameMessageEvents } from "@shared/server-events";
 import { publishRenderRequested, shellTransport } from "../events/eventBus";
-import { navigate } from "../utils/navigate";
-import { dispatchAddToCartEvent } from "../utils/cartActions";
 import { MOCK_API_BASE_URL, FORMULARY_REMOTE_BASE_URL } from "../utils/constants";
-import { applyPromotionFilters } from "./promotionsPage";
 import { persistFaqAnswerToApi } from "../commands/faqCommands";
 
 const FAQ_FRAME_ID = "faq-formulary";
@@ -51,8 +49,6 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
     modules.mountPromotionalBanner(bannerMount, {
       bannerId: firstBannerId,
       apiBaseUrl: MOCK_API_BASE_URL,
-      onApplyPromotion: (promotionFilters) =>
-        applyPromotionFilters(appState, promotionFilters),
     }),
   );
   activeCleanupFunctions.push(
@@ -61,8 +57,6 @@ async function renderHomePage(appState, pageMount, modules, activeCleanupFunctio
       apiBaseUrl: MOCK_API_BASE_URL,
       fallbackTitle: "New Products Showcase",
       mountProductCard: modules.mountProductCard,
-      onProductClick: (productId) => navigate(`/product?productId=${productId}`),
-      onAddToCart: dispatchAddToCartEvent,
     }),
   );
   if (appState.isFormularySubmitted) {

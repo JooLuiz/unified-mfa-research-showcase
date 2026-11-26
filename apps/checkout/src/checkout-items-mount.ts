@@ -1,52 +1,49 @@
 /**
- * Boots the checkout items custom element and exposes its live availability handle.
- * Role: Owns Angular bootstrap, the global cart listener, and teardown for the checkout line list.
+ * Boots the checkout line list on this branch and publishes cart intents.
+ * Role: Owns Angular bootstrap, the cart-change subscription, and teardown.
  * Not in this file: Line rendering and the available-count rule (src/checkout-items.ts).
- * Key dependencies: @angular/platform-browser.
- * See also: src/checkout-items.ts; apps/ecommerce-shell/src/pages/checkoutPage.js.
+ * Key dependencies: @shared/server-events createPageEvents; @shared/catalog-events; @angular/platform-browser.
+ * See also: src/checkout-items.ts.
  */
 
 import { ApplicationRef, ComponentRef } from "@angular/core";
 import { createApplication } from "@angular/platform-browser";
+import { createPageEvents } from "@shared/server-events";
+import { createCatalogEvents } from "@shared/catalog-events";
 import {
   CheckoutItemsComponent,
-  readCartItemsFromGlobalState,
+  normalizeCartItems,
+  type CartItem,
   type CheckoutItemsProps,
 } from "./checkout-items";
 
-export type CheckoutItemsHandle = {
-  unmount: () => void;
-  applyAvailable: (productId: string, available: number) => void;
-};
+const { publishCartItemUpdateRequested, publishCartItemRemoveRequested } =
+  createCatalogEvents(createPageEvents());
 
 /**
- * Mounts the checkout line list into a host element.
+ * Mounts the checkout line list and publishes update or remove intents.
  *
  * @param containerElement - Element that becomes the component host.
- * @param props - Product lookup, API base, and quantity or remove callbacks.
- * @returns Handle that tears the mount down and applies a reservation's available count.
- * @sideEffects Listens for cart:updateGlobalCart until unmount.
+ * @param props - Current cart snapshot, product lookup, and cart-change subscription.
+ * @returns Unmount function.
+ * @sideEffects Subscribes to cart changes until unmount. Publishes cart intents on quantity or remove.
  */
 export function mountCheckoutItems(
   containerElement: HTMLElement,
   props: CheckoutItemsProps,
-): CheckoutItemsHandle {
+): () => void {
   let applicationRef: ApplicationRef | null = null;
   let componentRef: ComponentRef<CheckoutItemsComponent> | null = null;
   let isUnmounted = false;
 
-  const syncCartItemsFromGlobalState = (): void => {
+  const syncCartItems = (cartItems: CartItem[]): void => {
     if (!componentRef) {
       return;
     }
-    componentRef.setInput("cartItems", readCartItemsFromGlobalState());
+    componentRef.setInput("cartItems", normalizeCartItems(cartItems));
   };
 
-  const handleGlobalCartUpdated = (): void => {
-    syncCartItemsFromGlobalState();
-  };
-
-  window.addEventListener("cart:updateGlobalCart", handleGlobalCartUpdated);
+  const unsubscribeFromCartChanges = props.subscribeToCartChanges(syncCartItems);
 
   const bootstrapPromise = createApplication().then((nextApplicationRef) => {
     if (isUnmounted) {
@@ -56,37 +53,28 @@ export function mountCheckoutItems(
 
     applicationRef = nextApplicationRef;
     componentRef = applicationRef.bootstrap(CheckoutItemsComponent, containerElement);
-    syncCartItemsFromGlobalState();
+    syncCartItems(props.cartItems);
     componentRef.setInput("productsById", props.productsById ?? {});
     componentRef.setInput("apiBaseUrl", props.apiBaseUrl ?? null);
 
     componentRef.instance.quantityChange.subscribe((payload) => {
-      props.onQuantityChange?.(payload.productId, payload.quantity);
+      publishCartItemUpdateRequested({
+        productId: payload.productId,
+        quantity: payload.quantity,
+      });
     });
     componentRef.instance.removeItem.subscribe((productId) => {
-      props.onRemoveItem?.(productId);
+      publishCartItemRemoveRequested(productId);
     });
   });
 
-  return {
-    /**
-     * Applies the available count from a reservation that this checkout just completed.
-     *
-     * @param productId - Catalog product id.
-     * @param available - Units still free after that reservation.
-     * @returns Nothing.
-     */
-    applyAvailable(productId: string, available: number): void {
-      componentRef?.instance.applyAvailable(productId, available);
-    },
-    unmount(): void {
-      isUnmounted = true;
-      window.removeEventListener("cart:updateGlobalCart", handleGlobalCartUpdated);
-      void bootstrapPromise.then(() => {
-        componentRef?.destroy();
-        applicationRef?.destroy();
-        containerElement.innerHTML = "";
-      });
-    },
+  return () => {
+    isUnmounted = true;
+    unsubscribeFromCartChanges();
+    void bootstrapPromise.then(() => {
+      componentRef?.destroy();
+      applicationRef?.destroy();
+      containerElement.innerHTML = "";
+    });
   };
 }

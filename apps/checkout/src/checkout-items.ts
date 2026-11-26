@@ -1,9 +1,8 @@
 /**
- * Checkout line list: quantities, the live available count, and the "No more available" label.
- * Role: Renders one row per cart line and caps that row at the units still free to reserve.
- * Not in this file: Angular bootstrap and teardown (src/checkout-items-mount.ts) or the stock
- *   subscription (src/checkout-availability-watcher.ts).
- * Key dependencies: @angular/core; src/checkout-availability-watcher.ts.
+ * Renders editable checkout cart items supplied by the ecommerce shell.
+ * Role: Displays cart snapshots and publishes cart update/remove intents to the host shell.
+ * Not in this file: Angular bootstrap (src/checkout-items-mount.ts), cart persistence, or shell-owned cart mutations.
+ * Key dependencies: src/checkout-availability-watcher.ts.
  * See also: src/checkout-items-mount.ts; apps/ecommerce-shell/src/pages/checkoutPage.js.
  */
 
@@ -29,25 +28,23 @@ type Product = {
   image: string;
 };
 
-type CartItem = {
+export type CartItem = {
   productId: string;
   quantity: number;
 };
 
 type ProductsById = Record<string, Product>;
 
+type SubscribeToCartChanges = (
+  listener: (cartItems: CartItem[]) => void,
+) => () => void;
+
 export type CheckoutItemsProps = {
+  cartItems: CartItem[];
   productsById: ProductsById;
   apiBaseUrl?: string | null;
-  onQuantityChange?: (productId: string, quantity: number) => void;
-  onRemoveItem?: (productId: string) => void;
+  subscribeToCartChanges: SubscribeToCartChanges;
 };
-
-declare global {
-  interface Window {
-    __APP_SHELL_CART__?: unknown;
-  }
-}
 
 const normalizeQuantity = (nextQuantity: number): number => {
   const parsedQuantity = Number(nextQuantity);
@@ -71,13 +68,12 @@ function isCartItem(value: unknown): value is CartItem {
   return Number.isFinite(parsedQuantity) && parsedQuantity >= 1;
 }
 
-export function readCartItemsFromGlobalState(): CartItem[] {
-  const globalCart = window.__APP_SHELL_CART__;
-  if (!Array.isArray(globalCart)) {
+export function normalizeCartItems(cartItems: unknown): CartItem[] {
+  if (!Array.isArray(cartItems)) {
     return [];
   }
 
-  return globalCart
+  return cartItems
     .filter(isCartItem)
     .map((cartItem) => ({
       productId: cartItem.productId,
@@ -168,12 +164,10 @@ export class CheckoutItemsComponent implements OnChanges, OnDestroy {
   constructor(private readonly changeDetectorRef: ChangeDetectorRef) {}
 
   /**
-   * Records one product's current available count and repaints the line.
-   *
+   * Records one product's available count and repaints the line.
    * @param productId - Catalog product id.
    * @param available - Units still free to reserve.
-   * @returns Nothing.
-   * @sideEffects Updates the line's max quantity and "No more available" label.
+   * @sideEffects Updates the "No more available" label.
    */
   applyAvailable(productId: string, available: number): void {
     this.availableByProductId = { ...this.availableByProductId, [productId]: available };

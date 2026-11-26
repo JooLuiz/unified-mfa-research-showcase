@@ -19,5 +19,4 @@ export {
   CART_ITEM_ADD_REQUESTED_EVENT,
   CART_TOPIC,
   CATALOG_TOPIC,
-  PRODUCT_OPEN_REQUESTED_EVENT,
 } from "@shared/catalog-events";

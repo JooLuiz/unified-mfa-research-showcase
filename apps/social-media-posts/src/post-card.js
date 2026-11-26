@@ -1,17 +1,25 @@
 /**
  * Renders one post card, including its like button.
- * Role: Owns the card's local like state so a click shows the server's result instantly,
- *   without waiting for the host to re-render the whole feed; reconciles that local state
- *   whenever the host passes a fresh `post` (for example after a live SSE-driven update).
+ * Role: Renders purely from props — `likes`/`likedByCurrentUser` come straight from the
+ *   `post` object the host passes down (freshly patched after every community-likes/changed;
+ *   see apps/social-media-shell/src/pages/feedPage.js, postsPage.js, accountPage.js) — and
+ *   announces community-likes/watching for this post on mount so the host keeps receiving
+ *   those patches in the first place.
  * Not in this file: The feed list, mount lifecycle, or empty state (src/post-feed.js). The
- *   like HTTP call itself: `onLike` is a host-owned callback (see feedPage.js/postsPage.js/
- *   accountPage.js in apps/social-media-shell), since this remote has no `@shared/*`
- *   dependency of its own today.
- * Key dependencies: react.
- * See also: apps/social-media-shell/src/commands/postLikeCommands.js.
+ *   like toggle write and the "Post Liked" toast
+ *   (apps/social-media-shell/src/commands/postLikeCommands.js), reached indirectly: a click
+ *   here only publishes the local community/post-liked intent, never calls the gateway itself.
+ * Key dependencies: react; @shared/server-events createPageEvents; @shared/community-events.
+ * See also: apps/social-media-shell/src/commands/postLikeCommands.js;
+ *   packages/post-like-events/src/postLikeEventsClient.js.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
+import { createPageEvents } from "@shared/server-events";
+import { createCommunityEvents } from "@shared/community-events";
+
+const { publishPostLiked, publishPostLikesWatching, publishAuthorSelected } =
+  createCommunityEvents(createPageEvents());
 
 function formatPostDate(isoDateString) {
   if (!isoDateString) {
@@ -29,9 +37,9 @@ function formatPostDate(isoDateString) {
  *
  * The author control shows the full name and exposes the username as its accessible name.
  *
- * @param {{ post: object, layoutMode?: string, onLike?: (postId: string) => Promise<{ liked: boolean, likes: number } | null>, onAuthorClick?: (author: object) => void, onPostClick?: (post: object) => void, currentUserId?: string }} cardProps - Post data, the host's like/author/post-click callbacks, and the viewer's id (absent for a guest).
+ * @param {{ post: object, layoutMode?: string, onPostClick?: (post: object) => void, currentUserId?: string }} cardProps - Post data, an optional card click handler, and the viewer's id (absent for a guest).
  */
-function PostCardView({ post, layoutMode, onLike, onAuthorClick, onPostClick, currentUserId }) {
+function PostCardView({ post, layoutMode, onPostClick, currentUserId }) {
   const author = post.author || {};
   const authorDisplayName = author.fullName || author.username || "Unknown user";
   const cardClassName = [
@@ -41,24 +49,15 @@ function PostCardView({ post, layoutMode, onLike, onAuthorClick, onPostClick, cu
     .filter(Boolean)
     .join(" ");
 
-  const [likeState, setLikeState] = useState({
-    likes: post.likes || 0,
-    likedByCurrentUser: Boolean(post.likedByCurrentUser),
-  });
-  const [isTogglingLike, setIsTogglingLike] = useState(false);
-
-  // Reconciles this card's local like state whenever the host passes a fresh post (its own
-  // optimistic patch above already matches; this also picks up changes made by other viewers,
-  // reconciled by the host from the live stream).
+  // Announces watching once per mounted card. Not re-announced on every like-count patch:
+  // the post id a card renders never changes while it stays mounted, so there is nothing new
+  // to tell the gateway.
   useEffect(() => {
-    setLikeState({
-      likes: post.likes || 0,
-      likedByCurrentUser: Boolean(post.likedByCurrentUser),
-    });
-  }, [post.likes, post.likedByCurrentUser]);
+    publishPostLikesWatching(post.id);
+  }, [post.id]);
 
   const isOwnPost = Boolean(currentUserId) && currentUserId === author.id;
-  const isLikeDisabled = !currentUserId || isOwnPost || isTogglingLike;
+  const isLikeDisabled = !currentUserId || isOwnPost;
   const likeButtonTitle = !currentUserId
     ? "Sign in to like posts"
     : isOwnPost
@@ -73,25 +72,15 @@ function PostCardView({ post, layoutMode, onLike, onAuthorClick, onPostClick, cu
 
   const handleAuthorClick = (clickEvent) => {
     clickEvent.stopPropagation();
-    if (onAuthorClick) {
-      onAuthorClick(author);
-    }
+    publishAuthorSelected(author);
   };
 
-  const handleLikeClick = async (clickEvent) => {
+  const handleLikeClick = (clickEvent) => {
     clickEvent.stopPropagation();
-    if (isLikeDisabled || !onLike) {
+    if (isLikeDisabled) {
       return;
     }
-    setIsTogglingLike(true);
-    try {
-      const toggleResult = await onLike(post.id);
-      if (toggleResult) {
-        setLikeState({ likes: toggleResult.likes, likedByCurrentUser: toggleResult.liked });
-      }
-    } finally {
-      setIsTogglingLike(false);
-    }
+    publishPostLiked(post.id);
   };
 
   return (
@@ -124,12 +113,12 @@ function PostCardView({ post, layoutMode, onLike, onAuthorClick, onPostClick, cu
       <footer className="post-card-footer">
         <button
           type="button"
-          className={`post-card-action${likeState.likedByCurrentUser ? " post-card-action-liked" : ""}`}
+          className={`post-card-action${post.likedByCurrentUser ? " post-card-action-liked" : ""}`}
           onClick={handleLikeClick}
           disabled={isLikeDisabled}
           title={likeButtonTitle}
         >
-          {likeState.likedByCurrentUser ? "Liked" : "Like"} ({likeState.likes})
+          {post.likedByCurrentUser ? "Liked" : "Like"} ({post.likes || 0})
         </button>
         <span className="post-card-comments">Comments: {post.comments || 0}</span>
       </footer>
