@@ -11,13 +11,6 @@ export type PostSubmittedRequest = {
   imageUrl: string;
 };
 
-export type FaqSubmittedRequest = {
-  name: string;
-  email: string;
-  contactMethod: string;
-  question: string;
-};
-
 export type CommunityMeshClient = {
   publish(input: object): void;
   subscribe(
@@ -32,7 +25,6 @@ export type CommunityIntentHandlers = {
   onPostLiked?(payload: PostLikedRequest): void;
   onAuthorSelected?(payload: AuthorSelectedRequest): void;
   onPostSubmitted?(payload: PostSubmittedRequest): void;
-  onFaqSubmitted?(payload: FaqSubmittedRequest): void;
 };
 
 export type CommunityEvents = {
@@ -41,7 +33,6 @@ export type CommunityEvents = {
   publishAuthorSelected(author: object): void;
   publishPostSubmitted(payload?: object): void;
   subscribeToPostSubmitted(listener: (payload: unknown) => void): () => void;
-  publishFaqSubmitted(faq: FaqSubmittedRequest): void;
   ensureCommunityIntentListeners(handlers: CommunityIntentHandlers): void;
   resetCommunityIntentListeners(): void;
 };
@@ -50,7 +41,6 @@ export declare const COMMUNITY_TOPIC: "community";
 export declare const COMMUNITY_POST_LIKED_EVENT: "post-liked";
 export declare const COMMUNITY_AUTHOR_SELECTED_EVENT: "author-selected";
 export declare const COMMUNITY_POST_SUBMITTED_EVENT: "post-submitted";
-export declare const COMMUNITY_FAQ_SUBMITTED_EVENT: "faq-submitted";
 export declare const COMMUNITY_LIKES_TOPIC: "community-likes";
 export declare const COMMUNITY_LIKES_WATCHING_EVENT: "watching";
 export declare const COMMUNITY_LIKES_TOGGLE_EVENT: "toggle";
@@ -67,14 +57,5 @@ export function isValidAuthorSelectedRequest(
 export function isValidPostSubmittedRequest(
   value: unknown,
 ): value is PostSubmittedRequest;
-export function isValidFaqSubmittedRequest(
-  value: unknown,
-): value is FaqSubmittedRequest;
-export function createPostSubmittedRequest(
-  value: unknown,
-): PostSubmittedRequest | null;
-export function createFaqSubmittedRequest(
-  value: unknown,
-): FaqSubmittedRequest | null;
 
 export function createCommunityEvents(input: CommunityMeshClient): CommunityEvents;

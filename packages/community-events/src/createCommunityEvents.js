@@ -1,10 +1,10 @@
 /**
  * Publishes and subscribes to shared community Event Mesh messages.
- * Role: Hides mesh transport details behind post, author, and formulary operations for remotes
+ * Role: Hides mesh transport details behind post, like, and author operations for remotes
  *   and shells, plus the one distributed publish a remote makes directly to the gateway
  *   (publishPostLikesWatching) for a public, non-authorized announcement.
- * Not in this file: Mesh configuration, HTTP post/FAQ APIs, UI rendering, the like-toggle
- *   request/reply, or the community-likes/changed subscription (both host-shell-owned; see
+ * Not in this file: Mesh configuration, HTTP post/FAQ APIs (FAQ answers go through
+ *   apps/ecommerce-shell/src/commands/faqCommands.js), UI rendering, the like-toggle request/reply, or the community-likes/changed subscription (both host-shell-owned; see
  *   apps/social-media-shell/src/commands/postLikeCommands.js and
  *   packages/post-like-events/src/postLikeEventsClient.js).
  * Key dependencies: An Event Mesh client supplied by the owning shell (remotes must not configureMesh).
@@ -13,15 +13,12 @@
 
 import {
   COMMUNITY_AUTHOR_SELECTED_EVENT,
-  COMMUNITY_FAQ_SUBMITTED_EVENT,
   COMMUNITY_LIKES_TOPIC,
   COMMUNITY_LIKES_WATCHING_EVENT,
   COMMUNITY_POST_LIKED_EVENT,
   COMMUNITY_POST_SUBMITTED_EVENT,
   COMMUNITY_TOPIC,
-  createFaqSubmittedRequest,
   isValidAuthorSelectedRequest,
-  isValidFaqSubmittedRequest,
   isValidPostLikedRequest,
   isValidPostSubmittedRequest,
 } from "./communityEventsContracts.js";
@@ -134,33 +131,12 @@ function createCommunityEvents(transport) {
   }
 
   /**
-   * Publishes that an FAQ formulary was submitted.
-   *
-   * @param {{ name: string, email: string, contactMethod: string, question: string }} faq - FAQ fields from the formulary iframe.
-   * @returns {void}
-   * @sideEffects Publishes a local community.faq-submitted message when valid.
-   */
-  function publishFaqSubmitted(faq) {
-    const normalizedRequest = createFaqSubmittedRequest(faq);
-    if (!normalizedRequest) {
-      return;
-    }
-
-    publishLocalEvent(
-      COMMUNITY_TOPIC,
-      COMMUNITY_FAQ_SUBMITTED_EVENT,
-      normalizedRequest,
-    );
-  }
-
-  /**
    * Registers persistent community intent handlers after a mesh configuration change.
    *
    * @param {{
    *   onPostLiked?: (payload: { postId: string }) => void,
    *   onAuthorSelected?: (payload: { author: object }) => void,
    *   onPostSubmitted?: (payload: { content: string, imageUrl: string }) => void,
-   *   onFaqSubmitted?: (payload: object) => void,
    * }} handlers - Host orchestration handlers.
    * @returns {void}
    * @sideEffects Registers local mesh subscriptions for provided handlers.
@@ -199,18 +175,6 @@ function createCommunityEvents(transport) {
         }
       });
     }
-
-    if (typeof handlers.onFaqSubmitted === "function") {
-      transport.subscribe(
-        COMMUNITY_TOPIC,
-        COMMUNITY_FAQ_SUBMITTED_EVENT,
-        (message) => {
-          if (isValidFaqSubmittedRequest(message.payload)) {
-            handlers.onFaqSubmitted(message.payload);
-          }
-        },
-      );
-    }
   }
 
   /**
@@ -228,7 +192,6 @@ function createCommunityEvents(transport) {
     publishAuthorSelected,
     publishPostSubmitted,
     subscribeToPostSubmitted,
-    publishFaqSubmitted,
     ensureCommunityIntentListeners,
     resetCommunityIntentListeners,
   };
