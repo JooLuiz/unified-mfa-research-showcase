@@ -1,6 +1,5 @@
 export {
   COMMUNITY_AUTHOR_SELECTED_EVENT,
-  COMMUNITY_FAQ_SUBMITTED_EVENT,
   COMMUNITY_LIKES_ACCEPTED_EVENT,
   COMMUNITY_LIKES_CHANGED_EVENT,
   COMMUNITY_LIKES_REJECTED_EVENT,
@@ -10,10 +9,7 @@ export {
   COMMUNITY_POST_LIKED_EVENT,
   COMMUNITY_POST_SUBMITTED_EVENT,
   COMMUNITY_TOPIC,
-  createFaqSubmittedRequest,
-  createPostSubmittedRequest,
   isValidAuthorSelectedRequest,
-  isValidFaqSubmittedRequest,
   isValidPostLikedRequest,
   isValidPostSubmittedRequest,
 } from "./communityEventsContracts.js";
