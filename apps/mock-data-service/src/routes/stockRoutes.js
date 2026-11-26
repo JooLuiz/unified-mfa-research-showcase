@@ -2,7 +2,7 @@
  * Serves live-stock routes for the mock data service.
  * Role: Handles POST/PUT /stock/reservations, GET /stock/stream, and PUT /stock/watching,
  *   mounted at /api.
- * Not in this file: Availability math (src/domain/stock.js) or the SSE watcher registry
+ * Not in this file: Reservation use cases (src/domain/reserveStock.js) or the SSE watcher registry
  *   (src/infrastructure/stockEvents.js).
  * Key dependencies: src/domain/stock.js; src/domain/auth.js; src/domain/identifiers.js;
  *   src/infrastructure/stockEvents.js.
@@ -17,10 +17,9 @@ const { generateIdentifier } = require("../domain/identifiers");
 const {
   STOCK_INSUFFICIENT_CODE,
   getAvailableStockForProduct,
-  reserveAdditiveStock,
-  setAbsoluteStock,
   releaseGuestSession,
 } = require("../domain/stock");
+const { reserveStock, setStockReservation } = require("../domain/reserveStock");
 
 const STOCK_SESSION_HEADER_NAME = "x-stock-session";
 const STOCK_STREAM_HEARTBEAT_INTERVAL_MS = 20_000;
@@ -48,13 +47,10 @@ function resolveStockHolder(request, sessionRevocations) {
  * Writes the shared accept/reject response shape for both reservation endpoints.
  *
  * @param {import("express").Response} response - Express response.
- * @param {string} productId - Product from the request body.
- * @param {{ ok: true, quantity: number, available: number } | { ok: false, code: string }} stockResult - Outcome from reserveAdditiveStock or setAbsoluteStock.
- * @param {{ broadcastStockChanged: (productId: string, available: number) => void }} stockEventStream - Broadcaster notified on acceptance.
+ * @param {{ ok: true, result: { productId: string, quantity: number, available: number } } | { ok: false, code: string }} stockResult - Outcome from reserveStock or setStockReservation.
  * @returns {void}
- * @sideEffects Broadcasts stock_changed on acceptance.
  */
-function respondWithStockResult(response, productId, stockResult, stockEventStream) {
+function respondWithStockResult(response, stockResult) {
   if (!stockResult.ok) {
     if (stockResult.code === STOCK_INSUFFICIENT_CODE) {
       response.status(409).json({ code: STOCK_INSUFFICIENT_CODE });
@@ -63,8 +59,7 @@ function respondWithStockResult(response, productId, stockResult, stockEventStre
     response.status(400).json({ message: "Invalid stock request", code: stockResult.code });
     return;
   }
-  stockEventStream.broadcastStockChanged(productId, stockResult.available);
-  response.json({ productId, quantity: stockResult.quantity, available: stockResult.available });
+  response.json(stockResult.result);
 }
 
 /**
@@ -85,14 +80,13 @@ function createStockRouter(jsonStore, stockEventStream) {
         response.status(401).json({ message: "Missing stock credential" });
         return;
       }
-      const { productId, quantity } = request.body || {};
-      const reserveResult = await reserveAdditiveStock({
+      const reserveResult = await reserveStock({
         jsonStore,
         holder,
-        productId,
-        quantity: Number(quantity),
+        payload: request.body,
+        streams: { stock: stockEventStream },
       });
-      respondWithStockResult(response, productId, reserveResult, stockEventStream);
+      respondWithStockResult(response, reserveResult);
     } catch (error) {
       response.status(500).json({ message: "Unable to reserve stock", details: error.message });
     }
@@ -106,14 +100,13 @@ function createStockRouter(jsonStore, stockEventStream) {
         response.status(401).json({ message: "Missing stock credential" });
         return;
       }
-      const { productId, quantity } = request.body || {};
-      const setResult = await setAbsoluteStock({
+      const setResult = await setStockReservation({
         jsonStore,
         holder,
-        productId,
-        quantity: Number(quantity),
+        payload: request.body,
+        streams: { stock: stockEventStream },
       });
-      respondWithStockResult(response, productId, setResult, stockEventStream);
+      respondWithStockResult(response, setResult);
     } catch (error) {
       response.status(500).json({ message: "Unable to update stock reservation", details: error.message });
     }

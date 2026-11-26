@@ -4,7 +4,7 @@ dist/
 /coverage/
 *.log
 apps/**/dist/
-temp-plans/
+temp/
 
 # Playwright
 /test-results/

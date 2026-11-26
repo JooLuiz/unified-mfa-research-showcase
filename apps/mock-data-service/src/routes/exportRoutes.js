@@ -8,7 +8,8 @@
 
 const express = require("express");
 const { resolveAuthenticatedUserId } = require("../domain/auth");
-const { EXPORT_KINDS, EXPORT_FILE_NAMES, buildExportCsv } = require("../domain/exportProcessing");
+const { EXPORT_KINDS, buildExportCsv } = require("../domain/exportProcessing");
+const { requestExport } = require("../domain/requestExport");
 
 function sendCsvAttachment(response, fileName, csvContent) {
   response.set({
@@ -27,7 +28,15 @@ function sendCsvAttachment(response, fileName, csvContent) {
 function createExportRouter(jsonStore) {
   const router = express.Router();
 
-  async function getAuthenticatedUser(request, response) {
+  /**
+   * Authenticates the caller and resolves one export request, writing the error response when it fails.
+   *
+   * @param {import("express").Request} request - Incoming request with an Authorization header.
+   * @param {import("express").Response} response - Response used for 401/404.
+   * @param {string} kind - Export kind for this route.
+   * @returns {Promise<{ user: object, kind: string, fileName: string } | null>} Resolved request, or null after an error response.
+   */
+  async function resolveExportRequest(request, response, kind) {
     const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
     const userId = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
     if (!userId) {
@@ -35,13 +44,12 @@ function createExportRouter(jsonStore) {
       return null;
     }
 
-    const users = await jsonStore.readJsonFile("users.json");
-    const user = users.find((userRecord) => userRecord.id === userId);
-    if (!user) {
+    const exportRequest = await requestExport({ jsonStore, userId, payload: { kind } });
+    if (!exportRequest.ok) {
       response.status(404).json({ message: "User not found" });
       return null;
     }
-    return user;
+    return exportRequest.result;
   }
 
   /**
@@ -49,13 +57,13 @@ function createExportRouter(jsonStore) {
    */
   router.get("/exports/orders.csv", async (request, response) => {
     try {
-      const user = await getAuthenticatedUser(request, response);
-      if (!user) {
+      const exportRequest = await resolveExportRequest(request, response, EXPORT_KINDS.orders);
+      if (!exportRequest) {
         return;
       }
 
-      const csvContent = await buildExportCsv(jsonStore, EXPORT_KINDS.orders, user);
-      sendCsvAttachment(response, EXPORT_FILE_NAMES[EXPORT_KINDS.orders], csvContent);
+      const csvContent = await buildExportCsv(jsonStore, exportRequest.kind, exportRequest.user);
+      sendCsvAttachment(response, exportRequest.fileName, csvContent);
     } catch (error) {
       response.status(500).json({
         message: "Unable to export orders",
@@ -69,13 +77,13 @@ function createExportRouter(jsonStore) {
    */
   router.get("/exports/posts.csv", async (request, response) => {
     try {
-      const user = await getAuthenticatedUser(request, response);
-      if (!user) {
+      const exportRequest = await resolveExportRequest(request, response, EXPORT_KINDS.posts);
+      if (!exportRequest) {
         return;
       }
 
-      const csvContent = await buildExportCsv(jsonStore, EXPORT_KINDS.posts, user);
-      sendCsvAttachment(response, EXPORT_FILE_NAMES[EXPORT_KINDS.posts], csvContent);
+      const csvContent = await buildExportCsv(jsonStore, exportRequest.kind, exportRequest.user);
+      sendCsvAttachment(response, exportRequest.fileName, csvContent);
     } catch (error) {
       response.status(500).json({
         message: "Unable to export posts",

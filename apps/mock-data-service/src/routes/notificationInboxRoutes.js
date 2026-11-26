@@ -12,14 +12,21 @@ const { resolveAuthenticatedUserId } = require("../domain/auth");
 const { generateIdentifier } = require("../domain/identifiers");
 const {
   listNotificationsForUser,
-  markNotificationRead,
-  markAllNotificationsRead,
   NOTIFICATION_FORBIDDEN_CODE,
 } = require("../domain/notificationInbox");
+const {
+  ALLOWED_SHELLS,
+  markAllNotificationsReadForUser,
+  markNotificationReadForUser,
+} = require("../domain/markNotificationRead");
+const { INVALID_REQUEST_CODE } = require("../domain/useCaseCodes");
 
 const NOTIFICATION_INBOX_FILE_NAME = "notificationInbox.json";
 const NOTIFICATION_SSE_HEARTBEAT_INTERVAL_MS = 20_000;
-const ALLOWED_SHELLS = new Set(["ecommerce", "social", "admin"]);
+const MARK_READ_FAILURE_STATUSES = Object.freeze({
+  [NOTIFICATION_FORBIDDEN_CODE]: 403,
+  [INVALID_REQUEST_CODE]: 400,
+});
 
 /**
  * Creates the notification inbox router.
@@ -106,38 +113,20 @@ function createNotificationInboxRouter(jsonStore, notificationInboxEventStream) 
         return;
       }
 
-      const shell = typeof request.query.shell === "string" ? request.query.shell : "";
-      if (!ALLOWED_SHELLS.has(shell)) {
+      const markResult = await markAllNotificationsReadForUser({
+        jsonStore,
+        userId,
+        payload: { shell: request.query.shell },
+        streams: { notificationInbox: notificationInboxEventStream },
+      });
+      if (!markResult.ok) {
         response.status(400).json({ message: "Valid shell query parameter required" });
         return;
       }
 
-      const inboxData = await jsonStore.readJsonFileWithDefault(
-        NOTIFICATION_INBOX_FILE_NAME,
-        [],
-      );
-      const markResult = markAllNotificationsRead(inboxData, userId, shell);
-      await jsonStore.writeJsonFile(
-        NOTIFICATION_INBOX_FILE_NAME,
-        markResult.notifications,
-      );
-
-      markResult.changedNotifications.forEach((changedNotification) => {
-        notificationInboxEventStream.broadcastNotificationChanged(
-          userId,
-          shell,
-          changedNotification,
-        );
-      });
-
-      const userNotifications = listNotificationsForUser(
-        markResult.notifications,
-        userId,
-        shell,
-      );
       response.json({
-        total: userNotifications.length,
-        items: userNotifications,
+        total: markResult.result.length,
+        items: markResult.result,
       });
     } catch (error) {
       response.status(500).json({
@@ -160,35 +149,21 @@ function createNotificationInboxRouter(jsonStore, notificationInboxEventStream) 
         return;
       }
 
-      const notificationId = request.params.notificationId;
-      const inboxData = await jsonStore.readJsonFileWithDefault(
-        NOTIFICATION_INBOX_FILE_NAME,
-        [],
-      );
-
-      const markResult = markNotificationRead(inboxData, notificationId, userId);
+      const markResult = await markNotificationReadForUser({
+        jsonStore,
+        userId,
+        payload: { notificationId: request.params.notificationId },
+        streams: { notificationInbox: notificationInboxEventStream },
+      });
       if (!markResult.ok) {
-        const statusCode =
-          markResult.code === NOTIFICATION_FORBIDDEN_CODE ? 403 : 404;
-        response.status(statusCode).json({
+        response.status(MARK_READ_FAILURE_STATUSES[markResult.code] || 404).json({
           message: "Unable to mark notification read",
           code: markResult.code,
         });
         return;
       }
 
-      await jsonStore.writeJsonFile(
-        NOTIFICATION_INBOX_FILE_NAME,
-        markResult.notifications,
-      );
-
-      notificationInboxEventStream.broadcastNotificationChanged(
-        userId,
-        markResult.notification.shell,
-        markResult.notification,
-      );
-
-      response.json(markResult.notification);
+      response.json(markResult.result);
     } catch (error) {
       response.status(500).json({
         message: "Unable to mark notification read",

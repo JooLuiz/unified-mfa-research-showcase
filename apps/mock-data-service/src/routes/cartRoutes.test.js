@@ -35,7 +35,7 @@ const storedCart = {
 };
 
 function cartRouter(store) {
-  return createCartRouter(store, silentStream());
+  return createCartRouter(store, silentStream(), silentStream());
 }
 
 test("GET /cart returns the stored cart", async () => {

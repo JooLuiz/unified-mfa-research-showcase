@@ -65,7 +65,7 @@ app.use("/api", createPostRouter(jsonStore, adminEventStream, postLikeEventStrea
 app.use("/api", createFaqRouter(jsonStore));
 app.use("/api", createOrderStatusRouter(jsonStore, orderEventStream, stockEventStream, notificationInboxEventStream));
 app.use("/api", createOrderRouter(jsonStore, adminEventStream, cartEventStream, stockEventStream, notificationInboxEventStream));
-app.use("/api", createCartRouter(jsonStore, cartEventStream));
+app.use("/api", createCartRouter(jsonStore, cartEventStream, stockEventStream));
 app.use("/api", createStockRouter(jsonStore, stockEventStream));
 app.use("/api", createExportRouter(jsonStore));
 app.use("/api", createAdminRouter(jsonStore, adminEventStream));
