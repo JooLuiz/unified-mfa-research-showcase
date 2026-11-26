@@ -2,10 +2,12 @@
  * Persists new posts for the social media shell.
  * Role: Owns the post create command and reports failures through the shell notifier.
  * Not in this file: New-post form mounting or feed rendering (src/pages/postsPage.js, src/pages/feedPage.js).
- * Key dependencies: An injected shell transport (community-posts:create); src/notifications/notificationAdapter.js.
+ * Key dependencies: An injected shell transport (community-posts:create); @shared/community-events (post payload check);
+ *   src/notifications/notificationAdapter.js.
  * See also: src/pages/postsPage.js.
  */
 
+import { isValidPostSubmittedRequest } from "@shared/community-events";
 import { publishNotification } from "../notifications/notificationAdapter";
 import { addPostIfMissing } from "../utils/postsState";
 
@@ -19,7 +21,7 @@ const POST_CREATE_EVENT = "create";
  * @param {object} appState - Shell state containing the authenticated session and posts.
  * @param {object} postPayload - Content values accepted by the post create request.
  * @returns {Promise<{ ok: boolean, post?: object }>} Created post result.
- * @sideEffects Requests community-posts:create, adds the created post to shell state, and emits a local failure notification.
+ * @sideEffects Requests community-posts:create, adds the created post to shell state, and emits a local failure notification. A post without string content and imageUrl is not sent.
  */
 async function persistNewPost(transport, appState, postPayload) {
   if (!appState.authToken) {
@@ -27,6 +29,15 @@ async function persistNewPost(transport, appState, postPayload) {
       type: "error",
       title: "Post not published",
       message: "Please sign in and try again.",
+    });
+    return { ok: false };
+  }
+
+  if (!isValidPostSubmittedRequest(postPayload)) {
+    publishNotification({
+      type: "error",
+      title: "Post not published",
+      message: "Your post is missing its text or image. Please try again.",
     });
     return { ok: false };
   }

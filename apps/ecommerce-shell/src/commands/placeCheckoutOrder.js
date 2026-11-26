@@ -1,13 +1,14 @@
 /**
  * Places a checkout order from shell-owned cart and coupon state.
- * Role: Builds the order payload, calls the order command through the injected transport, and clears the cart on success.
- * Not in this file: Checkout remotes, toast copy, or post-order navigation (src/pages/checkoutPage.js).
- * Key dependencies: src/commands/placeOrder.js; src/utils/cartActions.js; src/utils/cartSync.js.
+ * Role: Builds the order payload, calls the order command through the injected transport, and on success clears the cart and opens /order-placed.
+ * Not in this file: Checkout remotes or the failed-order toast (src/pages/checkoutPage.js).
+ * Key dependencies: src/commands/placeOrder.js; src/utils/cartActions.js; src/utils/cartSync.js; src/utils/navigate.js.
  * See also: src/pages/checkoutPage.js.
  */
 
 import { calculateCartTotals } from "../utils/cartActions";
 import { clearLocalCart, flushCartPersist, resumeCartPersist, scheduleCartPersist, suspendCartPersist } from "../utils/cartSync";
+import { navigate } from "../utils/navigate";
 import { placeOrder } from "./placeOrder";
 
 /**
@@ -27,7 +28,7 @@ function calculateCheckoutTotals(appState) {
  * @param {{ request: Function }} transport - Shell event interface.
  * @param {object} appState - Shell state holding cart, coupon, products, and user.
  * @returns {Promise<{ ok: boolean }>} Whether the server accepted the order.
- * @sideEffects On success clears the local cart and tells other tabs. The order write removes the saved row.
+ * @sideEffects On success clears the local cart, tells other tabs, and navigates to /order-placed. The order write removes the saved row.
  */
 async function placeCheckoutOrder(transport, appState) {
   await flushCartPersist();
@@ -61,6 +62,7 @@ async function placeCheckoutOrder(transport, appState) {
 
   clearLocalCart(appState);
   resumeCartPersist();
+  navigate("/order-placed");
   return { ok: true };
 }
 

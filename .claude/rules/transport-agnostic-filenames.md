@@ -9,8 +9,8 @@ This repo compares the same system with and without Event Mesh. A file under `ap
 
 - Do not put these tokens in a new or renamed path: `stream`, `sse`, `eventsource`, `mesh`, `websocket`, `postmessage`, `customevent`, `http`, `fetch`, `transport`. Match them case-insensitively, including inside a longer name such as `EventStream` or `browserTransport`.
 - `events`, `watch`, and `watcher` are allowed. They name the feature, not the channel.
-- When a module needs a different channel on `main` and on a `mesh/*` branch, keep the same file name and change the implementation. See [branch-structure-parity.mdc](./branch-structure-parity.mdc).
-- A name that already contains a banned token is existing debt. Do not copy it. The next edit that changes that module renames it, and its `*.test.js` twin, on both comparison branches in the same change. See [cross-branch-tests.mdc](./cross-branch-tests.mdc).
+- When a module needs a different channel on `main` and on a `mesh/*` branch, keep the same file name and change the implementation. See [branch-structure-parity.md](./branch-structure-parity.md).
+- A name that already contains a banned token is existing debt. Do not copy it. The next edit that changes that module renames it, and its `*.test.js` twin, on both comparison branches in the same change. See [cross-branch-tests.md](./cross-branch-tests.md).
 
 Reject: `createOrderStatusStreamSession.js`, `cartLiveEventsTransport.js`, `browserTransport.js`.
 

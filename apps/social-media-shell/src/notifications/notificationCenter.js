@@ -19,18 +19,15 @@ import { subscribeToNotifications } from "./notificationAdapter";
  *
  * @param {HTMLElement} containerElement - Element that owns the rendered toast queue.
  * @returns {() => void} Function that clears pending timers, subscriptions, and rendered toasts.
- * @sideEffects Subscribes to notification events and mutates the supplied container. A toast that carries a link navigates to that path. A toast raised from a persisted inbox row (it carries a notificationId) is also marked read on click.
+ * @sideEffects Subscribes to notification events and mutates the supplied container. Clicking a linked toast navigates to its link and marks its inbox row read when it has a notificationId.
  */
 function mountNotificationCenter(containerElement) {
   return mountSharedNotificationCenter(containerElement, {
     subscribeToNotifications,
     onOpenLink: (notification) => {
-      if (notification.notificationId) {
-        void markNotificationRead(notification.notificationId);
-      }
-      if (notification.link) {
-        navigate(notification.link);
-      }
+      // Only linked toasts are clickable; markNotificationRead ignores a missing id.
+      void markNotificationRead(notification.notificationId);
+      navigate(notification.link);
     },
   });
 }

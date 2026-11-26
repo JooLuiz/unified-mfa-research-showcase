@@ -1,7 +1,7 @@
 /**
- * Verifies checkout totals and the cart outcome after the order command replies.
- * Role: Locks calculateCheckoutTotals, and the cleared or kept cart after an accepted or rejected order.
- * Not in this file: Toast copy or post-order navigation (src/pages/checkoutPage.js).
+ * Verifies checkout totals, the cart outcome, and the route after the order command replies.
+ * Role: Locks calculateCheckoutTotals, and the cleared or kept cart and route after an accepted or rejected order.
+ * Not in this file: The failed-order toast (src/pages/checkoutPage.js).
  * Key dependencies: node:test; src/commands/placeCheckoutOrder.js; test/support/loadAppModule.js;
  *   test/support/createRecordingTransport.js.
  * See also: src/commands/placeCheckoutOrder.js.
@@ -52,6 +52,7 @@ test("checkout totals use the coupon, then drop the discount when the coupon is 
 });
 
 test("an accepted order sends the checkout totals and empties the cart", async () => {
+  window.location.pathname = "/checkout";
   const appState = createCheckoutState({ id: "user-01", address: "1 Main St" });
   const transport = createRecordingTransport({ requestReply: { ok: true } });
 
@@ -63,9 +64,11 @@ test("an accepted order sends the checkout totals and empties the cart", async (
   assert.equal(transport.published[0].payload.shippingAddress, "1 Main St");
   assert.deepEqual(appState.cartItems, []);
   assert.equal(appState.appliedCoupon, null);
+  assert.equal(window.location.pathname, "/order-placed");
 });
 
-test("a rejected order keeps the cart and the coupon", async () => {
+test("a rejected order keeps the cart, the coupon, and the checkout route", async () => {
+  window.location.pathname = "/checkout";
   const appState = createCheckoutState(null);
   const transport = createRecordingTransport({ requestReply: { ok: false } });
 
@@ -74,4 +77,5 @@ test("a rejected order keeps the cart and the coupon", async () => {
   assert.deepEqual(orderResult, { ok: false });
   assert.equal(appState.cartItems.length, 3);
   assert.equal(appState.appliedCoupon.code, "SAVE10");
+  assert.equal(window.location.pathname, "/checkout");
 });

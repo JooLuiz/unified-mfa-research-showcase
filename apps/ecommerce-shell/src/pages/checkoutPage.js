@@ -1,7 +1,7 @@
 /**
  * Renders the checkout and order-placed routes.
- * Role: Composes checkout item, summary, and coupon mounts and owns the place-order flow outcome.
- * Not in this file: Order HTTP details (src/commands/placeOrder.js) or the place-order sequence (src/commands/placeCheckoutOrder.js).
+ * Role: Composes checkout item, summary, and coupon mounts and shows the failed-order toast.
+ * Not in this file: Order HTTP details (src/commands/placeOrder.js) or the place-order sequence and post-order navigation (src/commands/placeCheckoutOrder.js).
  * Key dependencies: src/commands/placeCheckoutOrder.js; src/notifications/notificationAdapter.js; src/utils/cartSync.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
@@ -37,7 +37,7 @@ import {
  * @param {object} modules - Loaded remote module mount functions.
  * @param {Array<() => void>} activeCleanupFunctions - Cleanup registry for the current route.
  * @returns {Promise<void>}
- * @sideEffects On order success notifies and navigates; on failure notifies and keeps the cart.
+ * @sideEffects On order failure shows an error toast; the command navigates on success.
  */
 async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFunctions) {
   if (!isAuthenticated(appState)) {
@@ -148,10 +148,7 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
           title: "Order not placed",
           message: "Your cart is still available. Please try again.",
         });
-        return;
       }
-
-      navigate("/order-placed");
     },
   });
   activeCleanupFunctions.push(() => checkoutSummaryHandle.unmount());
