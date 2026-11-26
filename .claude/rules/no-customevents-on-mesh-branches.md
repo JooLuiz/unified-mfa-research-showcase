@@ -17,7 +17,7 @@ Mesh message.
   through a shared `subscribeToX(listener)` wrapper) instead of fanning out through `window`.
 - This does not restrict genuine native DOM events (`popstate`, `storage`, `click`, `resize`), or `main`, where
   `apps/ecommerce-shell/src/events/eventBus.js` legitimately wraps window events per
-  [branch-structure-parity.mdc](./branch-structure-parity.mdc).
+  [branch-structure-parity.md](./branch-structure-parity.md).
 
 Fixed in this repo: `apps/ecommerce-shell/src/events/cartLiveEvents.js` and
 `apps/admin-shell/src/events/adminLiveEvents.js` used to dispatch a `CustomEvent` after receiving a mesh

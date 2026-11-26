@@ -65,6 +65,9 @@ test("a raised toast shows its message, opens a link, and dismisses", () => {
   const savedToast = findElement(root, (node) => node.textContent === "Saved");
   assert.ok(savedToast);
   assert.match(root.textContent, /Done/);
+  assert.equal(findElement(root, (node) => node.className.includes("notification-toast--linked")), null);
+  savedToast.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  assert.deepEqual(opened, []);
 
   const dismissButton = findElement(
     root,

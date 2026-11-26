@@ -1,5 +1,5 @@
 /**
- * Verifies an account update without a session is declined, and a saved update replaces the user.
+ * Verifies an account update without a session or with a malformed profile is declined, and a saved update replaces the user.
  * Role: Locks the outcomes of the social shell account command.
  * Not in this file: The account form.
  * Key dependencies: node:test; src/commands/accountCommands.js; test/support/loadAppModule.js;
@@ -20,7 +20,7 @@ const { persistAccountUpdate } = await loadAppModule(
 test("an account update without a session is declined", async () => {
   const transport = createRecordingTransport();
   const appState = { authToken: null, currentUser: null };
-  const result = await persistAccountUpdate(transport, appState, { fullName: "Ada Lovelace" });
+  const result = await persistAccountUpdate(transport, appState, { fullName: "Ada Lovelace", gender: "" });
 
   assert.deepEqual(result, { ok: false });
   assert.equal(appState.currentUser, null);
@@ -40,7 +40,7 @@ test("a saved profile replaces the signed-in viewer, and a rejected save keeps t
     currentUser: { id: "u-01", fullName: "Ada Lovelace" },
   };
 
-  const profile = await persistAccountUpdate(transport, appState, { fullName: "Ada Byron" });
+  const profile = await persistAccountUpdate(transport, appState, { fullName: "Ada Byron", gender: "" });
   assert.equal(profile.ok, true);
   assert.equal(appState.currentUser.fullName, "Ada Byron");
 
@@ -48,14 +48,27 @@ test("a saved profile replaces the signed-in viewer, and a rejected save keeps t
   assert.equal(address.ok, true);
   assert.equal(appState.currentUser.address.city, "London");
 
-  const failed = await persistAccountUpdate(transport, appState, { fullName: "Someone Else" });
+  const failed = await persistAccountUpdate(transport, appState, { fullName: "Someone Else", gender: "" });
   assert.deepEqual(failed, { ok: false });
   assert.equal(appState.currentUser.fullName, "Ada Byron");
 
   assert.deepEqual(transport.published[0], {
     topic: "account",
     event: "update",
-    payload: { authToken: "token-01", update: { fullName: "Ada Byron" } },
+    payload: { authToken: "token-01", update: { fullName: "Ada Byron", gender: "" } },
   });
   assert.equal(transport.published.length, 3);
+});
+
+test("a malformed profile update is not sent", async () => {
+  const transport = createRecordingTransport();
+  const appState = { authToken: "token-01", currentUser: { id: "u-01", fullName: "Ada Lovelace" } };
+
+  const missingGender = await persistAccountUpdate(transport, appState, { fullName: "Ada Byron" });
+  const numericName = await persistAccountUpdate(transport, appState, { fullName: 7, gender: "" });
+
+  assert.deepEqual(missingGender, { ok: false });
+  assert.deepEqual(numericName, { ok: false });
+  assert.equal(appState.currentUser.fullName, "Ada Lovelace");
+  assert.equal(transport.published.length, 0);
 });

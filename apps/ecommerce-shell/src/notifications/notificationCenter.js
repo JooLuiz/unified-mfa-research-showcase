@@ -28,8 +28,8 @@ const { subscribeToNotifications } = createNotificationAdapter(shellTransport);
  *
  * @param {HTMLElement} containerElement - Element that owns the rendered toast queue.
  * @returns {void}
- * @sideEffects Subscribes to shell notification messages. A toast that carries a link navigates
- *   to that path. A toast raised from a persisted inbox row is also marked read on click.
+ * @sideEffects Subscribes to shell notification messages. Clicking a linked toast navigates to its
+ *   link and marks its inbox row read when it has a notificationId.
  */
 function mountNotificationCenter(containerElement) {
   notificationContainer = containerElement;
@@ -44,12 +44,9 @@ function ensureNotificationDisplayListeners() {
   unsubscribeFromNotifications = mountSharedNotificationCenter(notificationContainer, {
     subscribeToNotifications,
     onOpenLink(notification) {
-      if (notification.notificationId) {
-        void markNotificationRead(notification.notificationId);
-      }
-      if (notification.link) {
-        navigate(notification.link);
-      }
+      // Only linked toasts are clickable; markNotificationRead ignores a missing id.
+      void markNotificationRead(notification.notificationId);
+      navigate(notification.link);
     },
   });
 }

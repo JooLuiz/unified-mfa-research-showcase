@@ -2,10 +2,11 @@
  * Persists account profile and address updates for the ecommerce shell.
  * Role: Owns the account update command and reports its outcome through the shell notifier.
  * Not in this file: Account page layout or order history (src/pages/accountPage.js).
- * Key dependencies: An injected shell transport (account:update); src/notifications/notificationAdapter.js.
+ * Key dependencies: An injected shell transport (account:update); @shared/account-events (profile payload check); src/notifications/notificationAdapter.js.
  * See also: src/pages/accountPage.js.
  */
 
+import { isValidProfileSaveRequest } from "@shared/account-events";
 import { setAuthSession } from "../utils/authActions";
 import { publishNotification } from "../notifications/notificationAdapter";
 
@@ -19,10 +20,14 @@ const ACCOUNT_UPDATE_EVENT = "update";
  * @param {object} appState - Shell state containing the authenticated session.
  * @param {object} updatePayload - Profile or address fields accepted by the account update.
  * @returns {Promise<{ ok: boolean }>} Whether the server accepted the update.
- * @sideEffects Requests account:update, updates the persisted session, and emits a local notification.
+ * @sideEffects Requests account:update, updates the persisted session, and emits a local notification. A profile update without string fullName and gender is not sent.
  */
 async function persistAccountUpdate(transport, appState, updatePayload) {
   if (!appState.authToken) {
+    return { ok: false };
+  }
+  const isAddressUpdate = Object.hasOwn(updatePayload, "address");
+  if (!isAddressUpdate && !isValidProfileSaveRequest(updatePayload)) {
     return { ok: false };
   }
 
@@ -44,7 +49,6 @@ async function persistAccountUpdate(transport, appState, updatePayload) {
     token: appState.authToken,
     user: outcome.user,
   });
-  const isAddressUpdate = Object.hasOwn(updatePayload, "address");
   publishNotification({
     type: "success",
     title: isAddressUpdate ? "Address updated" : "Profile updated",
