@@ -97,7 +97,9 @@ queueTest("groups posts, opens one, and follows a banner when the page offers th
   assert.equal(window.location.pathname, "/posts/post-1");
 
   const bannerProps = latestRemoteCall(remotes, "banner").props;
-  assert.equal(bannerProps !== undefined, true);
+  await invokeHandler(bannerProps, "onApplyPromotion");
+  assert.equal(window.location.pathname, "/products");
+  assert.equal(window.location.search, "?searchQuery=mug&minPrice=5&maxPrice=20&categoryIds=mugs");
 
   const formProps = latestRemoteCall(remotes, "newPost").props;
   appState.authToken = "";
@@ -124,17 +126,18 @@ queueTest("skips a banner slot when no banner is configured between groups", asy
   assert.equal(remotes.calls.some((call) => call.name === "banner"), false);
 });
 
-queueTest("opens the catalog without filters when a banner has none", async () => {
+queueTest("opens the catalog with only the filters a banner sets", async () => {
   const pageRoot = createPageRoot();
   const remotes = createRemoteRecorder();
   const banners = [
-    { id: "plain" },
-    { id: "search", filters: { searchQuery: "hat" } },
-    { id: "min", filters: { minPrice: "1" } },
-    { id: "max", filters: { maxPrice: "9" } },
-    { id: "empty-categories", filters: { categoryIds: [] } },
+    { banner: { id: "plain" }, search: "" },
+    { banner: { id: "search", filters: { searchQuery: "hat" } }, search: "?searchQuery=hat" },
+    { banner: { id: "min", filters: { minPrice: "1" } }, search: "?minPrice=1" },
+    { banner: { id: "max", filters: { maxPrice: "9" } }, search: "?maxPrice=9" },
+    { banner: { id: "empty-categories", filters: { categoryIds: [] } }, search: "" },
   ];
-  for (const banner of banners) {
+  for (const { banner, search } of banners) {
+    resetLocation("/posts");
     remotes.calls.length = 0;
     await renderPostsPage(
       {
@@ -147,6 +150,31 @@ queueTest("opens the catalog without filters when a banner has none", async () =
       remotes,
       [],
     );
-    assert.equal(latestRemoteCall(remotes, "banner") !== undefined, true);
+    await invokeHandler(latestRemoteCall(remotes, "banner").props, "onApplyPromotion");
+    assert.equal(window.location.pathname, "/products");
+    assert.equal(window.location.search, search);
   }
+});
+
+queueTest("a signed-in user without a name or email gets an empty post form header", async () => {
+  const pageRoot = createPageRoot();
+  const remotes = createRemoteRecorder();
+  await renderPostsPage(
+    { authToken: "token-01", currentUser: { id: "user-01" }, posts: [], banners: [] },
+    pageRoot,
+    remotes,
+    [],
+  );
+  const formProps = latestRemoteCall(remotes, "newPost").props;
+  assert.equal(formProps.userName, "");
+  assert.equal(formProps.userEmail, "");
+  assert.equal(formProps.authorId, "user-01");
+});
+
+queueTest("a page without loaded posts or banners shows the header and no feed", async () => {
+  const pageRoot = createPageRoot();
+  const remotes = createRemoteRecorder();
+  await renderPostsPage({ authToken: "", currentUser: null }, pageRoot, remotes, []);
+  assert.match(pageRoot.textContent, /Community Posts/);
+  assert.equal(remotes.calls.some((call) => call.name === "postFeed"), false);
 });

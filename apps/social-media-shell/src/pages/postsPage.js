@@ -98,13 +98,9 @@ function mountLoginPromptForNewPost(containerElement) {
     rememberPostLoginRedirect("/posts");
     navigate("/login");
   };
-  if (goToLoginButton) {
-    goToLoginButton.addEventListener("click", handleClick);
-  }
+  goToLoginButton.addEventListener("click", handleClick);
   return () => {
-    if (goToLoginButton) {
-      goToLoginButton.removeEventListener("click", handleClick);
-    }
+    goToLoginButton.removeEventListener("click", handleClick);
     containerElement.innerHTML = "";
   };
 }
