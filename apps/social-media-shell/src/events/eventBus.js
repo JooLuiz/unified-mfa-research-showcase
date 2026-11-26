@@ -130,7 +130,64 @@ const { ensureCatalogIntentListeners, resetCatalogIntentListeners } = catalogEve
 const { ensureAccountIntentListeners, resetAccountIntentListeners } = accountEvents;
 const { ensureCommunityIntentListeners, resetCommunityIntentListeners } = communityEvents;
 
+const GATEWAY_OPTIONS = { gatewayUrl: "ws://localhost", gatewayPort: 3004 };
+
+/**
+ * Returns the session connection steps used by the shell's auth session lifecycle.
+ * A guest session opens the gateway WebSocket; a signed-in session opens the WebSocket
+ * with a connection ticket. Disconnecting closes the mesh client and drops its subscriptions.
+ *
+ * @param {{ getConnectionTicket?: () => Promise<string> }} [options] - Ticket source for signed-in sessions.
+ * @returns {{ connectGuest: () => void, connectAuthenticated: () => void, disconnect: () => void }}
+ *   Session channel for createAuthSessionLifecycle.
+ */
+function createShellSessionChannel({ getConnectionTicket } = {}) {
+  return {
+    connectGuest() {
+      configureShellMesh({ ...GATEWAY_OPTIONS, enableWebSocket: true });
+    },
+    connectAuthenticated() {
+      configureShellMesh({ ...GATEWAY_OPTIONS, enableWebSocket: true, getConnectionTicket });
+    },
+    disconnect() {
+      closeShellMesh();
+    },
+  };
+}
+
+/**
+ * Registers this tab for one post's later like counts.
+ *
+ * @param {string | undefined} postId - Post that just arrived and is not rendered on every page.
+ * @returns {void}
+ * @sideEffects Publishes community-likes/watching once the mesh is connected. A transport without
+ *   publish or whenConnected is ignored.
+ */
+function watchPostLikes(postId) {
+  if (typeof postId !== "string" || postId.trim() === "") {
+    return;
+  }
+  const transport = shellTransport;
+  if (typeof transport.publish !== "function" || typeof transport.whenConnected !== "function") {
+    return;
+  }
+  transport
+    .whenConnected({ timeoutMs: 5000 })
+    .then(() => {
+      transport.publish({
+        topic: "community-likes",
+        event: "watching",
+        payload: { postId },
+        scope: "distributed",
+      });
+    })
+    .catch(() => {
+      // This tab keeps the like count from the created post until the next announce.
+    });
+}
+
 export {
+  createShellSessionChannel,
   bindShellTransport,
   closeShellMesh,
   configureShellMesh,
@@ -153,4 +210,5 @@ export {
   subscribeToHeaderEvents,
   subscribeToLogoutRequests,
   subscribeToRenderRequests,
+  watchPostLikes,
 };

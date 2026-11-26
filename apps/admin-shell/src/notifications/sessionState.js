@@ -1,9 +1,9 @@
 /**
- * Reads and writes auth/redirect storage and tracks mesh session lifecycle flags.
- * Role: Single module for storage records and mesh session state in the admin shell.
+ * Reads and writes the admin shell's auth and redirect storage.
+ * Role: Owns the localStorage auth record and the sessionStorage post-login redirect.
  * Not in this file: Login requests, logout navigation, or event publication.
  * Key dependencies: Browser localStorage and sessionStorage; src/utils/constants.js storage keys.
- * See also: src/utils/authActions.js; src/main.js.
+ * See also: src/utils/authActions.js.
  */
 
 import {
@@ -11,30 +11,6 @@ import {
   AUTH_USER_STORAGE_KEY,
   POST_LOGIN_REDIRECT_STORAGE_KEY,
 } from "../utils/constants";
-
-let localMeshStarted = false;
-let authenticatedMeshActive = false;
-
-function isLocalMeshStarted() {
-  return localMeshStarted;
-}
-
-function isAuthenticatedMeshActive() {
-  return authenticatedMeshActive;
-}
-
-function setLocalMeshStarted(isActive) {
-  localMeshStarted = Boolean(isActive);
-}
-
-function setAuthenticatedMeshActive(isActive) {
-  authenticatedMeshActive = Boolean(isActive);
-}
-
-function clearMeshSessionFlags() {
-  localMeshStarted = false;
-  authenticatedMeshActive = false;
-}
 
 /**
  * Reads the stored auth token and user, if both are present and parseable.
@@ -108,13 +84,8 @@ function takePostLoginRedirect() {
 }
 
 export {
-  clearMeshSessionFlags,
-  isAuthenticatedMeshActive,
-  isLocalMeshStarted,
   readStoredAuthRecord,
-  setAuthenticatedMeshActive,
-  setLocalMeshStarted,
+  writeStoredAuthRecord,
   storePostLoginRedirect,
   takePostLoginRedirect,
-  writeStoredAuthRecord,
 };

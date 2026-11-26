@@ -6,7 +6,7 @@ import {
   takePostLoginRedirect,
   writeStoredAuthRecord,
 } from "../notifications/sessionState";
-import { MOCK_API_BASE_URL } from "./constants";
+import { AUTH_TOKEN_STORAGE_KEY, MOCK_API_BASE_URL } from "./constants";
 
 const PROTECTED_ROUTE_PATHS = ["/checkout", "/account"];
 const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
@@ -139,15 +139,31 @@ async function fetchConnectionTicket(authToken) {
   return response.text();
 }
 
+/**
+ * Fetches a WebSocket connection ticket for the token stored in this tab.
+ *
+ * @returns {Promise<string>} Plain-text connection ticket.
+ * @sideEffects Reads localStorage and POSTs to the ticket endpoint. Rejects when no token is stored.
+ */
+async function fetchStoredConnectionTicket() {
+  const authToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  if (!authToken) {
+    throw new Error("missing auth token for connection ticket");
+  }
+  return fetchConnectionTicket(authToken);
+}
+
 export {
   PROTECTED_ROUTE_PATHS,
   readStoredAuth,
   setAuthSession,
   clearAuthSession,
   isAuthenticated,
+  isOrderDetailsRoute,
   isProtectedRoute,
   rememberPostLoginRedirect,
   consumePostLoginRedirect,
   refreshCurrentUserFromApi,
   fetchConnectionTicket,
+  fetchStoredConnectionTicket,
 };

@@ -180,7 +180,33 @@ const {
 
 const { ensureAccountIntentListeners, resetAccountIntentListeners } = accountEvents;
 
+const GATEWAY_OPTIONS = { gatewayUrl: "ws://localhost", gatewayPort: 3004 };
+
+/**
+ * Returns the session connection steps used by the shell's auth session lifecycle.
+ * A guest session opens the gateway WebSocket; a signed-in session opens the WebSocket
+ * with a connection ticket. Disconnecting closes the mesh client and drops its subscriptions.
+ *
+ * @param {{ getConnectionTicket?: () => Promise<string> }} [options] - Ticket source for signed-in sessions.
+ * @returns {{ connectGuest: () => void, connectAuthenticated: () => void, disconnect: () => void }}
+ *   Session channel for createAuthSessionLifecycle.
+ */
+function createShellSessionChannel({ getConnectionTicket } = {}) {
+  return {
+    connectGuest() {
+      configureShellMesh({ ...GATEWAY_OPTIONS, enableWebSocket: true });
+    },
+    connectAuthenticated() {
+      configureShellMesh({ ...GATEWAY_OPTIONS, enableWebSocket: true, getConnectionTicket });
+    },
+    disconnect() {
+      closeShellMesh();
+    },
+  };
+}
+
 export {
+  createShellSessionChannel,
   bindShellTransport,
   closeShellMesh,
   configureShellMesh,

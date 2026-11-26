@@ -1,22 +1,21 @@
 /**
  * Boots the admin shell, its page routing, and local integration services.
- * Role: Owns admin host lifecycle, authentication guards, mesh configuration, and page orchestration.
- * Not in this file: Remote MFE implementation, API request details, or toast rendering.
- * Key dependencies: event-mesh/mesh; notification and remote-module adapters.
+ * Role: Owns admin host lifecycle, mesh session wiring, and shell event handlers.
+ * Not in this file: Route decisions and painting (src/pages/pageRegistry.js, src/pages/pageRenderer.js),
+ *   the session state machine (@shared/shell-events), API request details, or toast rendering.
+ * Key dependencies: @shared/shell-events; src/events/eventBus.js; notification and remote-module adapters.
  * See also: src/utils/loadRemoteModules.js; src/notifications/notificationCenter.js.
  */
 
 import "./styles.css";
+import { createAuthSessionLifecycle, createRenderedSessionMarker } from "@shared/shell-events";
 import {
   readStoredAuth,
   clearAuthSession,
   isAdminAuthenticated,
-  isAdminRoute,
-  rememberPostLoginRedirect,
   refreshCurrentUserFromApi,
-  fetchConnectionTicket,
+  fetchStoredConnectionTicket,
 } from "./utils/authActions";
-import { AUTH_TOKEN_STORAGE_KEY } from "./utils/constants";
 
 import loadRemoteModules from "./utils/loadRemoteModules";
 import {
@@ -26,23 +25,17 @@ import {
 } from "./notifications/notificationCenter";
 import {
   bindShellTransport,
-  closeShellMesh,
-  configureShellMesh,
+  createShellSessionChannel,
   ensureAccountIntentListeners,
   ensureShellEventListeners,
   publishLogoutRequested,
-  publishRenderRequested,
   resetAccountIntentListeners,
   resetShellEventListeners,
   shellTransport,
-  subscribeToAuthSessionChanges,
-  subscribeToLogoutRequests,
-  subscribeToRenderRequests,
 } from "./events/eventBus";
-import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
+import { updateHeaderState } from "./utils/mountActions";
 import { navigate } from "./utils/navigate";
 import { publishNotification } from "./notifications/notificationAdapter";
-import { MOCK_API_BASE_URL } from "./utils/constants";
 import {
   startAdminOrderStatusStream,
   stopAdminOrderStatusStream,
@@ -58,25 +51,11 @@ import {
   subscribeToNewInboxNotifications,
 } from "@shared/notification-inbox-events";
 import {
-  isLocalMeshStarted,
-  isAuthenticatedMeshActive,
-  setLocalMeshStarted,
-  setAuthenticatedMeshActive,
-  clearMeshSessionFlags,
-} from "./notifications/sessionState";
-import {
   startAdminLiveEvents,
   stopAdminLiveEvents,
 } from "./events/adminLiveEvents";
-import {
-  renderLoginPage,
-  renderDashboardPage,
-  renderOrdersPage,
-  renderOrderDetailsPage,
-  renderPostsPage,
-  renderAccountPage,
-} from "./utils/renderActions";
 import { persistAccountUpdate } from "./commands/accountCommands";
+import { createPageRenderer } from "./pages/pageRenderer";
 
 const appState = {
   authToken: null,
@@ -85,24 +64,12 @@ const appState = {
 
 bindShellTransport(() => appState.authToken);
 
-let currentRenderId = 0;
-let activeCleanupFunctions = [];
-let activeHeaderElement = null;
-let lastRenderedUserId = null;
-
-/**
- * Records the user id painted by a render that is still the latest one.
- *
- * @param {number} renderId - Id captured at the start of that renderApp call.
- * @returns {void}
- * @sideEffects Updates lastRenderedUserId. A superseded render leaves the marker unchanged.
- */
-function rememberRenderedSession(renderId) {
-  if (renderId !== currentRenderId) {
-    return;
-  }
-  lastRenderedUserId = appState.authToken ? appState.currentUser?.id ?? null : null;
-}
+const renderedSession = createRenderedSessionMarker(appState);
+const pageRenderer = createPageRenderer({
+  appState,
+  loadModules: () => loadRemoteModules,
+  marker: renderedSession,
+});
 
 subscribeToNewInboxNotifications((notification) => {
   publishNotification({
@@ -115,273 +82,33 @@ subscribeToNewInboxNotifications((notification) => {
 });
 
 /**
+ * Stops the admin activity, order-status, session, and inbox subscriptions.
+ *
+ * @returns {void}
+ * @sideEffects Unsubscribes the admin live mesh listeners.
+ */
+function stopAdminLiveSubscriptions() {
+  stopAdminLiveEvents();
+  stopAdminOrderStatusStream();
+  stopSessionLiveEvents();
+  stopNotificationInboxLiveEvents();
+}
+
+/**
  * Starts admin live-event subscriptions when the current user is an admin, and stops them otherwise.
  *
  * @returns {void}
  * @sideEffects Subscribes or unsubscribes the admin activity mesh listeners.
  */
 function syncAdminLiveEventsWithSession() {
-  if (isAdminAuthenticated(appState)) {
-    void startAdminLiveEvents(shellTransport);
-    void startAdminOrderStatusStream(shellTransport);
-    void startSessionLiveEvents(shellTransport);
-    void startNotificationInboxLiveEvents(shellTransport, { shell: "admin" });
-  } else {
-    stopAdminLiveEvents();
-    stopAdminOrderStatusStream();
-    stopSessionLiveEvents();
-    stopNotificationInboxLiveEvents();
-  }
-}
-
-/**
- * Configures local-only mesh for anonymous notification delivery.
- *
- * @returns {void}
- * @sideEffects Configures the mesh client without opening a WebSocket connection.
- */
-function configureLocalApplicationMesh() {
-  configureShellMesh({
-    gatewayUrl: "ws://localhost",
-    gatewayPort: 3004,
-    enableWebSocket: false,
-  });
-}
-
-/**
- * Configures authenticated mesh with gateway WebSocket and ticket acquisition.
- *
- * @returns {void}
- * @sideEffects Configures the browser WebSocket client for the local mesh gateway.
- */
-function configureAuthenticatedApplicationMesh() {
-  configureShellMesh({
-    gatewayUrl: "ws://localhost",
-    gatewayPort: 3004,
-    enableWebSocket: true,
-    getConnectionTicket: async () => {
-      const authToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-      if (!authToken) {
-        throw new Error("missing auth token for connection ticket");
-      }
-      return fetchConnectionTicket(authToken);
-    },
-  });
-}
-
-function startLocalMeshSession() {
-  if (isAuthenticatedMeshActive()) {
+  if (!isAdminAuthenticated(appState)) {
+    stopAdminLiveSubscriptions();
     return;
   }
-
-  if (!isLocalMeshStarted()) {
-    configureLocalApplicationMesh();
-    setLocalMeshStarted(true);
-  }
-
-  ensureNotificationDisplayListeners();
-  ensureShellEventListeners(shellEventHandlers);
-  ensureAccountIntentListeners(accountIntentHandlers);
-}
-
-function startAuthenticatedMeshSession() {
-  if (!appState.authToken) {
-    return;
-  }
-
-  if (isAuthenticatedMeshActive()) {
-    ensureNotificationDisplayListeners();
-    ensureShellEventListeners(shellEventHandlers);
-    ensureAccountIntentListeners(accountIntentHandlers);
-    syncAdminLiveEventsWithSession();
-    return;
-  }
-
-  resetNotificationDisplayListeners();
-  resetShellEventListeners();
-  resetAccountIntentListeners();
-  stopAdminOrderStatusStream();
-  stopSessionLiveEvents();
-  stopNotificationInboxLiveEvents();
-  closeShellMesh();
-  clearMeshSessionFlags();
-
-  configureAuthenticatedApplicationMesh();
-  setAuthenticatedMeshActive(true);
-  ensureNotificationDisplayListeners();
-  ensureShellEventListeners(shellEventHandlers);
-  ensureAccountIntentListeners(accountIntentHandlers);
-  syncAdminLiveEventsWithSession();
-}
-
-function downgradeToLocalMeshSession() {
-  stopAdminLiveEvents();
-  stopSessionLiveEvents();
-  stopNotificationInboxLiveEvents();
-  resetNotificationDisplayListeners();
-  resetShellEventListeners();
-  resetAccountIntentListeners();
-  closeShellMesh();
-  clearMeshSessionFlags();
-  startLocalMeshSession();
-}
-
-function handleAuthMeshLifecycle() {
-  if (appState.authToken) {
-    startAuthenticatedMeshSession();
-    return;
-  }
-
-  downgradeToLocalMeshSession();
-}
-
-function clearCurrentPage() {
-  activeCleanupFunctions.forEach((cleanup) => {
-    if (typeof cleanup === "function") {
-      cleanup();
-    }
-  });
-  activeCleanupFunctions = [];
-  activeHeaderElement = null;
-}
-
-function baseLayout() {
-  const appRoot = document.getElementById("appRoot");
-  appRoot.innerHTML = `
-    <div class="app-shell">
-      <div id="headerMount"></div>
-      <main id="pageMount" class="page-content"></main>
-      <div id="footerMount"></div>
-    </div>
-  `;
-
-  return {
-    headerMount: appRoot.querySelector("#headerMount"),
-    pageMount: appRoot.querySelector("#pageMount"),
-    footerMount: appRoot.querySelector("#footerMount"),
-  };
-}
-
-async function renderApp() {
-  const renderId = ++currentRenderId;
-  clearCurrentPage();
-
-  let modules;
-  try {
-    modules = await loadRemoteModules;
-  } catch (error) {
-    const appRoot = document.getElementById("appRoot");
-    appRoot.innerHTML = `<pre>Unable to load remotes: ${error.message}</pre>`;
-    return;
-  }
-
-  if (renderId !== currentRenderId) {
-    return;
-  }
-
-  const pathName = window.location.pathname;
-
-  if (isAdminRoute(pathName)) {
-    if (!appState.authToken || !appState.currentUser) {
-      const postLoginRedirectPath = pathName + window.location.search;
-      history.replaceState({}, "", "/login");
-      rememberPostLoginRedirect(postLoginRedirectPath);
-      publishRenderRequested();
-      return;
-    }
-    if (!isAdminAuthenticated(appState)) {
-      clearAuthSession(appState);
-      publishNotification({
-        type: "error",
-        title: "Access denied",
-        message: "This account does not have admin access.",
-      });
-      history.replaceState({}, "", "/login");
-      publishRenderRequested();
-      return;
-    }
-  }
-
-  const layoutMounts = baseLayout();
-  activeHeaderElement = mountHeaderAndFooter(appState, layoutMounts, modules, activeCleanupFunctions);
-
-  try {
-    if (pathName === "/login") {
-      await renderLoginPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName === "/") {
-      await renderDashboardPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName === "/orders") {
-      await renderOrdersPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName.startsWith("/order-details/")) {
-      await renderOrderDetailsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName.startsWith("/posts/")) {
-      const postId = pathName.slice("/posts/".length);
-      if (modules.mountSinglePost) {
-        const cleanupSinglePost = modules.mountSinglePost(layoutMounts.pageMount, {
-          postId,
-          apiBaseUrl: MOCK_API_BASE_URL,
-          authToken: appState.authToken,
-          currentUserId: appState.currentUser?.id,
-          navigate,
-          canLike: false,
-        });
-        if (typeof cleanupSinglePost === "function") {
-          activeCleanupFunctions.push(cleanupSinglePost);
-        }
-      }
-      return;
-    }
-
-    if (pathName === "/notifications") {
-      if (modules.mountNotificationsPage) {
-        const cleanupNotifications = modules.mountNotificationsPage(layoutMounts.pageMount, {
-          navigate,
-        });
-        if (typeof cleanupNotifications === "function") {
-          activeCleanupFunctions.push(cleanupNotifications);
-        }
-      }
-      return;
-    }
-
-    if (pathName === "/posts") {
-      await renderPostsPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName === "/account") {
-      await renderAccountPage(
-        appState,
-        layoutMounts.pageMount,
-        activeCleanupFunctions,
-      );
-      return;
-    }
-
-    layoutMounts.pageMount.innerHTML = `
-      <section class="notice-box">
-        <h2>Page not found</h2>
-        <button id="goHomeButton">Go Home</button>
-      </section>
-    `;
-    layoutMounts.pageMount
-      .querySelector("#goHomeButton")
-      .addEventListener("click", () => navigate("/"));
-  } finally {
-    rememberRenderedSession(renderId);
-  }
+  void startAdminLiveEvents(shellTransport);
+  void startAdminOrderStatusStream(shellTransport);
+  void startSessionLiveEvents(shellTransport);
+  void startNotificationInboxLiveEvents(shellTransport, { shell: "admin" });
 }
 
 const accountIntentHandlers = {
@@ -395,7 +122,7 @@ const accountIntentHandlers = {
 
 const shellEventHandlers = {
   onRenderRequested: () => {
-    void renderApp();
+    void pageRenderer.render();
   },
   onPathRequested: ({ path }) => {
     navigate(path);
@@ -404,7 +131,7 @@ const shellEventHandlers = {
     const wasAuthenticated = Boolean(appState.authToken);
     readStoredAuth(appState);
     const isNowAuthenticated = Boolean(appState.authToken);
-    handleAuthMeshLifecycle();
+    authSession.sync();
     if (!wasAuthenticated && isNowAuthenticated) {
       const welcomeName =
         appState.currentUser?.fullName ||
@@ -417,14 +144,12 @@ const shellEventHandlers = {
       });
     }
     // A same user who is still an admin is a profile refresh. A role change
-    // falls through so renderApp runs the admin gate again.
-    const sameSignedInUser =
-      appState.authToken && appState.currentUser?.id === lastRenderedUserId;
-    if (sameSignedInUser && isAdminAuthenticated(appState)) {
-      updateHeaderState(appState, activeHeaderElement);
+    // falls through so the renderer runs the admin gate again.
+    if (renderedSession.isSameSignedInUser() && isAdminAuthenticated(appState)) {
+      updateHeaderState(appState, pageRenderer.getHeaderElement());
       return;
     }
-    void renderApp();
+    void pageRenderer.render();
   },
   onLogoutRequested: () => {
     clearAuthSession(appState);
@@ -432,8 +157,27 @@ const shellEventHandlers = {
   },
 };
 
+const authSession = createAuthSessionLifecycle(
+  createShellSessionChannel({ getConnectionTicket: fetchStoredConnectionTicket }),
+  {
+    isAuthenticated: () => Boolean(appState.authToken),
+    attachListeners: () => {
+      ensureNotificationDisplayListeners();
+      ensureShellEventListeners(shellEventHandlers);
+      ensureAccountIntentListeners(accountIntentHandlers);
+    },
+    detachListeners: () => {
+      resetNotificationDisplayListeners();
+      resetShellEventListeners();
+      resetAccountIntentListeners();
+    },
+    startLiveEvents: syncAdminLiveEventsWithSession,
+    stopLiveEvents: stopAdminLiveSubscriptions,
+  },
+);
+
 window.addEventListener("popstate", () => {
-  void renderApp();
+  void pageRenderer.render();
 });
 
 subscribeToSessionRevoked(() => {
@@ -452,11 +196,7 @@ subscribeToSessionRevoked(() => {
 
 async function bootstrap() {
   readStoredAuth(appState);
-  if (appState.authToken) {
-    startAuthenticatedMeshSession();
-  } else {
-    startLocalMeshSession();
-  }
+  authSession.start();
   // The notification subscribe has to follow configureMesh. The first use
   // initializes EventMesh and a later configureMesh throws.
   const notificationMount = document.getElementById("notificationMount");
@@ -466,7 +206,7 @@ async function bootstrap() {
   if (appState.authToken) {
     void refreshCurrentUserFromApi(appState);
   }
-  await renderApp();
+  await pageRenderer.render();
 }
 
 bootstrap().catch((error) => {
