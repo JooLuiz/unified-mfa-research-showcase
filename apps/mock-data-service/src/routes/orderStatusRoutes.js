@@ -2,8 +2,8 @@
  * Serves order status writes and the per-tab order-status streams.
  * Role: Handles PUT /orders/:orderId/status, the customer and admin connection tickets, and
  *   GET /orders/stream plus GET /admin/orders/stream, mounted at /api.
- * Not in this file: Transition rules (src/domain/orderStatus.js) or the response registry
- *   (src/infrastructure/orderEvents.js).
+ * Not in this file: The status-change use case (src/domain/changeOrderStatus.js) or the
+ *   response registry (src/infrastructure/orderEvents.js).
  * Key dependencies: orders.json via the JSON store; src/domain/auth.js; src/domain/connectionTickets.js;
  *   src/infrastructure/stockEvents.js for the cancel broadcast.
  * See also: src/server.js; src/routes/orderRoutes.js; src/routes/adminRoutes.js.
@@ -20,11 +20,32 @@ const {
 const {
   ORDER_STATUS_INVALID_TRANSITION_CODE,
   ORDER_STATUS_NOT_ALLOWED_CODE,
-  applyOrderStatusChange,
 } = require("../domain/orderStatus");
+const { changeOrderStatus } = require("../domain/changeOrderStatus");
 const {
-  recordOrderStatusChangedNotifications,
-} = require("../domain/notificationTriggers");
+  ADMIN_REQUIRED_CODE,
+  INVALID_ACTOR_CODE,
+  ORDER_NOT_FOUND_CODE,
+  USER_NOT_FOUND_CODE,
+} = require("../domain/useCaseCodes");
+
+/**
+ * HTTP status and body for each changeOrderStatus failure code. Domain codes also echo `code`.
+ */
+const ORDER_STATUS_FAILURE_RESPONSES = Object.freeze({
+  [USER_NOT_FOUND_CODE]: { status: 404, body: { message: "User not found" } },
+  [INVALID_ACTOR_CODE]: { status: 400, body: { message: "Request must include a valid actor" } },
+  [ORDER_NOT_FOUND_CODE]: { status: 404, body: { message: "Order not found" } },
+  [ADMIN_REQUIRED_CODE]: { status: 403, body: { message: "Admin access required" } },
+  [ORDER_STATUS_NOT_ALLOWED_CODE]: {
+    status: 403,
+    body: { message: "Not allowed to set this status", code: ORDER_STATUS_NOT_ALLOWED_CODE },
+  },
+  [ORDER_STATUS_INVALID_TRANSITION_CODE]: {
+    status: 409,
+    body: { message: "That status change is not allowed", code: ORDER_STATUS_INVALID_TRANSITION_CODE },
+  },
+});
 
 const ORDER_STATUS_SSE_HEARTBEAT_INTERVAL_MS = 20_000;
 
@@ -100,84 +121,37 @@ function createOrderStatusRouter(
    */
   router.put("/orders/:orderId/status", async (request, response) => {
     try {
-      const authenticatedUser = await resolveAuthenticatedUser(request, jsonStore);
-      if (authenticatedUser.status) {
-        response.status(authenticatedUser.status).json({ message: authenticatedUser.message });
+      const sessionRevocations = await jsonStore.readJsonFileWithDefault("sessionRevocations.json", []);
+      const userIdFromToken = resolveAuthenticatedUserId(request.headers.authorization, sessionRevocations);
+      if (!userIdFromToken) {
+        response.status(401).json({ message: "Missing or invalid token" });
         return;
       }
 
-      const requestedActor = request.body?.actor;
-      if (requestedActor !== "admin" && requestedActor !== "customer") {
-        response.status(400).json({ message: "Request must include a valid actor" });
-        return;
-      }
-
-      const ordersData = await jsonStore.readJsonFileWithDefault("orders.json", []);
-      const orderIndex = ordersData.findIndex((order) => order.id === request.params.orderId);
-      if (orderIndex < 0) {
-        response.status(404).json({ message: "Order not found" });
-        return;
-      }
-
-      const currentOrder = ordersData[orderIndex];
-      if (requestedActor === "admin" && !isAdminUser(authenticatedUser)) {
-        response.status(403).json({ message: "Admin access required" });
-        return;
-      }
-      if (requestedActor === "customer" && currentOrder.userId !== authenticatedUser.id) {
-        response.status(404).json({ message: "Order not found" });
-        return;
-      }
-
-      const changeResult = await applyOrderStatusChange({
+      const changeResult = await changeOrderStatus({
         jsonStore,
-        order: currentOrder,
-        nextStatus: request.body?.status,
-        actor: requestedActor,
+        userId: userIdFromToken,
+        payload: {
+          orderId: request.params.orderId,
+          status: request.body?.status,
+          actor: request.body?.actor,
+        },
+        streams: {
+          orders: orderEventStream,
+          stock: stockEventStream,
+          notificationInbox: notificationInboxEventStream,
+        },
       });
       if (!changeResult.ok) {
-        if (changeResult.code === ORDER_STATUS_NOT_ALLOWED_CODE) {
-          response.status(403).json({
-            message: "Not allowed to set this status",
-            code: changeResult.code,
-          });
-          return;
-        }
-        if (changeResult.code === ORDER_STATUS_INVALID_TRANSITION_CODE) {
-          response.status(409).json({
-            message: "That status change is not allowed",
-            code: changeResult.code,
-          });
-          return;
-        }
-        response.status(500).json({
-          message: "Unable to update order status",
-          code: changeResult.code,
-        });
+        const failure = ORDER_STATUS_FAILURE_RESPONSES[changeResult.code] || {
+          status: 500,
+          body: { message: "Unable to update order status", code: changeResult.code },
+        };
+        response.status(failure.status).json(failure.body);
         return;
       }
 
-      ordersData[orderIndex] = changeResult.order;
-      await jsonStore.writeJsonFile("orders.json", ordersData);
-      orderEventStream.broadcastStatusChanged(
-        changeResult.order.userId,
-        changeResult.order.id,
-        changeResult.order.status,
-      );
-      changeResult.stockAvailability.forEach(({ productId, available }) => {
-        stockEventStream.broadcastStockChanged(productId, available);
-      });
-
-      if (notificationInboxEventStream) {
-        await recordOrderStatusChangedNotifications({
-          jsonStore,
-          notificationInboxEventStream,
-          order: changeResult.order,
-          actor: requestedActor,
-        });
-      }
-
-      response.json(changeResult.order);
+      response.json(changeResult.result);
     } catch (error) {
       response.status(500).json({
         message: "Unable to update order status",

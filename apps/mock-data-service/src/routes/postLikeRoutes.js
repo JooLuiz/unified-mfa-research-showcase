@@ -1,7 +1,7 @@
 /**
  * Serves the post-like toggle and the social live-updates stream for the mock data service.
  * Role: Handles POST /posts/:postId/like and GET /posts/stream, mounted at /api.
- * Not in this file: Like count/toggle rule (src/domain/postLikes.js), the social SSE registry
+ * Not in this file: The toggle use case (src/domain/togglePostLike.js), the social SSE registry
  *   (src/infrastructure/postLikeEvents.js), or the admin SSE registry
  *   (src/infrastructure/adminEvents.js, reused here for the admin broadcast side).
  * Key dependencies: posts.json and users.json via the JSON store; src/domain/auth.js;
@@ -13,9 +13,10 @@
 
 const express = require("express");
 const { resolveAuthenticatedUserId } = require("../domain/auth");
-const { LIKE_NOT_ALLOWED_CODE, toggleLike } = require("../domain/postLikes");
+const { LIKE_NOT_ALLOWED_CODE } = require("../domain/postLikes");
+const { togglePostLike } = require("../domain/togglePostLike");
+const { POST_NOT_FOUND_CODE, USER_NOT_FOUND_CODE } = require("../domain/useCaseCodes");
 const { POST_LIKES_CHANGED_EVENT_NAME } = require("../infrastructure/postLikeEvents");
-const { recordPostLikedNotification } = require("../domain/notificationTriggers");
 
 const POST_LIKES_SSE_HEARTBEAT_INTERVAL_MS = 20_000;
 
@@ -36,6 +37,14 @@ function createPostLikeRouter(
 ) {
   const router = express.Router();
 
+  // Fans the use case's single likes broadcast out to every social tab and every admin tab.
+  const likesBroadcaster = {
+    broadcastLikesChanged(_postId, likeChangedPayload) {
+      postLikeEventStream.broadcastLikesChanged(likeChangedPayload);
+      adminEventStream.broadcastEvent(POST_LIKES_CHANGED_EVENT_NAME, likeChangedPayload);
+    },
+  };
+
   /**
    * POST /posts/:postId/like. Auth: Bearer. Toggles the caller's like on one post. Rejects
    * when the caller is the post's author. On success, broadcasts the new state to every open
@@ -50,29 +59,24 @@ function createPostLikeRouter(
         return;
       }
 
-      const usersData = await jsonStore.readJsonFile("users.json");
-      const likerUser = usersData.find((userRecord) => userRecord.id === userIdFromToken);
-      if (!likerUser) {
-        response.status(404).json({ message: "User not found" });
-        return;
-      }
-
-      const postsData = await jsonStore.readJsonFile("posts.json");
-      const matchingPost = postsData.find(
-        (postRecord) => postRecord.id === request.params.postId,
-      );
-      if (!matchingPost) {
-        response.status(404).json({ message: "Post not found" });
-        return;
-      }
-
-      const toggleResult = await toggleLike({
+      const toggleResult = await togglePostLike({
         jsonStore,
-        postId: matchingPost.id,
-        userId: likerUser.id,
-        authorId: matchingPost.authorId,
+        userId: userIdFromToken,
+        payload: { postId: request.params.postId },
+        streams: {
+          postLikes: likesBroadcaster,
+          notificationInbox: notificationInboxEventStream,
+        },
       });
       if (!toggleResult.ok) {
+        if (toggleResult.code === USER_NOT_FOUND_CODE) {
+          response.status(404).json({ message: "User not found" });
+          return;
+        }
+        if (toggleResult.code === POST_NOT_FOUND_CODE) {
+          response.status(404).json({ message: "Post not found" });
+          return;
+        }
         if (toggleResult.code === LIKE_NOT_ALLOWED_CODE) {
           response.status(403).json({
             message: "You cannot like your own post",
@@ -84,27 +88,7 @@ function createPostLikeRouter(
         return;
       }
 
-      const likeChangedPayload = {
-        postId: matchingPost.id,
-        likes: toggleResult.likes,
-        ownerId: matchingPost.authorId,
-        likerId: likerUser.id,
-        likerName: likerUser.fullName || likerUser.username,
-        liked: toggleResult.liked,
-      };
-      postLikeEventStream.broadcastLikesChanged(likeChangedPayload);
-      adminEventStream.broadcastEvent(POST_LIKES_CHANGED_EVENT_NAME, likeChangedPayload);
-
-      if (toggleResult.liked && notificationInboxEventStream) {
-        await recordPostLikedNotification({
-          jsonStore,
-          notificationInboxEventStream,
-          post: matchingPost,
-          likerName: likerUser.fullName || likerUser.username,
-        });
-      }
-
-      response.json({ liked: toggleResult.liked, likes: toggleResult.likes });
+      response.json(toggleResult.result);
     } catch (error) {
       response.status(500).json({
         message: "Unable to toggle like",
