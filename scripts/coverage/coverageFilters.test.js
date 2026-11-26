@@ -13,14 +13,14 @@ const { pathToFileURL } = require("node:url");
 const { isAppSource, toRepoSourcePath } = require("./coverageFilters.js");
 
 test("isAppSource keeps app and package sources, including TypeScript and CSS", () => {
-  assert.equal(isAppSource("apps/admin-shell/src/events/eventContracts.js"), true);
+  assert.equal(isAppSource("apps/admin-shell/src/events/eventBus.js"), true);
   assert.equal(isAppSource("packages/shell-events/src/shellEventsContracts.js"), true);
   assert.equal(isAppSource("apps/checkout/src/checkout-summary.ts"), true);
   assert.equal(isAppSource("apps/account/src/styles.css"), true);
 });
 
 test("isAppSource rejects tests, declarations, dependencies, and dist output", () => {
-  assert.equal(isAppSource("apps/admin-shell/src/events/eventContracts.test.js"), false);
+  assert.equal(isAppSource("apps/admin-shell/src/events/eventBus.test.js"), false);
   assert.equal(isAppSource("packages/shell-events/src/index.d.ts"), false);
   assert.equal(isAppSource("apps/checkout/src/styles.d.js"), false);
   assert.equal(
@@ -86,8 +86,8 @@ test("toRepoSourcePath maps an absolute server file onto the repo path", () => {
 
 test("toRepoSourcePath leaves a repo path unchanged aside from a query", () => {
   assert.equal(
-    toRepoSourcePath("apps/admin-shell/src/events/eventContracts.js"),
-    "apps/admin-shell/src/events/eventContracts.js",
+    toRepoSourcePath("apps/admin-shell/src/events/eventBus.js"),
+    "apps/admin-shell/src/events/eventBus.js",
   );
   assert.equal(
     toRepoSourcePath("apps/account/src/styles.css?f8a6"),
