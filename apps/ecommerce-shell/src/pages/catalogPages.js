@@ -1,18 +1,16 @@
 /**
  * Renders the catalog routes: product list (PLP) and product details (PDP).
- * Role: Wires shell state and navigation into the product list and product details MFEs.
- * Not in this file: Filter and product-open outcomes (src/intents/catalogIntentHandlers.js) or cart storage (src/utils/cartActions.js).
+ * Role: Wires shell state into the product list and product details MFEs. Filter, product-open,
+ *   and add-to-cart intents reach the shell as catalog intents.
+ * Not in this file: Intent outcomes (src/intents/catalogIntentHandlers.js) or cart storage (src/utils/cartActions.js).
  * Key dependencies: product-list-page, product-details-page, product-showcase, and product-card remotes.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
-import { navigate } from "../utils/navigate";
-import { dispatchAddToCartEvent } from "../utils/cartActions";
-import { createCatalogIntentHandlers } from "../intents/catalogIntentHandlers";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 
 /**
- * Renders the product list page and persists filter changes back to shell state.
+ * Renders the product list page. Filter-apply intents are handled by the listeners main.js registers.
  *
  * @param {object} appState - Shell state holding plpFilters and plpSortBy.
  * @param {HTMLElement} pageMount - Route container element.
@@ -22,7 +20,6 @@ import { MOCK_API_BASE_URL } from "../utils/constants";
  */
 async function renderProductListPage(appState, pageMount, modules, activeCleanupFunctions) {
   pageMount.innerHTML = `<section id="plpMount"></section>`;
-  const catalogHandlers = createCatalogIntentHandlers(appState);
   const plpMount = pageMount.querySelector("#plpMount");
 
   activeCleanupFunctions.push(
@@ -30,9 +27,6 @@ async function renderProductListPage(appState, pageMount, modules, activeCleanup
       apiBaseUrl: MOCK_API_BASE_URL,
       initialFilters: appState.plpFilters,
       initialSort: appState.plpSortBy,
-      onFiltersChange: (nextFilters) => catalogHandlers.onFiltersApplyRequested(nextFilters),
-      onProductClick: (productId) => catalogHandlers.onProductOpenRequested({ productId }),
-      onAddToCart: dispatchAddToCartEvent,
     }),
   );
 }
@@ -53,16 +47,12 @@ async function renderProductDetailsPage(appState, pageMount, modules, activeClea
   activeCleanupFunctions.push(
     modules.mountProductDetails(pdpMount, {
       apiBaseUrl: MOCK_API_BASE_URL,
-      onAddToCart: dispatchAddToCartEvent,
       mountSimilarProducts: (containerElement, similarProductsProps) =>
         modules.mountProductShowcase(containerElement, {
           title: similarProductsProps.title,
           productIds: similarProductsProps.productIds,
           apiBaseUrl: similarProductsProps.apiBaseUrl,
           mountProductCard: modules.mountProductCard,
-          onProductClick: (nextProductId) =>
-            navigate(`/product?productId=${nextProductId}`),
-          onAddToCart: dispatchAddToCartEvent,
         }),
     }),
   );

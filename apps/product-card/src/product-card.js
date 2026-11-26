@@ -1,7 +1,22 @@
+/**
+ * Module Federation entry for the product card MFE.
+ * Role: Exposes mountProductCard; publishes catalog intents to the host shell through createPageEvents.
+ * Not in this file: Card rendering (src/product-card-component.js) or the in-page transport.
+ * Key dependencies: Vue createApp API; src/styles.css.
+ * See also: src/product-card-component.js.
+ */
+
 import { createApp } from "vue";
 import { ProductCardComponent } from "./product-card-component";
 import "./styles.css";
 
+/**
+ * Mounts a product card into a host container.
+ *
+ * @param {HTMLElement} containerElement - Host-owned mount element.
+ * @param {{ product?: object, productId?: string, apiBaseUrl?: string, defaultQuantity?: number, actionLabel?: string, actionIntent?: "add-to-cart" | "open-product", hideQuantity?: boolean, variant?: string }} props - Data props only; catalog/cart intents publish to the host shell.
+ * @returns {() => void} Cleanup that unmounts the Vue app.
+ */
 export function mountProductCard(containerElement, props) {
   const productCardApp = createApp(ProductCardComponent, {
     product: props.product,
@@ -9,10 +24,9 @@ export function mountProductCard(containerElement, props) {
     apiBaseUrl: props.apiBaseUrl,
     defaultQuantity: props.defaultQuantity,
     actionLabel: props.actionLabel,
+    actionIntent: props.actionIntent,
     hideQuantity: props.hideQuantity,
     variant: props.variant,
-    onProductClick: props.onProductClick,
-    onAddToCart: props.onAddToCart,
   });
   productCardApp.mount(containerElement);
 

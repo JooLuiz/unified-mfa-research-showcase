@@ -3,9 +3,10 @@
  * Role: Composes the account MFE mounts and the current user's post feed, kept live by
  *   patching likes whenever someone else likes one of this user's posts.
  * Not in this file: Account HTTP updates (src/commands/accountCommands.js), post creation
- *   (src/pages/postsPage.js), or the like outcome (src/intents/communityIntentHandlers.js).
+ *   (src/pages/postsPage.js), or the like outcome, which arrives as a community intent
+ *   (src/intents/communityIntentHandlers.js, registered by src/main.js).
  * Key dependencies: account/AccountProfile and account/AccountAddress remotes;
- *   @shared/post-like-events; src/intents/communityIntentHandlers.js.
+ *   @shared/post-like-events.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
@@ -20,7 +21,6 @@ import { publishLogoutRequested, shellTransport } from "../events/eventBus";
 import { persistAccountUpdate } from "../commands/accountCommands";
 import { requestCsvExport } from "../exports/requestCsvExport";
 import { publishNotification } from "../notifications/notificationAdapter";
-import { createCommunityIntentHandlers } from "../intents/communityIntentHandlers";
 
 /**
  * Renders the account page with profile, address, and "My Posts" sections.
@@ -156,9 +156,6 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
     "#accountPostsFeedMount",
   );
 
-  const communityHandlers = createCommunityIntentHandlers(shellTransport, appState);
-  const handleLike = (postId) => communityHandlers.onPostLiked({ postId });
-  const handleAuthorClick = (author) => communityHandlers.onAuthorSelected({ author });
 
   const handlePostClick = (post) => {
     if (post?.id) {
@@ -171,8 +168,6 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
     layoutMode: "grid",
     posts: currentUserPosts,
     currentUserId,
-    onLike: handleLike,
-    onAuthorClick: handleAuthorClick,
     onPostClick: handlePostClick,
   });
   activeCleanupFunctions.push(accountPostFeedHandle);
@@ -192,8 +187,6 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
         layoutMode: "grid",
         posts: appState.posts.filter((post) => post.authorId === currentUserId),
         currentUserId,
-        onLike: handleLike,
-        onAuthorClick: handleAuthorClick,
         onPostClick: handlePostClick,
       });
     }),

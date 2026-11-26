@@ -1,6 +1,16 @@
 export {
+  COMMUNITY_AUTHOR_SELECTED_EVENT,
+  COMMUNITY_LIKES_ACCEPTED_EVENT,
+  COMMUNITY_LIKES_CHANGED_EVENT,
+  COMMUNITY_LIKES_REJECTED_EVENT,
+  COMMUNITY_LIKES_TOGGLE_EVENT,
+  COMMUNITY_LIKES_TOPIC,
+  COMMUNITY_LIKES_WATCHING_EVENT,
+  COMMUNITY_POST_LIKED_EVENT,
+  COMMUNITY_POST_SUBMITTED_EVENT,
   COMMUNITY_TOPIC,
-  POST_SUBMITTED_EVENT,
+  isValidAuthorSelectedRequest,
+  isValidPostLikedRequest,
   isValidPostSubmittedRequest,
 } from "./communityEventsContracts.js";
 export { createCommunityEvents } from "./createCommunityEvents.js";

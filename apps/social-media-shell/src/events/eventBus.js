@@ -1,13 +1,22 @@
 /**
  * Publishes and subscribes to social shell window and header events.
- * Role: Maps shared shell contracts onto window CustomEvents and exposes the shell's publish and subscribe helpers.
+ * Role: Maps shared shell contracts onto window CustomEvents, carries remote catalog and community
+ *   intents on their in-page names, and exposes the shell's publish and subscribe helpers.
  * Not in this file: Route rendering, auth storage, or notification toasts.
- * Key dependencies: @shared/shell-events; window CustomEvent.
+ * Key dependencies: @shared/shell-events; @shared/catalog-events; @shared/community-events;
+ *   @shared/server-events page contracts; window CustomEvent.
  * See also: src/main.js; src/utils/mountActions.js.
  */
 
+import { createCatalogEvents } from "@shared/catalog-events";
+import { createCommunityEvents } from "@shared/community-events";
 import { NOTIFICATION_RAISED_EVENT, NOTIFICATION_TOPIC } from "@shared/notifications";
-import { composeShellEvents, createServerEvents } from "@shared/server-events";
+import {
+  composeShellEvents,
+  createServerEvents,
+  isPageContract,
+  pageEventName,
+} from "@shared/server-events";
 import {
   AUTH_LOGOUT_REQUESTED_EVENT,
   AUTH_SESSION_CHANGED_EVENT,
@@ -30,6 +39,21 @@ const WINDOW_EVENT_BY_CONTRACT = {
 };
 
 /**
+ * Names the window event for a contract: a mapped shell event, or the in-page name remotes use.
+ *
+ * @param {string} topic - Contract topic.
+ * @param {string} event - Contract event.
+ * @returns {string | undefined} Window event name, or undefined for a server-only contract.
+ */
+function windowEventNameFor(topic, event) {
+  const mappedName = WINDOW_EVENT_BY_CONTRACT[`${topic}.${event}`];
+  if (mappedName) {
+    return mappedName;
+  }
+  return isPageContract(topic, event) ? pageEventName(topic, event) : undefined;
+}
+
+/**
  * Creates a window CustomEvent transport for contract topic and event pairs.
  *
  * @returns {{ publish: (message: { topic: string, event: string, payload?: object, scope?: string }) => void, subscribe: (topic: string, event: string, callback: (message: { payload?: unknown }) => void) => () => void }} Browser transport.
@@ -37,7 +61,7 @@ const WINDOW_EVENT_BY_CONTRACT = {
  */
 function createBrowserTransport() {
   function publish({ topic, event, payload }) {
-    const eventName = WINDOW_EVENT_BY_CONTRACT[`${topic}.${event}`];
+    const eventName = windowEventNameFor(topic, event);
     if (!eventName) {
       return;
     }
@@ -45,7 +69,7 @@ function createBrowserTransport() {
   }
 
   function subscribe(topic, event, callback) {
-    const eventName = WINDOW_EVENT_BY_CONTRACT[`${topic}.${event}`];
+    const eventName = windowEventNameFor(topic, event);
     if (!eventName) {
       return function unsubscribeUnmappedContract() {};
     }
@@ -93,7 +117,7 @@ function createShellTransport({ getAuthToken }) {
     browserTransport,
     serverEvents,
     isWindowContract(topic, event) {
-      return Boolean(WINDOW_EVENT_BY_CONTRACT[`${topic}.${event}`]);
+      return Boolean(windowEventNameFor(topic, event));
     },
   });
 }
@@ -110,6 +134,11 @@ const {
   publishLogoutRequested,
   subscribeToLogoutRequests,
 } = createShellEvents(shellTransport);
+
+const { ensureCatalogIntentListeners, resetCatalogIntentListeners } =
+  createCatalogEvents(shellTransport);
+const { ensureCommunityIntentListeners, resetCommunityIntentListeners } =
+  createCommunityEvents(shellTransport);
 
 /**
  * Listens for header navigation and logout events on a mounted header element.
@@ -156,9 +185,13 @@ export {
   createShellSessionChannel,
   bindShellTransport,
   createShellTransport,
+  ensureCatalogIntentListeners,
+  ensureCommunityIntentListeners,
   publishAuthSessionChanged,
   publishLogoutRequested,
   publishRenderRequested,
+  resetCatalogIntentListeners,
+  resetCommunityIntentListeners,
   shellTransport,
   subscribeToAuthSessionChanges,
   subscribeToHeaderEvents,

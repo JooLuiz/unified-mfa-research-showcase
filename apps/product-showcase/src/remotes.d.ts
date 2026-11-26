@@ -6,20 +6,14 @@ declare module "product_card/ProductCard" {
     image: string;
   };
 
-  type AddToCartPayload = {
-    productId: string;
-    quantity: number;
-  };
-
   type MountProductCardProps = {
     product?: Product;
     productId?: string;
     apiBaseUrl?: string;
     defaultQuantity?: number;
     actionLabel?: string;
+    actionIntent?: "add-to-cart" | "open-product";
     hideQuantity?: boolean;
-    onProductClick?: (productId: string) => void;
-    onAddToCart?: (payload: AddToCartPayload) => void;
   };
 
   export function mountProductCard(

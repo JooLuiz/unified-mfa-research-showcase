@@ -47,3 +47,17 @@ export declare function composeShellEvents(input: {
 }): ServerEventTransport;
 
 export declare function createFrameMessageEvents(): IframeTransport;
+
+export type PageEvents = {
+  publish(message: ServerEventMessage): void;
+  subscribe(
+    topic: string,
+    event: string,
+    callback: (message: { payload: unknown }) => void,
+  ): () => void;
+  whenConnected(options?: { timeoutMs?: number }): Promise<void>;
+};
+
+export declare function createPageEvents(): PageEvents;
+export declare function isPageContract(topic: string, event: string): boolean;
+export declare function pageEventName(topic: string, event: string): string;

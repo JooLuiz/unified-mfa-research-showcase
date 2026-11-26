@@ -1,9 +1,21 @@
 export {
   CART_CHANGED_EVENT,
   CART_ITEM_ADD_REQUESTED_EVENT,
+  CART_ITEM_REMOVE_REQUESTED_EVENT,
+  CART_ITEM_UPDATE_REQUESTED_EVENT,
   CART_TOPIC,
+  CATALOG_FILTERS_APPLY_REQUESTED_EVENT,
+  CATALOG_PRODUCT_OPEN_REQUESTED_EVENT,
+  CATALOG_PROMOTION_APPLIED_EVENT,
   CATALOG_TOPIC,
-  PRODUCT_OPEN_REQUESTED_EVENT,
+  createCartAddRequest,
+  createCartUpdateRequest,
+  createPlpFiltersSnapshot,
   isValidCartAddRequest,
+  isValidCartRemoveRequest,
+  isValidCartUpdateRequest,
+  isValidPlpFiltersPayload,
+  isValidProductOpenRequest,
+  isValidPromotionAppliedRequest,
 } from "./catalogEventsContracts.js";
 export { createCatalogEvents } from "./createCatalogEvents.js";

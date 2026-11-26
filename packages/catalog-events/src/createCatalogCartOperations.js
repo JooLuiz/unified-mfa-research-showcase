@@ -1,7 +1,7 @@
 /**
  * Cart changed and cart-add operations for the catalog event adapter.
  * Role: Publishes cart/changed and subscribes to cart add and cart changed on the caller's transport.
- * Not in this file: Cart-add publish, product open, or the browser event-name map.
+ * Not in this file: Product open, filters, promotions, or mesh configuration.
  * Key dependencies: src/catalogEventsContracts.js.
  * See also: src/createCatalogEvents.js.
  */
@@ -14,33 +14,64 @@ import {
 } from "./catalogEventsContracts.js";
 
 /**
- * Creates the cart operations shared by the catalog factory.
+ * Creates the cart operations shared by the catalog factory and its intent listeners.
  *
- * @param {{ publish: (message: { topic: string, event: string, payload?: object, scope: string }) => void, subscribe: (topic: string, event: string, callback: (message: { payload?: unknown }) => void) => () => void }} transport - Branch transport.
- * @returns {{ publishCartChanged: () => void, subscribeToCartChanges: (listener: () => void) => () => void, subscribeToCartItemAddRequests: (listener: (payload: object) => void) => () => void }} Cart publish and subscribe helpers.
- * @note publishCartChanged always includes payload: {} so every transport receives a record.
+ * @param {{ publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void }} transport - Mesh client or recording transport. Both expose publish and subscribe.
+ * @returns {{ publishCartChanged: (cartItems?: object[]) => void, subscribeToCartChanges: (listener: () => void) => () => void, subscribeToCartItemAddRequests: (listener: (payload: { productId: string, quantity: number }) => void) => () => void }} Cart publish and subscribe helpers.
  */
-function createCatalogCartOperations({ publish, subscribe }) {
-  function publishCartChanged() {
-    publish({
+function createCatalogCartOperations(transport) {
+  /**
+   * Publishes a local cart/changed message. No argument sends payload: {}. An array is sent as items.
+   *
+   * @param {object[] | undefined} cartItems - Cart snapshot, or omitted when the caller only signals a change.
+   * @returns {void}
+   * @sideEffects Publishes a local cart.changed message. A missing snapshot uses an empty payload record.
+   */
+  function publishCartChanged(cartItems) {
+    if (!Array.isArray(cartItems)) {
+      transport.publish({
+        topic: CART_TOPIC,
+        event: CART_CHANGED_EVENT,
+        payload: {},
+        scope: "local",
+      });
+      return;
+    }
+
+    transport.publish({
       topic: CART_TOPIC,
       event: CART_CHANGED_EVENT,
-      payload: {},
+      payload: { items: cartItems },
       scope: "local",
     });
   }
 
+  /**
+   * Subscribes to cart/changed until the returned function runs.
+   *
+   * @param {() => void} listener - Called with no arguments. Callers that need the lines read the cart they already committed.
+   * @returns {() => void} Removes the subscription.
+   * @sideEffects Registers a local cart subscription.
+   */
   function subscribeToCartChanges(listener) {
-    return subscribe(CART_TOPIC, CART_CHANGED_EVENT, () => {
+    return transport.subscribe(CART_TOPIC, CART_CHANGED_EVENT, () => {
       listener();
     });
   }
 
+  /**
+   * Subscribes to valid cart item-add requests until the returned function runs.
+   *
+   * @param {(payload: { productId: string, quantity: number }) => void} listener - Called with each valid add request.
+   * @returns {() => void} Removes the subscription.
+   * @sideEffects Registers a local cart subscription. Invalid payloads are ignored.
+   */
   function subscribeToCartItemAddRequests(listener) {
-    return subscribe(CART_TOPIC, CART_ITEM_ADD_REQUESTED_EVENT, (message) => {
-      if (isValidCartAddRequest(message.payload)) {
-        listener(message.payload);
+    return transport.subscribe(CART_TOPIC, CART_ITEM_ADD_REQUESTED_EVENT, (message) => {
+      if (!isValidCartAddRequest(message.payload)) {
+        return;
       }
+      listener(message.payload);
     });
   }
 
