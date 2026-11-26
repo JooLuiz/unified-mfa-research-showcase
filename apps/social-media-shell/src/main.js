@@ -8,6 +8,7 @@ import {
   MOUNTED,
 } from "single-spa";
 
+import { createAuthSessionLifecycle, createRenderedSessionMarker } from "@shared/shell-events";
 import {
   readStoredAuth,
   clearAuthSession,
@@ -21,6 +22,7 @@ import loadMockData from "./utils/loadData";
 import loadRemoteModules from "./utils/loadRemoteModules";
 import {
   bindShellTransport,
+  createShellSessionChannel,
   publishLogoutRequested,
   shellTransport,
   subscribeToAuthSessionChanges,
@@ -28,7 +30,6 @@ import {
   subscribeToRenderRequests,
 } from "./events/eventBus";
 import { navigate } from "./utils/navigate";
-import { isSinglePostPath } from "./utils/singlePostRoute";
 import { addPostIfMissing } from "./utils/postsState";
 import { createHeaderApp, createFooterApp } from "./utils/mountActions";
 import { mountNotificationCenter } from "./notifications/notificationCenter";
@@ -40,14 +41,13 @@ import {
   subscribeToNewInboxNotifications,
 } from "@shared/notification-inbox-events";
 import { subscribeToSessionRevoked } from "@shared/session-events";
+import * as pageApps from "./utils/pageApps";
 import {
-  feedPageApp,
-  postsPageApp,
-  loginPageApp,
-  accountPageApp,
-  notificationsPageApp,
-  singlePostPageApp,
-} from "./utils/pageApps";
+  FOOTER_APP_NAME,
+  HEADER_APP_NAME,
+  PAGE_APP_NAMES,
+  createPageAppRegistrations,
+} from "./pages/pageRegistry";
 
 const appState = {
   posts: [],
@@ -61,58 +61,14 @@ const appState = {
 
 bindShellTransport(() => appState.authToken);
 
-const HEADER_APP_NAME = "@social-media/header";
-const FOOTER_APP_NAME = "@social-media/footer";
-const FEED_PAGE_APP_NAME = "@social-media/feed-page";
-const POSTS_PAGE_APP_NAME = "@social-media/posts-page";
-const LOGIN_PAGE_APP_NAME = "@social-media/login-page";
-const ACCOUNT_PAGE_APP_NAME = "@social-media/account-page";
-const NOTIFICATIONS_PAGE_APP_NAME = "@social-media/notifications-page";
-const SINGLE_POST_PAGE_APP_NAME = "@social-media/single-post-page";
+const renderedSession = createRenderedSessionMarker(appState);
 
-const PAGE_APP_NAMES = [
-  FEED_PAGE_APP_NAME,
-  POSTS_PAGE_APP_NAME,
-  LOGIN_PAGE_APP_NAME,
-  ACCOUNT_PAGE_APP_NAME,
-  NOTIFICATIONS_PAGE_APP_NAME,
-  SINGLE_POST_PAGE_APP_NAME,
-];
-
-function activeOnExactPath(targetPath) {
-  return function activeWhen(currentLocation) {
-    return currentLocation.pathname === targetPath;
-  };
-}
-
-function activeOnSinglePostPath() {
-  return function activeWhen(currentLocation) {
-    return isSinglePostPath(currentLocation.pathname);
-  };
-}
-
-function reloadMountedAppsByName(applicationNames) {
-  applicationNames.forEach((applicationName) => {
+function reloadActivePageApp() {
+  PAGE_APP_NAMES.forEach((applicationName) => {
     if (getAppStatus(applicationName) === MOUNTED) {
       void unloadApplication(applicationName);
     }
   });
-}
-
-function reloadActivePageApp() {
-  reloadMountedAppsByName(PAGE_APP_NAMES);
-}
-
-let lastRenderedUserId = null;
-
-/**
- * Records the user id that the current page apps were mounted for.
- *
- * @returns {void}
- * @sideEffects Updates lastRenderedUserId from appState.
- */
-function rememberRenderedSession() {
-  lastRenderedUserId = appState.authToken ? appState.currentUser?.id ?? null : null;
 }
 
 function registerLayoutApplications(modules) {
@@ -140,47 +96,13 @@ function registerLayoutApplications(modules) {
 
 function registerPageApplications() {
   const pageMountElement = document.getElementById("pageMount");
-
-  registerApplication({
-    name: FEED_PAGE_APP_NAME,
-    app: () => Promise.resolve(feedPageApp),
-    activeWhen: activeOnExactPath("/"),
-    customProps: { appState, domElement: pageMountElement },
-  });
-
-  registerApplication({
-    name: POSTS_PAGE_APP_NAME,
-    app: () => Promise.resolve(postsPageApp),
-    activeWhen: activeOnExactPath("/posts"),
-    customProps: { appState, domElement: pageMountElement },
-  });
-
-  registerApplication({
-    name: LOGIN_PAGE_APP_NAME,
-    app: () => Promise.resolve(loginPageApp),
-    activeWhen: activeOnExactPath("/login"),
-    customProps: { appState, domElement: pageMountElement },
-  });
-
-  registerApplication({
-    name: ACCOUNT_PAGE_APP_NAME,
-    app: () => Promise.resolve(accountPageApp),
-    activeWhen: activeOnExactPath("/account"),
-    customProps: { appState, domElement: pageMountElement },
-  });
-
-  registerApplication({
-    name: NOTIFICATIONS_PAGE_APP_NAME,
-    app: () => Promise.resolve(notificationsPageApp),
-    activeWhen: activeOnExactPath("/notifications"),
-    customProps: { appState, domElement: pageMountElement },
-  });
-
-  registerApplication({
-    name: SINGLE_POST_PAGE_APP_NAME,
-    app: () => Promise.resolve(singlePostPageApp),
-    activeWhen: activeOnSinglePostPath(),
-    customProps: { appState, domElement: pageMountElement },
+  createPageAppRegistrations(pageApps).forEach(({ name, app, activeWhen }) => {
+    registerApplication({
+      name,
+      app: () => Promise.resolve(app),
+      activeWhen,
+      customProps: { appState, domElement: pageMountElement },
+    });
   });
 }
 
@@ -188,13 +110,13 @@ subscribeToRenderRequests(() => {
   reloadActivePageApp();
 });
 
-function syncNotificationInboxWithSession() {
-  if (appState.authToken) {
+const authSession = createAuthSessionLifecycle(createShellSessionChannel(), {
+  isAuthenticated: () => Boolean(appState.authToken),
+  startLiveEvents: () => {
     void startNotificationInboxLiveEvents(shellTransport, { shell: "social" });
-  } else {
-    stopNotificationInboxLiveEvents();
-  }
-}
+  },
+  stopLiveEvents: stopNotificationInboxLiveEvents,
+});
 
 subscribeToNewInboxNotifications((notification) => {
   publishNotification({
@@ -210,12 +132,12 @@ subscribeToAuthSessionChanges(() => {
   // setAuthSession and refreshCurrentUserFromApi write appState before this event.
   // A matching user id is a profile refresh. The header updates itself from this same
   // event, so reloading the page apps would only tear down buttons mid-click.
-  if (appState.authToken && appState.currentUser?.id === lastRenderedUserId) {
+  if (renderedSession.isSameSignedInUser()) {
     return;
   }
   // Re-fetches posts so `likedByCurrentUser` reflects the session that is active now (a tab
   // that first loaded as a guest, or as a different user, must not keep a stale like flag).
-  syncNotificationInboxWithSession();
+  authSession.sync();
   loadMockData(appState)
     .catch((loadError) => {
       console.warn("subscribeToAuthSessionChanges - loadError");
@@ -223,7 +145,7 @@ subscribeToAuthSessionChanges(() => {
     })
     .finally(() => {
       reloadActivePageApp();
-      rememberRenderedSession();
+      renderedSession.remember();
     });
 });
 
@@ -289,7 +211,7 @@ async function bootstrap() {
   if (appState.authToken) {
     void refreshCurrentUserFromApi(appState);
   }
-  syncNotificationInboxWithSession();
+  authSession.start();
 
   applyInitialAuthGuard();
   const modules = await loadRemoteModules;
@@ -297,7 +219,7 @@ async function bootstrap() {
   registerLayoutApplications(modules);
   registerPageApplications();
   start();
-  rememberRenderedSession();
+  renderedSession.remember();
 }
 
 bootstrap().catch((bootstrapError) => {

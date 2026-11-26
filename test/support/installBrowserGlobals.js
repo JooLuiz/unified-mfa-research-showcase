@@ -85,6 +85,9 @@ browserWindow.history = {
   pushState(_state, _title, nextPath) {
     browserWindow.location.href = nextPath;
   },
+  replaceState(_state, _title, nextPath) {
+    browserWindow.location.href = nextPath;
+  },
 };
 
 globalThis.CustomEvent = class CustomEvent extends Event {

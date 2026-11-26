@@ -175,7 +175,24 @@ const {
 
 const { publishCartItemAddRequested, publishCartChanged, subscribeToCartChanges } = catalogEvents;
 
+/**
+ * Returns the session connection steps used by the shell's auth session lifecycle.
+ * Window events and server requests need no connection, so each step does nothing here.
+ *
+ * @param {{ getConnectionTicket?: () => Promise<string> }} [_options] - Ticket source, unused here.
+ * @returns {{ connectGuest: () => void, connectAuthenticated: () => void, disconnect: () => void }}
+ *   Session channel for createAuthSessionLifecycle.
+ */
+function createShellSessionChannel(_options = {}) {
+  return {
+    connectGuest() {},
+    connectAuthenticated() {},
+    disconnect() {},
+  };
+}
+
 export {
+  createShellSessionChannel,
   bindShellTransport,
   installShellTransport,
   publishAuthSessionChanged,

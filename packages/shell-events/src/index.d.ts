@@ -30,3 +30,45 @@ export interface ShellEvents {
 }
 
 export function createShellEvents(transport: ShellTransport): ShellEvents;
+
+export const SESSION_MODE_IDLE: "idle";
+export const SESSION_MODE_GUEST: "guest";
+export const SESSION_MODE_AUTHENTICATED: "authenticated";
+
+export interface SessionChannel {
+  connectGuest(): void;
+  connectAuthenticated(): void;
+  disconnect(): void;
+}
+
+export interface AuthSessionHooks {
+  isAuthenticated(): boolean;
+  attachListeners?(): void;
+  detachListeners?(): void;
+  startLiveEvents?(): void;
+  stopLiveEvents?(): void;
+  onGuestReady?(): void;
+}
+
+export interface AuthSessionLifecycle {
+  start(): void;
+  sync(): void;
+  getMode(): "idle" | "guest" | "authenticated";
+}
+
+export function createAuthSessionLifecycle(
+  channel: SessionChannel,
+  hooks: AuthSessionHooks,
+): AuthSessionLifecycle;
+
+export interface RenderedSessionMarker {
+  beginRender(): number;
+  isLatestRender(renderId: number): boolean;
+  remember(renderId?: number): void;
+  isSameSignedInUser(): boolean;
+}
+
+export function createRenderedSessionMarker(appState: {
+  authToken?: string | null;
+  currentUser?: { id?: string } | null;
+}): RenderedSessionMarker;

@@ -1,29 +1,27 @@
 import "./styles.css";
 
+import { createAuthSessionLifecycle, createRenderedSessionMarker } from "@shared/shell-events";
 import {
   readStoredAuth,
   clearAuthSession,
   isAdminAuthenticated,
-  isAdminRoute,
-  rememberPostLoginRedirect,
   refreshCurrentUserFromApi,
 } from "./utils/authActions";
 
 import loadRemoteModules from "./utils/loadRemoteModules";
 import {
   bindShellTransport,
+  createShellSessionChannel,
   publishLogoutRequested,
-  publishRenderRequested,
   shellTransport,
   subscribeToAuthSessionChanges,
   subscribeToLogoutRequests,
   subscribeToRenderRequests,
 } from "./events/eventBus";
 import { mountNotificationCenter } from "./notifications/notificationCenter";
-import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
+import { updateHeaderState } from "./utils/mountActions";
 import { navigate } from "./utils/navigate";
 import { publishNotification } from "./notifications/notificationAdapter";
-import { MOCK_API_BASE_URL } from "./utils/constants";
 import {
   startAdminOrderStatusStream,
   stopAdminOrderStatusStream,
@@ -38,14 +36,7 @@ import {
   startAdminLiveEvents,
   stopAdminLiveEvents,
 } from "./events/adminLiveEvents";
-import {
-  renderLoginPage,
-  renderDashboardPage,
-  renderOrdersPage,
-  renderOrderDetailsPage,
-  renderPostsPage,
-  renderAccountPage,
-} from "./utils/renderActions";
+import { createPageRenderer } from "./pages/pageRenderer";
 
 const appState = {
   authToken: null,
@@ -54,24 +45,12 @@ const appState = {
 
 bindShellTransport(() => appState.authToken);
 
-let currentRenderId = 0;
-let activeCleanupFunctions = [];
-let activeHeaderElement = null;
-let lastRenderedUserId = null;
-
-/**
- * Records the user id painted by a render that is still the latest one.
- *
- * @param {number} renderId - Id captured at the start of that renderApp call.
- * @returns {void}
- * @sideEffects Updates lastRenderedUserId. A superseded render leaves the marker unchanged.
- */
-function rememberRenderedSession(renderId) {
-  if (renderId !== currentRenderId) {
-    return;
-  }
-  lastRenderedUserId = appState.authToken ? appState.currentUser?.id ?? null : null;
-}
+const renderedSession = createRenderedSessionMarker(appState);
+const pageRenderer = createPageRenderer({
+  appState,
+  loadModules: () => loadRemoteModules,
+  marker: renderedSession,
+});
 
 subscribeToNewInboxNotifications((notification) => {
   publishNotification({
@@ -84,177 +63,45 @@ subscribeToNewInboxNotifications((notification) => {
 });
 
 /**
- * Starts or stops the admin live-notifications SSE stream to match the current session.
+ * Stops the admin live-notifications stream, order-status stream, and inbox.
  *
  * @returns {void}
- * @sideEffects Opens or closes the SSE connection via src/events/adminLiveEvents.js.
+ * @sideEffects Closes the admin live subscriptions.
+ */
+function stopAdminLiveSubscriptions() {
+  stopAdminLiveEvents();
+  stopAdminOrderStatusStream();
+  stopNotificationInboxLiveEvents();
+}
+
+/**
+ * Starts the admin live subscriptions when the current user is an admin, and stops them otherwise.
+ *
+ * @returns {void}
+ * @sideEffects Opens or closes the admin live subscriptions via src/events/adminLiveEvents.js.
  */
 function syncAdminLiveEventsWithSession() {
-  if (isAdminAuthenticated(appState)) {
-    void startAdminLiveEvents(shellTransport);
-    void startAdminOrderStatusStream(shellTransport);
-    void startNotificationInboxLiveEvents(shellTransport, { shell: "admin" });
-  } else {
-    stopAdminLiveEvents();
-    stopAdminOrderStatusStream();
-    stopNotificationInboxLiveEvents();
+  if (!isAdminAuthenticated(appState)) {
+    stopAdminLiveSubscriptions();
+    return;
   }
+  void startAdminLiveEvents(shellTransport);
+  void startAdminOrderStatusStream(shellTransport);
+  void startNotificationInboxLiveEvents(shellTransport, { shell: "admin" });
 }
 
-function clearCurrentPage() {
-  activeCleanupFunctions.forEach((cleanup) => {
-    if (typeof cleanup === "function") {
-      cleanup();
-    }
-  });
-  activeCleanupFunctions = [];
-  activeHeaderElement = null;
-}
-
-function baseLayout() {
-  const appRoot = document.getElementById("appRoot");
-  appRoot.innerHTML = `
-    <div class="app-shell">
-      <div id="headerMount"></div>
-      <main id="pageMount" class="page-content"></main>
-      <div id="footerMount"></div>
-    </div>
-  `;
-
-  return {
-    headerMount: appRoot.querySelector("#headerMount"),
-    pageMount: appRoot.querySelector("#pageMount"),
-    footerMount: appRoot.querySelector("#footerMount"),
-  };
-}
-
-async function renderApp() {
-  const renderId = ++currentRenderId;
-  clearCurrentPage();
-
-  let modules;
-  try {
-      modules = await loadRemoteModules;
-    } catch (error) {
-      const appRoot = document.getElementById("appRoot");
-      appRoot.innerHTML = `<pre>Unable to load remotes: ${error.message}</pre>`;
-      return;
-    }
-
-    if (renderId !== currentRenderId) {
-      return;
-    }
-
-    const pathName = window.location.pathname;
-
-    if (isAdminRoute(pathName)) {
-      if (!appState.authToken || !appState.currentUser) {
-        rememberPostLoginRedirect(pathName + window.location.search);
-        history.replaceState({}, "", "/login");
-        publishRenderRequested();
-        return;
-      }
-      if (!isAdminAuthenticated(appState)) {
-        clearAuthSession(appState);
-        publishNotification({
-          type: "error",
-          title: "Access denied",
-          message: "This account does not have admin access.",
-        });
-        history.replaceState({}, "", "/login");
-        publishRenderRequested();
-        return;
-      }
-    }
-
-    const layoutMounts = baseLayout();
-    activeHeaderElement = mountHeaderAndFooter(appState, layoutMounts, modules, activeCleanupFunctions);
-
-    try {
-    if (pathName === "/login") {
-      await renderLoginPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName === "/") {
-      await renderDashboardPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName === "/orders") {
-      await renderOrdersPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName.startsWith("/order-details/")) {
-      await renderOrderDetailsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName.startsWith("/posts/")) {
-      const postId = pathName.slice("/posts/".length);
-      if (modules.mountSinglePost) {
-        const cleanupSinglePost = modules.mountSinglePost(layoutMounts.pageMount, {
-          postId,
-          apiBaseUrl: MOCK_API_BASE_URL,
-          authToken: appState.authToken,
-          currentUserId: appState.currentUser?.id,
-          navigate,
-          canLike: false,
-        });
-        if (typeof cleanupSinglePost === "function") {
-          activeCleanupFunctions.push(cleanupSinglePost);
-        }
-      }
-      return;
-    }
-
-    if (pathName === "/notifications") {
-      if (modules.mountNotificationsPage) {
-        const cleanupNotifications = modules.mountNotificationsPage(layoutMounts.pageMount, {
-          navigate,
-        });
-        if (typeof cleanupNotifications === "function") {
-          activeCleanupFunctions.push(cleanupNotifications);
-        }
-      }
-      return;
-    }
-
-    if (pathName === "/posts") {
-      await renderPostsPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName === "/account") {
-      await renderAccountPage(
-        appState,
-        layoutMounts.pageMount,
-        activeCleanupFunctions,
-      );
-      return;
-    }
-
-    layoutMounts.pageMount.innerHTML = `
-      <section class="notice-box">
-        <h2>Page not found</h2>
-        <button id="goHomeButton">Go Home</button>
-      </section>
-    `;
-    layoutMounts.pageMount
-      .querySelector("#goHomeButton")
-      .addEventListener("click", () => navigate("/"));
-  } finally {
-    rememberRenderedSession(renderId);
-  }
-}
+const authSession = createAuthSessionLifecycle(createShellSessionChannel(), {
+  isAuthenticated: () => Boolean(appState.authToken),
+  startLiveEvents: syncAdminLiveEventsWithSession,
+  stopLiveEvents: stopAdminLiveSubscriptions,
+});
 
 subscribeToRenderRequests(() => {
-  renderApp();
+  pageRenderer.render();
 });
 
 window.addEventListener("popstate", () => {
-  renderApp();
+  pageRenderer.render();
 });
 
 subscribeToAuthSessionChanges(() => {
@@ -262,14 +109,12 @@ subscribeToAuthSessionChanges(() => {
   // A matching user id that is still an admin is a profile refresh: remounting
   // would replace the account page's action buttons while a click is in flight.
   // A role change for that same id must still remount so the admin gate runs again.
-  const sameSignedInUser =
-    appState.authToken && appState.currentUser?.id === lastRenderedUserId;
-  if (sameSignedInUser && isAdminAuthenticated(appState)) {
-    updateHeaderState(appState, activeHeaderElement);
+  if (renderedSession.isSameSignedInUser() && isAdminAuthenticated(appState)) {
+    updateHeaderState(appState, pageRenderer.getHeaderElement());
     return;
   }
-  syncAdminLiveEventsWithSession();
-  renderApp();
+  authSession.sync();
+  pageRenderer.render();
 });
 
 subscribeToLogoutRequests(() => {
@@ -299,8 +144,8 @@ async function bootstrap() {
   if (appState.authToken) {
     void refreshCurrentUserFromApi(appState);
   }
-  syncAdminLiveEventsWithSession();
-  await renderApp();
+  authSession.start();
+  await pageRenderer.render();
 }
 
 bootstrap().catch((error) => {

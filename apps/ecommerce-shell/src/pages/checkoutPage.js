@@ -2,7 +2,8 @@
  * Renders the checkout and order-placed routes.
  * Role: Composes checkout item, summary, and coupon mounts and shows the failed-order toast.
  * Not in this file: Order HTTP details (src/commands/placeOrder.js) or the place-order sequence and post-order navigation (src/commands/placeCheckoutOrder.js).
- * Key dependencies: src/commands/placeCheckoutOrder.js; src/notifications/notificationAdapter.js; src/utils/cartSync.js.
+ * Key dependencies: src/commands/placeCheckoutOrder.js; src/intents/catalogIntentHandlers.js (cart line edits);
+ *   src/notifications/notificationAdapter.js; src/utils/cartSync.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
@@ -13,10 +14,6 @@ import {
   subscribeToCartChanges,
 } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
-import {
-  STOCK_ISSUE_NOTIFICATION_MESSAGE,
-  setCartItemQuantityWithStockCheck,
-} from "../utils/cartActions";
 import { scheduleCartPersist } from "../utils/cartSync";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import {
@@ -28,6 +25,7 @@ import {
   calculateCheckoutTotals,
   placeCheckoutOrder,
 } from "../commands/placeCheckoutOrder";
+import { createCatalogIntentHandlers } from "../intents/catalogIntentHandlers";
 
 /**
  * Renders checkout, awaiting order persistence before clearing the cart or navigating.
@@ -92,43 +90,27 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
   const checkoutSummaryMount = pageMount.querySelector("#checkoutSummaryMount");
   const applyCouponMount = pageMount.querySelector("#applyCouponMount");
 
+  const catalogHandlers = createCatalogIntentHandlers(appState);
   const checkoutItemsHandle = modules.mountCheckoutItems(checkoutItemsMount, {
     productsById: appState.productsById,
     apiBaseUrl: MOCK_API_BASE_URL,
     onQuantityChange: async (productId, quantity) => {
-      const stockCheckResult = await setCartItemQuantityWithStockCheck(
-        appState,
+      const stockCheckResult = await catalogHandlers.onCartItemUpdateRequested({
         productId,
         quantity,
-      );
+      });
       if (!stockCheckResult.ok) {
-        publishNotification({
-          type: "error",
-          title: "Stock issue",
-          message: STOCK_ISSUE_NOTIFICATION_MESSAGE,
-        });
         return;
       }
       checkoutItemsHandle.applyAvailable(productId, stockCheckResult.available);
       refreshCheckoutSummary();
     },
     onRemoveItem: async (productId) => {
-      const productName = appState.productsById[productId]?.name || "Item";
-      const stockCheckResult = await setCartItemQuantityWithStockCheck(appState, productId, 0);
+      const stockCheckResult = await catalogHandlers.onCartItemRemoveRequested({ productId });
       if (!stockCheckResult.ok) {
-        publishNotification({
-          type: "error",
-          title: "Stock issue",
-          message: STOCK_ISSUE_NOTIFICATION_MESSAGE,
-        });
         return;
       }
       checkoutItemsHandle.applyAvailable(productId, stockCheckResult.available);
-      publishNotification({
-        type: "success",
-        title: "Item removed",
-        message: `${productName} was removed from your cart.`,
-      });
       if (appState.cartItems.length > 0) {
         refreshCheckoutSummary();
       }

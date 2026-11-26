@@ -126,6 +126,14 @@ const TEST_FILES = [
   "apps/social-media-shell/src/pages/authenticationPages.test.js",
   "apps/social-media-shell/src/pages/feedPage.test.js",
   "apps/social-media-shell/src/pages/postsPage.test.js",
+  "apps/ecommerce-shell/src/intents/catalogIntentHandlers.test.js",
+  "apps/social-media-shell/src/intents/catalogIntentHandlers.test.js",
+  "apps/social-media-shell/src/intents/communityIntentHandlers.test.js",
+  "apps/ecommerce-shell/src/pages/pageRegistry.test.js",
+  "apps/ecommerce-shell/src/pages/pageRenderer.test.js",
+  "apps/admin-shell/src/pages/pageRegistry.test.js",
+  "apps/admin-shell/src/pages/pageRenderer.test.js",
+  "apps/social-media-shell/src/pages/pageRegistry.test.js",
 ];
 
 /**

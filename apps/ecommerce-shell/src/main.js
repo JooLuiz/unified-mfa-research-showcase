@@ -1,12 +1,10 @@
 import "./styles.css";
 
+import { createAuthSessionLifecycle, createRenderedSessionMarker } from "@shared/shell-events";
 import { readStoredPLPFilters, applyPlpFiltersFromLocation } from "./utils/PLPFilterActions";
 import {
   readStoredAuth,
   clearAuthSession,
-  isAuthenticated,
-  isProtectedRoute,
-  rememberPostLoginRedirect,
   refreshCurrentUserFromApi,
 } from "./utils/authActions";
 
@@ -14,8 +12,8 @@ import loadRemoteModules from "./utils/loadRemoteModules";
 import loadMockData from "./utils/loadData";
 import {
   bindShellTransport,
+  createShellSessionChannel,
   publishLogoutRequested,
-  publishRenderRequested,
   shellTransport,
   subscribeToAuthSessionChanges,
   subscribeToCartChanges,
@@ -24,7 +22,7 @@ import {
 } from "./events/eventBus";
 import { mountNotificationCenter } from "./notifications/notificationCenter";
 
-import { mountHeaderAndFooter, updateHeaderState } from "./utils/mountActions";
+import { updateHeaderState } from "./utils/mountActions";
 
 import { startCartLiveEvents, stopCartLiveEvents } from "./events/cartLiveEvents";
 import {
@@ -41,17 +39,7 @@ import { publishNotification } from "./notifications/notificationAdapter";
 import { startStockGating } from "./events/stockGating";
 import { endCartSession, hydrateSavedCart, startCartTabSync } from "./utils/cartSync";
 import { navigate } from "./utils/navigate";
-import {
-  renderHomePage,
-  renderPromotionsPage,
-  renderProductListPage,
-  renderProductDetailsPage,
-  renderCheckoutPage,
-  renderOrderPlacedPage,
-  renderLoginPage,
-  renderAccountPage,
-  renderOrderDetailsPage,
-} from "./utils/renderActions";
+import { createPageRenderer } from "./pages/pageRenderer";
 
 const appState = {
   products: [],
@@ -75,11 +63,12 @@ const appState = {
 
 bindShellTransport(() => appState.authToken);
 
-let currentRenderId = 0;
-let activeCleanupFunctions = [];
-let activeHeaderElement = null;
-let lastRenderedUserId = null;
-const ORDER_DETAILS_ROUTE_PREFIX = "/order-details/";
+const renderedSession = createRenderedSessionMarker(appState);
+const pageRenderer = createPageRenderer({
+  appState,
+  loadModules: () => loadRemoteModules,
+  marker: renderedSession,
+});
 
 startStockGating(appState);
 
@@ -87,183 +76,17 @@ function setGlobalCartVariable() {
   window.__APP_SHELL_CART__ = appState.cartItems;
 }
 
-function clearCurrentPage() {
-  activeCleanupFunctions.forEach((cleanup) => {
-    if (typeof cleanup === "function") {
-      cleanup();
-    }
-  });
-  activeCleanupFunctions = [];
-  activeHeaderElement = null;
-}
-
-function baseLayout() {
-  const appRoot = document.getElementById("appRoot");
-  appRoot.innerHTML = `
-    <div class="app-shell">
-      <div id="headerMount"></div>
-      <main id="pageMount" class="page-content"></main>
-      <div id="footerMount"></div>
-    </div>
-  `;
-
-  return {
-    headerMount: appRoot.querySelector("#headerMount"),
-    pageMount: appRoot.querySelector("#pageMount"),
-    footerMount: appRoot.querySelector("#footerMount"),
-  };
-}
-
-/**
- * Records the user id painted by a render that is still the latest one.
- *
- * @param {number} renderId - Id captured at the start of that renderApp call.
- * @returns {void}
- * @sideEffects Updates lastRenderedUserId. A superseded render leaves the marker unchanged.
- */
-function rememberRenderedSession(renderId) {
-  if (renderId !== currentRenderId) {
-    return;
-  }
-  lastRenderedUserId = appState.authToken ? appState.currentUser?.id ?? null : null;
-}
-
-function isOrderDetailsPath(pathName) {
-  if (!pathName.startsWith(ORDER_DETAILS_ROUTE_PREFIX)) {
-    return false;
-  }
-  const orderIdSegment = pathName.slice(ORDER_DETAILS_ROUTE_PREFIX.length);
-  return Boolean(orderIdSegment) && !orderIdSegment.includes("/");
-}
-
-async function renderApp() {
-  const renderId = ++currentRenderId;
-  clearCurrentPage();
-
-  let modules;
-  try {
-    modules = await loadRemoteModules;
-  } catch (error) {
-    const appRoot = document.getElementById("appRoot");
-    appRoot.innerHTML = `<pre>Unable to load remotes: ${error.message}</pre>`;
-    return;
-  }
-
-  if (renderId !== currentRenderId) {
-    return;
-  }
-
-  const pathName = window.location.pathname;
-  const currentUrl = new URL(window.location.href);
-
-  if (pathName === "/order-details") {
-    const legacyOrderId = currentUrl.searchParams.get("orderId");
-    if (legacyOrderId) {
-      const encodedOrderId = encodeURIComponent(legacyOrderId);
-      history.replaceState({}, "", `/order-details/${encodedOrderId}`);
-      publishRenderRequested();
-      return;
-    }
-  }
-
-  if (isProtectedRoute(pathName) && !isAuthenticated(appState)) {
-    rememberPostLoginRedirect(pathName + window.location.search);
-    history.replaceState({}, "", "/login");
-    publishRenderRequested();
-    return;
-  }
-
-  const layoutMounts = baseLayout();
-  activeHeaderElement = mountHeaderAndFooter(
-    appState,
-    layoutMounts,
-    modules,
-    activeCleanupFunctions,
-  );
-
-  try {
-    if (pathName === "/") {
-      await renderHomePage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName === "/products") {
-      await renderProductListPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName === "/promotions") {
-      await renderPromotionsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName === "/product") {
-      await renderProductDetailsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName === "/checkout") {
-      await renderCheckoutPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName === "/order-placed") {
-      await renderOrderPlacedPage(layoutMounts.pageMount);
-      return;
-    }
-
-    if (pathName === "/login") {
-      await renderLoginPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName === "/account") {
-      await renderAccountPage(appState, layoutMounts.pageMount, activeCleanupFunctions);
-      return;
-    }
-
-    if (isOrderDetailsPath(pathName)) {
-      await renderOrderDetailsPage(appState, layoutMounts.pageMount, modules, activeCleanupFunctions);
-      return;
-    }
-
-    if (pathName === "/notifications") {
-      if (modules.mountNotificationsPage) {
-        const cleanupNotifications = modules.mountNotificationsPage(layoutMounts.pageMount, {
-          navigate,
-        });
-        if (typeof cleanupNotifications === "function") {
-          activeCleanupFunctions.push(cleanupNotifications);
-        }
-      }
-      return;
-    }
-
-    layoutMounts.pageMount.innerHTML = `
-      <section class="notice-box">
-        <h2>Page not found</h2>
-        <button id="goHomeButton">Go Home</button>
-      </section>
-    `;
-    layoutMounts.pageMount
-      .querySelector("#goHomeButton")
-      .addEventListener("click", () => navigate("/"));
-  } finally {
-    rememberRenderedSession(renderId);
-  }
-}
-
 subscribeToCartChanges(() => {
   setGlobalCartVariable();
-  updateHeaderState(appState, activeHeaderElement);
+  updateHeaderState(appState, pageRenderer.getHeaderElement());
 });
 
 subscribeToRenderRequests(() => {
-  renderApp();
+  pageRenderer.render();
 });
 
 window.addEventListener("popstate", () => {
-  renderApp();
+  pageRenderer.render();
 });
 
 subscribeToNewInboxNotifications((notification) => {
@@ -276,17 +99,19 @@ subscribeToNewInboxNotifications((notification) => {
   });
 });
 
-function syncCartLiveEventsWithSession() {
-  if (appState.authToken) {
+const authSession = createAuthSessionLifecycle(createShellSessionChannel(), {
+  isAuthenticated: () => Boolean(appState.authToken),
+  startLiveEvents: () => {
     void startCartLiveEvents(shellTransport);
     void startCustomerOrderStatusStream(shellTransport);
     void startNotificationInboxLiveEvents(shellTransport, { shell: "ecommerce" });
-  } else {
+  },
+  stopLiveEvents: () => {
     stopCartLiveEvents();
     stopCustomerOrderStatusStream();
     stopNotificationInboxLiveEvents();
-  }
-}
+  },
+});
 
 subscribeToSessionRevoked(() => {
   if (!appState.authToken) {
@@ -304,12 +129,12 @@ subscribeToAuthSessionChanges(() => {
   // setAuthSession and refreshCurrentUserFromApi write appState before this event.
   // A matching user id is a profile refresh: remounting would replace the account
   // page's action buttons while a click is in flight.
-  if (appState.authToken && appState.currentUser?.id === lastRenderedUserId) {
-    updateHeaderState(appState, activeHeaderElement);
+  if (renderedSession.isSameSignedInUser()) {
+    updateHeaderState(appState, pageRenderer.getHeaderElement());
     return;
   }
-  syncCartLiveEventsWithSession();
-  renderApp();
+  authSession.sync();
+  pageRenderer.render();
 });
 
 subscribeToLogoutRequests(() => {
@@ -329,13 +154,13 @@ async function bootstrap() {
   readStoredAuth(appState);
   await loadMockData(appState);
   startCartTabSync(appState);
-  syncCartLiveEventsWithSession();
+  authSession.start();
   if (appState.authToken) {
     await hydrateSavedCart(appState);
     void refreshCurrentUserFromApi(appState);
   }
   setGlobalCartVariable();
-  await renderApp();
+  await pageRenderer.render();
 }
 
 bootstrap().catch((error) => {
