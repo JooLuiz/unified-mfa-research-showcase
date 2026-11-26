@@ -191,3 +191,40 @@ test("clicking the author does not open the post, and clicking the card does", a
     mounted.unmount();
   }
 });
+
+test("a grid card shows the avatar and image, labels an anonymous author, and ignores clicks without an open handler", () => {
+  const mounted = mountCard({
+    post: { id: "post-20", imageUrl: "photo.png", author: { avatarUrl: "face.png", fullName: "Ada" } },
+    layoutMode: "grid",
+  });
+
+  try {
+    const card = findElement(mounted.root, (node) => node.classList && node.classList.contains("post-card"));
+    assert.equal(card.classList.contains("post-card-grid"), true);
+    assert.equal(card.classList.contains("post-card-clickable"), false);
+    assert.equal(
+      findElement(mounted.root, (node) => node.classList && node.classList.contains("post-card-avatar")).getAttribute("src"),
+      "face.png",
+    );
+    assert.equal(
+      findElement(mounted.root, (node) => node.classList && node.classList.contains("post-card-image")).getAttribute("src"),
+      "photo.png",
+    );
+    const authorButton = findElement(
+      mounted.root,
+      (node) => node.classList && node.classList.contains("post-card-author-button"),
+    );
+    assert.equal(authorButton.getAttribute("aria-label"), "author");
+    assert.equal(
+      findElement(mounted.root, (node) => node.classList && node.classList.contains("post-card-content")).textContent,
+      "",
+    );
+
+    act(() => {
+      card.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    assert.match(mounted.root.textContent, /Ada/);
+  } finally {
+    mounted.unmount();
+  }
+});
