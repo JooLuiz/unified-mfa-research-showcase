@@ -104,3 +104,43 @@ test("useResponsiveGrid grows by one row, resets, and expands when the viewport 
     delete globalThis.window;
   }
 });
+
+test("useResponsiveGrid keeps its count when a resize keeps the row size, and stops listening after unmount", async () => {
+  installResizableWindow(1280);
+  const { root } = installDomDocument();
+  const reactRoot = createRoot(root);
+  const seenCounts = [];
+
+  function GridProbe() {
+    const grid = useResponsiveGrid();
+    useEffect(() => {
+      seenCounts.push(grid.visibleCount);
+    });
+    return null;
+  }
+
+  try {
+    await act(async () => {
+      reactRoot.render(createElement(GridProbe));
+    });
+    const wideCount = seenCounts.at(-1);
+
+    window.innerWidth = 1281;
+    await act(async () => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    assert.equal(seenCounts.at(-1), wideCount);
+
+    await act(async () => {
+      reactRoot.unmount();
+    });
+    const rendersAtUnmount = seenCounts.length;
+    window.innerWidth = 400;
+    await act(async () => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    assert.equal(seenCounts.length, rendersAtUnmount);
+  } finally {
+    delete globalThis.window;
+  }
+});

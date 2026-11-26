@@ -145,3 +145,39 @@ test("unmounting before the post arrives leaves the page empty", async () => {
     },
   );
 });
+
+test("a loaded post is shown and the request carries the session token", async () => {
+  const requests = [];
+  await withFetch(async (url, options) => {
+    requests.push({ url: String(url), headers: options.headers });
+    return { ok: true, status: 200, json: async () => ({ id: "post 01", content: "Loaded post", author: { fullName: "Ada" } }) };
+  }, async () => {
+    const mounted = await mountView({ apiBaseUrl: "http://localhost:4000", postId: "post 01", authToken: "token-01" });
+    try {
+      await flushRequests();
+      assert.match(mounted.root.textContent, /Loaded post/);
+      assert.match(mounted.root.textContent, /Ada/);
+      assert.match(requests[0].url, /\/posts\/post%2001$/);
+      assert.equal(requests[0].headers.Authorization, "Bearer token-01");
+    } finally {
+      mounted.unmount();
+    }
+  });
+});
+
+test("a post request that fails after unmount leaves the page empty", async () => {
+  let rejectPost = () => {};
+  await withFetch(
+    () =>
+      new Promise((_resolve, reject) => {
+        rejectPost = () => reject(new Error("late failure"));
+      }),
+    async () => {
+      const mounted = await mountView({ apiBaseUrl: "http://localhost:4000", postId: "post-01" });
+      mounted.unmount();
+      rejectPost();
+      await flushRequests();
+      assert.equal(mounted.root.textContent, "");
+    },
+  );
+});

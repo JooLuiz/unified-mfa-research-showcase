@@ -198,3 +198,26 @@ test("a like click without a session token changes nothing", async () => {
     mounted.unmount();
   }
 });
+
+test("a card shows the avatar, the post image, the username fallback, and the comment count", () => {
+  const mounted = mountCard({
+    post: {
+      id: "post-09",
+      content: "Photo day",
+      imageUrl: "photo.png",
+      comments: 3,
+      author: { id: "author-02", username: "grace", avatarUrl: "grace.png" },
+    },
+  });
+
+  try {
+    const avatar = findElement(mounted.root, (node) => node.classList && node.classList.contains("single-post-avatar"));
+    const image = findElement(mounted.root, (node) => node.classList && node.classList.contains("single-post-image"));
+    assert.equal(avatar.getAttribute("src"), "grace.png");
+    assert.equal(image.getAttribute("src"), "photo.png");
+    assert.match(mounted.root.textContent, /grace/);
+    assert.match(mounted.root.textContent, /Comments: 3/);
+  } finally {
+    mounted.unmount();
+  }
+});

@@ -142,3 +142,18 @@ test("an unread row can be marked read without opening it, and a missing time is
     mounted.unmount();
   }
 });
+
+test("a read row shows a raw invalid time and no mark-read button", () => {
+  const mounted = mountRow(
+    { id: "note-03", title: "Old", message: "Seen already.", read: true, createdAt: "yesterday" },
+    { onOpenLink() {}, onMarkRead() {} },
+  );
+
+  try {
+    assert.match(mounted.root.textContent, /yesterday/);
+    assert.doesNotMatch(mounted.root.textContent, /Mark as read/);
+    assert.equal(String(mounted.root.childNodes[0].className).includes("unread"), false);
+  } finally {
+    mounted.unmount();
+  }
+});

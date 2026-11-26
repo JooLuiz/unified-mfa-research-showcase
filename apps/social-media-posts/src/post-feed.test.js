@@ -94,3 +94,33 @@ test("clicking a post calls the open handler once with that post", () => {
     mounted.unmount();
   }
 });
+
+test("a feed shows the default title, a custom title, or no title, in list or grid layout", () => {
+  const posts = [{ id: "post-01", content: "Hello", author: { fullName: "Ada" } }];
+  const mounted = mountFeed({ posts });
+
+  try {
+    assert.match(mounted.root.textContent, /Latest Posts/);
+    const list = findElement(mounted.root, (node) => node.classList && node.classList.contains("post-feed-list"));
+    assert.equal(list.classList.contains("post-feed-grid"), false);
+  } finally {
+    mounted.unmount();
+  }
+
+  const custom = mountFeed({ posts, title: "Trending", layoutMode: "grid" });
+  try {
+    assert.match(custom.root.textContent, /Trending/);
+    const grid = findElement(custom.root, (node) => node.classList && node.classList.contains("post-feed-list"));
+    assert.equal(grid.classList.contains("post-feed-grid"), true);
+  } finally {
+    custom.unmount();
+  }
+
+  const untitled = mountFeed({ posts, title: "" });
+  try {
+    assert.equal(findElement(untitled.root, (node) => node.classList && node.classList.contains("post-feed-title")), null);
+    assert.match(untitled.root.textContent, /Hello/);
+  } finally {
+    untitled.unmount();
+  }
+});
