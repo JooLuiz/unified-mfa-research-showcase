@@ -100,6 +100,7 @@ export {
   setAuthSession,
   clearAuthSession,
   isAuthenticated,
+  isOrderDetailsRoute,
   isProtectedRoute,
   rememberPostLoginRedirect,
   consumePostLoginRedirect,

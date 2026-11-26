@@ -6,3 +6,10 @@ export {
   NAVIGATION_TOPIC,
 } from "./shellEventsContracts.js";
 export { createShellEvents } from "./createShellEvents.js";
+export {
+  createAuthSessionLifecycle,
+  SESSION_MODE_AUTHENTICATED,
+  SESSION_MODE_GUEST,
+  SESSION_MODE_IDLE,
+} from "./createAuthSessionLifecycle.js";
+export { createRenderedSessionMarker } from "./createRenderedSessionMarker.js";

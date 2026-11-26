@@ -1,14 +1,14 @@
 /**
  * Renders the catalog routes: product list (PLP) and product details (PDP).
  * Role: Wires shell state and navigation into the product list and product details MFEs.
- * Not in this file: Filter persistence shape (src/utils/PLPFilterActions.js) or cart storage (src/utils/cartActions.js).
+ * Not in this file: Filter and product-open outcomes (src/intents/catalogIntentHandlers.js) or cart storage (src/utils/cartActions.js).
  * Key dependencies: product-list-page, product-details-page, product-showcase, and product-card remotes.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
 import { navigate } from "../utils/navigate";
 import { dispatchAddToCartEvent } from "../utils/cartActions";
-import { storePLPFilters, normalizePlpFilters } from "../utils/PLPFilterActions";
+import { createCatalogIntentHandlers } from "../intents/catalogIntentHandlers";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 
 /**
@@ -22,6 +22,7 @@ import { MOCK_API_BASE_URL } from "../utils/constants";
  */
 async function renderProductListPage(appState, pageMount, modules, activeCleanupFunctions) {
   pageMount.innerHTML = `<section id="plpMount"></section>`;
+  const catalogHandlers = createCatalogIntentHandlers(appState);
   const plpMount = pageMount.querySelector("#plpMount");
 
   activeCleanupFunctions.push(
@@ -29,11 +30,8 @@ async function renderProductListPage(appState, pageMount, modules, activeCleanup
       apiBaseUrl: MOCK_API_BASE_URL,
       initialFilters: appState.plpFilters,
       initialSort: appState.plpSortBy,
-      onFiltersChange: (nextFilters) => {
-        appState.plpFilters = normalizePlpFilters(nextFilters);
-        storePLPFilters(appState);
-      },
-      onProductClick: (productId) => navigate(`/product?productId=${productId}`),
+      onFiltersChange: (nextFilters) => catalogHandlers.onFiltersApplyRequested(nextFilters),
+      onProductClick: (productId) => catalogHandlers.onProductOpenRequested({ productId }),
       onAddToCart: dispatchAddToCartEvent,
     }),
   );

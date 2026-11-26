@@ -5,16 +5,16 @@
  *   a like is toggled anywhere, or whenever anyone publishes a new post.
  * Not in this file: Post creation (src/pages/postsPage.js), post persistence
  *   (src/commands/postCommands.js), or the toggle write itself (src/commands/postLikeCommands.js).
- * Key dependencies: angular-product-showcase custom element; ecommerce shell base URL for
- *   product redirects; @shared/post-like-events; src/commands/postLikeCommands.js.
+ * Key dependencies: angular-product-showcase custom element; src/intents/catalogIntentHandlers.js for
+ *   product redirects; @shared/post-like-events; src/intents/communityIntentHandlers.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
 import { subscribeToPostLikesChanged, subscribeToPostCreated } from "@shared/post-like-events";
-import { ECOMMERCE_SHELL_BASE_URL } from "../utils/constants";
 import { shellTransport } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
-import { toggleLikeForPost } from "../commands/postLikeCommands";
+import { createCatalogIntentHandlers } from "../intents/catalogIntentHandlers";
+import { createCommunityIntentHandlers } from "../intents/communityIntentHandlers";
 
 const TRENDING_LIKES_THRESHOLD = 1;
 const EMPTY_TRENDING_MESSAGE = "No trending posts yet.";
@@ -41,15 +41,9 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
 
   const trendingPostsMount = pageMount.querySelector("#trendingPostsMount");
 
-  const handleLike = (postId) =>
-    toggleLikeForPost(shellTransport, appState, appState.posts.find((post) => post.id === postId));
-
-  const handleAuthorClick = (author) => {
-    if (author?.username) {
-      console.log("renderFeedPage - authorClicked");
-      console.log(author);
-    }
-  };
+  const communityHandlers = createCommunityIntentHandlers(shellTransport, appState);
+  const handleLike = (postId) => communityHandlers.onPostLiked({ postId });
+  const handleAuthorClick = (author) => communityHandlers.onAuthorSelected({ author });
 
   const handlePostClick = (post) => {
     if (post?.id) {
@@ -109,10 +103,9 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
     .filter(Boolean);
 
   if (showcaseProducts.length > 0) {
+    const catalogHandlers = createCatalogIntentHandlers();
     const redirectToProductDetails = (productId) =>
-      window.location.assign(
-        `${ECOMMERCE_SHELL_BASE_URL}/product?productId=${productId}`,
-      );
+      catalogHandlers.onProductOpenRequested({ productId });
 
     const showcaseElement = document.createElement("angular-product-showcase");
     showcaseElement.config = {
@@ -124,7 +117,7 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
       defaultCollapsed: false,
       onProductClick: redirectToProductDetails,
       onAddToCart: (showcasePayload) => {
-        redirectToProductDetails(showcasePayload.productId);
+        catalogHandlers.onCartItemAddRequested({ productId: showcasePayload.productId });
       },
     };
     pageMount.appendChild(showcaseElement);

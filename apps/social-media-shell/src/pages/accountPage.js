@@ -3,9 +3,9 @@
  * Role: Composes the account MFE mounts and the current user's post feed, kept live by
  *   patching likes whenever someone else likes one of this user's posts.
  * Not in this file: Account HTTP updates (src/commands/accountCommands.js), post creation
- *   (src/pages/postsPage.js), or the toggle write itself (src/commands/postLikeCommands.js).
+ *   (src/pages/postsPage.js), or the like outcome (src/intents/communityIntentHandlers.js).
  * Key dependencies: account/AccountProfile and account/AccountAddress remotes;
- *   @shared/post-like-events; src/commands/postLikeCommands.js.
+ *   @shared/post-like-events; src/intents/communityIntentHandlers.js.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
@@ -20,7 +20,7 @@ import { publishLogoutRequested, shellTransport } from "../events/eventBus";
 import { persistAccountUpdate } from "../commands/accountCommands";
 import { requestCsvExport } from "../exports/requestCsvExport";
 import { publishNotification } from "../notifications/notificationAdapter";
-import { toggleLikeForPost } from "../commands/postLikeCommands";
+import { createCommunityIntentHandlers } from "../intents/communityIntentHandlers";
 
 /**
  * Renders the account page with profile, address, and "My Posts" sections.
@@ -156,14 +156,9 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
     "#accountPostsFeedMount",
   );
 
-  const handleLike = (postId) =>
-    toggleLikeForPost(shellTransport, appState, appState.posts.find((post) => post.id === postId));
-  const handleAuthorClick = (author) => {
-    if (author?.username) {
-      console.log("renderAccountPage - authorClicked");
-      console.log(author);
-    }
-  };
+  const communityHandlers = createCommunityIntentHandlers(shellTransport, appState);
+  const handleLike = (postId) => communityHandlers.onPostLiked({ postId });
+  const handleAuthorClick = (author) => communityHandlers.onAuthorSelected({ author });
 
   const handlePostClick = (post) => {
     if (post?.id) {
