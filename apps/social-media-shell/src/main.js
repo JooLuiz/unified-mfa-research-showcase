@@ -23,6 +23,7 @@ import loadRemoteModules from "./utils/loadRemoteModules";
 import {
   bindShellTransport,
   createShellSessionChannel,
+  ensureAccountIntentListeners,
   ensureCatalogIntentListeners,
   ensureCommunityIntentListeners,
   publishLogoutRequested,
@@ -50,6 +51,7 @@ import {
   PAGE_APP_NAMES,
   createPageAppRegistrations,
 } from "./pages/pageRegistry";
+import { createAccountIntentHandlers } from "./intents/accountIntentHandlers";
 import { createCatalogIntentHandlers } from "./intents/catalogIntentHandlers";
 import { createCommunityIntentHandlers } from "./intents/communityIntentHandlers";
 
@@ -116,6 +118,7 @@ subscribeToRenderRequests(() => {
 
 const catalogIntentHandlers = createCatalogIntentHandlers();
 const communityIntentHandlers = createCommunityIntentHandlers(shellTransport, appState);
+const accountIntentHandlers = createAccountIntentHandlers(appState);
 
 const authSession = createAuthSessionLifecycle(createShellSessionChannel(), {
   isAuthenticated: () => Boolean(appState.authToken),
@@ -123,6 +126,7 @@ const authSession = createAuthSessionLifecycle(createShellSessionChannel(), {
   attachListeners: () => {
     ensureCatalogIntentListeners(catalogIntentHandlers);
     ensureCommunityIntentListeners(communityIntentHandlers);
+    ensureAccountIntentListeners(accountIntentHandlers);
   },
   startLiveEvents: () => {
     void startNotificationInboxLiveEvents(shellTransport, { shell: "social" });

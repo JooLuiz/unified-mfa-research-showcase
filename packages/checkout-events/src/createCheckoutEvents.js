@@ -1,66 +1,134 @@
 /**
- * Publishes and subscribes to checkout contracts.
- * Role: Exposes coupon and place-order operations over an injected transport.
- * Not in this file: Order placement HTTP or the browser event-name map.
- * Key dependencies: src/checkoutEventsContracts.js.
- * See also: src/index.js.
+ * Publishes and subscribes to shared checkout intents over an injected transport.
+ * Role: Hides the transport behind coupon and place-order operations for remotes and shells.
+ * Not in this file: Transport setup, cart state ownership, order APIs, or UI rendering.
+ * Key dependencies: A transport supplied by the owning shell or remote, or a recording transport in tests.
+ * See also: src/checkoutEventsContracts.js; src/createCheckoutEvents.test.js.
  */
 
 import {
+  CHECKOUT_COUPON_APPLIED_EVENT,
+  CHECKOUT_PLACE_ORDER_REQUESTED_EVENT,
   CHECKOUT_TOPIC,
-  COUPON_APPLIED_EVENT,
-  PLACE_ORDER_REQUESTED_EVENT,
-  isValidCouponApplied,
+  createCouponAppliedRequest,
+  isValidCouponAppliedRequest,
 } from "./checkoutEventsContracts.js";
 
 /**
- * Creates checkout event operations bound to a transport.
+ * Creates a checkout-scoped local event adapter for checkout remotes and host shells.
  *
- * @param {{ publish: (message: { topic: string, event: string, payload?: object, scope: string }) => void, subscribe: (topic: string, event: string, callback: (message: { payload?: unknown }) => void) => () => void }} transport - Branch transport.
- * @returns {{ publishCouponApplied: (payload: { code: string }) => void, subscribeToCouponApplied: (listener: (payload: { code: string }) => void) => () => void, publishPlaceOrderRequested: () => void, subscribeToPlaceOrderRequests: (listener: () => void) => () => void }} Checkout event operations.
+ * @param {{ publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void }} transport - Branch transport or recording transport. Both expose publish and subscribe.
+ * @returns {object} Checkout event adapter with publish helpers and intent listeners.
  * @note publishPlaceOrderRequested always includes payload: {} so every transport receives a record.
  */
-function createCheckoutEvents({ publish, subscribe }) {
-  function publishCouponApplied(payload) {
-    if (!isValidCouponApplied(payload)) {
+function createCheckoutEvents(transport) {
+  let checkoutIntentListenersStarted = false;
+
+  function publishLocalEvent(topic, event, payload = {}) {
+    transport.publish({ topic, event, payload, scope: "local" });
+  }
+
+  /**
+   * Publishes that a coupon was applied in a checkout remote.
+   *
+   * @param {{ code: string, discountPercentage: number }} coupon - Coupon code and discount.
+   * @returns {void}
+   * @sideEffects Publishes a local checkout.coupon-applied message when valid.
+   */
+  function publishCouponApplied(coupon) {
+    const normalizedRequest = createCouponAppliedRequest(coupon);
+    if (!normalizedRequest) {
       return;
     }
-    publish({
-      topic: CHECKOUT_TOPIC,
-      event: COUPON_APPLIED_EVENT,
-      payload,
-      scope: "local",
-    });
+
+    publishLocalEvent(
+      CHECKOUT_TOPIC,
+      CHECKOUT_COUPON_APPLIED_EVENT,
+      normalizedRequest,
+    );
   }
 
-  function subscribeToCouponApplied(listener) {
-    return subscribe(CHECKOUT_TOPIC, COUPON_APPLIED_EVENT, (message) => {
-      if (isValidCouponApplied(message.payload)) {
-        listener(message.payload);
-      }
-    });
-  }
-
+  /**
+   * Publishes a request for the host shell to place the current order.
+   *
+   * @returns {void}
+   * @sideEffects Publishes a local checkout.place-order-requested message with payload: {}.
+   */
   function publishPlaceOrderRequested() {
-    publish({
-      topic: CHECKOUT_TOPIC,
-      event: PLACE_ORDER_REQUESTED_EVENT,
-      payload: {},
-      scope: "local",
+    publishLocalEvent(CHECKOUT_TOPIC, CHECKOUT_PLACE_ORDER_REQUESTED_EVENT);
+  }
+
+  /**
+   * Subscribes to valid coupon-applied messages until the returned function runs.
+   *
+   * @param {(payload: { code: string, discountPercentage: number }) => void} listener - Called with each valid coupon.
+   * @returns {() => void} Removes the subscription.
+   * @sideEffects Registers a local checkout subscription. Invalid payloads are ignored.
+   */
+  function subscribeToCouponApplied(listener) {
+    return transport.subscribe(CHECKOUT_TOPIC, CHECKOUT_COUPON_APPLIED_EVENT, (message) => {
+      if (!isValidCouponAppliedRequest(message.payload)) {
+        return;
+      }
+      listener(message.payload);
     });
   }
 
+  /**
+   * Subscribes to place-order requests until the returned function runs.
+   *
+   * @param {() => void} listener - Called for each place-order request.
+   * @returns {() => void} Removes the subscription.
+   * @sideEffects Registers a local checkout subscription.
+   */
   function subscribeToPlaceOrderRequests(listener) {
-    return subscribe(CHECKOUT_TOPIC, PLACE_ORDER_REQUESTED_EVENT, () => {
+    return transport.subscribe(CHECKOUT_TOPIC, CHECKOUT_PLACE_ORDER_REQUESTED_EVENT, () => {
       listener();
     });
   }
 
+  /**
+   * Registers persistent checkout intent handlers once per session.
+   *
+   * @param {{
+   *   onCouponApplied?: (payload: { code: string, discountPercentage: number }) => void,
+   *   onPlaceOrderRequested?: () => void,
+   * }} handlers - Host orchestration handlers.
+   * @returns {void}
+   * @sideEffects Registers local subscriptions for provided handlers.
+   */
+  function ensureCheckoutIntentListeners(handlers) {
+    if (checkoutIntentListenersStarted) {
+      return;
+    }
+
+    checkoutIntentListenersStarted = true;
+
+    if (typeof handlers.onCouponApplied === "function") {
+      subscribeToCouponApplied(handlers.onCouponApplied);
+    }
+
+    if (typeof handlers.onPlaceOrderRequested === "function") {
+      subscribeToPlaceOrderRequests(handlers.onPlaceOrderRequested);
+    }
+  }
+
+  /**
+   * Marks checkout intent subscriptions for re-registration after the transport drops them.
+   *
+   * @returns {void}
+   */
+  function resetCheckoutIntentListeners() {
+    checkoutIntentListenersStarted = false;
+  }
+
   return {
     publishCouponApplied,
-    subscribeToCouponApplied,
     publishPlaceOrderRequested,
+    subscribeToCouponApplied,
     subscribeToPlaceOrderRequests,
+    ensureCheckoutIntentListeners,
+    resetCheckoutIntentListeners,
   };
 }
 

@@ -1,27 +1,42 @@
-export const CHECKOUT_TOPIC: string;
-export const COUPON_APPLIED_EVENT: string;
-export const PLACE_ORDER_REQUESTED_EVENT: string;
-
-export interface CouponAppliedPayload {
+export type CouponAppliedRequest = {
   code: string;
-}
+  discountPercentage: number;
+};
 
-export function isValidCouponApplied(value: unknown): value is CouponAppliedPayload;
-
-export interface CheckoutTransport {
-  publish(message: { topic: string; event: string; payload?: object; scope: string }): void;
+export type CheckoutTransport = {
+  publish(input: object): void;
   subscribe(
     topic: string,
     event: string,
-    callback: (message: { payload?: unknown }) => void,
+    callback: (message: { payload: unknown }) => void,
   ): () => void;
-}
+};
 
-export interface CheckoutEvents {
-  publishCouponApplied(payload: CouponAppliedPayload): void;
-  subscribeToCouponApplied(listener: (payload: CouponAppliedPayload) => void): () => void;
+export type CheckoutIntentHandlers = {
+  onCouponApplied?(payload: CouponAppliedRequest): void;
+  onPlaceOrderRequested?(): void;
+};
+
+export type CheckoutEvents = {
+  publishCouponApplied(coupon: CouponAppliedRequest): void;
   publishPlaceOrderRequested(): void;
+  subscribeToCouponApplied(
+    listener: (payload: CouponAppliedRequest) => void,
+  ): () => void;
   subscribeToPlaceOrderRequests(listener: () => void): () => void;
-}
+  ensureCheckoutIntentListeners(handlers: CheckoutIntentHandlers): void;
+  resetCheckoutIntentListeners(): void;
+};
 
-export function createCheckoutEvents(transport: CheckoutTransport): CheckoutEvents;
+export declare const CHECKOUT_TOPIC: "checkout";
+export declare const CHECKOUT_COUPON_APPLIED_EVENT: "coupon-applied";
+export declare const CHECKOUT_PLACE_ORDER_REQUESTED_EVENT: "place-order-requested";
+
+export function isValidCouponAppliedRequest(
+  value: unknown,
+): value is CouponAppliedRequest;
+export function createCouponAppliedRequest(
+  value: unknown,
+): CouponAppliedRequest | null;
+
+export function createCheckoutEvents(input: CheckoutTransport): CheckoutEvents;

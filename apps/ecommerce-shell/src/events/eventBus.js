@@ -1,18 +1,20 @@
 /**
  * Publishes and subscribes to ecommerce shell window, cart, and header events.
- * Role: Maps shared shell and catalog contracts onto window CustomEvents and exposes the shell's publish and subscribe helpers.
+ * Role: Maps shared shell, catalog, checkout, and account contracts onto window CustomEvents and exposes the shell's publish and subscribe helpers.
  * Not in this file: Route rendering, cart item mutation, auth storage, or notification toasts.
- * Key dependencies: @shared/shell-events; @shared/catalog-events; @shared/server-events page contracts;
- *   window CustomEvent.
+ * Key dependencies: @shared/shell-events; @shared/catalog-events; @shared/checkout-events;
+ *   @shared/account-events; @shared/server-events page contracts; window CustomEvent.
  * See also: src/main.js; src/utils/cartActions.js; src/utils/mountActions.js.
  */
 
+import { createAccountEvents } from "@shared/account-events";
 import {
   CART_CHANGED_EVENT,
   CART_ITEM_ADD_REQUESTED_EVENT,
   CART_TOPIC,
   createCatalogEvents,
 } from "@shared/catalog-events";
+import { createCheckoutEvents } from "@shared/checkout-events";
 import { NOTIFICATION_RAISED_EVENT, NOTIFICATION_TOPIC } from "@shared/notifications";
 import {
   composeShellEvents,
@@ -202,6 +204,11 @@ const {
   resetCatalogIntentListeners,
 } = catalogEvents;
 
+const { ensureCheckoutIntentListeners, resetCheckoutIntentListeners } =
+  createCheckoutEvents(shellTransport);
+const { ensureAccountIntentListeners, resetAccountIntentListeners } =
+  createAccountEvents(shellTransport);
+
 /**
  * Returns the session connection steps used by the shell's auth session lifecycle.
  * Window events and server requests need no connection, so each step does nothing here.
@@ -221,14 +228,18 @@ function createShellSessionChannel(_options = {}) {
 export {
   createShellSessionChannel,
   bindShellTransport,
+  ensureAccountIntentListeners,
   ensureCatalogIntentListeners,
+  ensureCheckoutIntentListeners,
   installShellTransport,
   publishAuthSessionChanged,
   publishCartChanged,
   publishCartItemAddRequested,
   publishLogoutRequested,
   publishRenderRequested,
+  resetAccountIntentListeners,
   resetCatalogIntentListeners,
+  resetCheckoutIntentListeners,
   shellTransport,
   createShellTransport,
   subscribeToAuthSessionChanges,

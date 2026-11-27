@@ -18,7 +18,6 @@ import {
   rememberPostLoginRedirect,
 } from "../utils/authActions";
 import { publishLogoutRequested, shellTransport } from "../events/eventBus";
-import { persistAccountUpdate } from "../commands/accountCommands";
 import { requestCsvExport } from "../exports/requestCsvExport";
 import { publishNotification } from "../notifications/notificationAdapter";
 
@@ -84,16 +83,12 @@ async function renderAccountPage(appState, pageMount, modules, activeCleanupFunc
   activeCleanupFunctions.push(
     accountProfileModule.mountAccountProfile(accountProfileMount, {
       user: appState.currentUser,
-      onSaveProfile: (profilePayload) =>
-        persistAccountUpdate(shellTransport, appState, profilePayload),
     }),
   );
 
   activeCleanupFunctions.push(
     accountAddressModule.mountAccountAddress(accountAddressMount, {
       address: appState.currentUser?.address,
-      onSaveAddress: (addressPayload) =>
-        persistAccountUpdate(shellTransport, appState, { address: addressPayload }),
     }),
   );
 

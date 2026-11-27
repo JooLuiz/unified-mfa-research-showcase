@@ -1,20 +1,29 @@
+/**
+ * Checkout order summary remote.
+ * Role: Displays totals and publishes checkout.place-order-requested for the host shell.
+ * Not in this file: Order persistence, cart ownership, or how the intent reaches the shell.
+ * Key dependencies: @shared/server-events createPageEvents; @shared/checkout-events.
+ * See also: apps/ecommerce-shell/src/intents/checkoutIntentHandlers.js.
+ */
+
 import "@angular/compiler";
 import {
   ApplicationRef,
   Component,
   ComponentRef,
-  EventEmitter,
   Input,
-  Output,
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { createApplication } from "@angular/platform-browser";
+import { createPageEvents } from "@shared/server-events";
+import { createCheckoutEvents } from "@shared/checkout-events";
 import "./styles.css";
+
+const { publishPlaceOrderRequested } = createCheckoutEvents(createPageEvents());
 
 type CheckoutSummaryProps = {
   subtotal: number;
   discountAmount: number;
-  onPlaceOrder?: () => void;
 };
 
 type CheckoutSummaryHandle = {
@@ -56,8 +65,6 @@ class CheckoutSummaryComponent {
 
   @Input() discountAmount = 0;
 
-  @Output() placeOrder = new EventEmitter<void>();
-
   get hasDiscount(): boolean {
     return this.discountAmount > 0;
   }
@@ -67,7 +74,7 @@ class CheckoutSummaryComponent {
   }
 
   handlePlaceOrder(): void {
-    this.placeOrder.emit();
+    publishPlaceOrderRequested();
   }
 }
 
@@ -89,10 +96,6 @@ export function mountCheckoutSummary(
     componentRef = applicationRef.bootstrap(CheckoutSummaryComponent, containerElement);
     componentRef.setInput("subtotal", props.subtotal ?? 0);
     componentRef.setInput("discountAmount", props.discountAmount ?? 0);
-
-    componentRef.instance.placeOrder.subscribe(() => {
-      props.onPlaceOrder?.();
-    });
   });
 
   return {
