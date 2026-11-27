@@ -22,6 +22,7 @@ const COVERAGE_INCLUDES = [
   "apps/social-media-shell/src/events/eventBus.js",
   "apps/admin-shell/src/events/eventBus.js",
   "apps/formulary/src/faq-formulary.js",
+  "apps/formulary/src/new-post-formulary.js",
   "apps/product-details-page/src/product-details.template.ts",
 ];
 
@@ -80,6 +81,7 @@ const TEST_FILES = [
   "apps/ecommerce-shell/src/events/eventContracts.test.js",
   "apps/formulary/src/faq-formulary.test.js",
   "apps/formulary/src/mountAgnosticFormulary.test.js",
+  "apps/formulary/src/new-post-formulary.test.js",
   "apps/account/src/account-address.test.js",
   "apps/account/src/account-profile.test.js",
   "apps/global-layout/header/src/header-element.test.js",
