@@ -2,13 +2,13 @@
  * Boots the checkout line list on this branch and publishes cart intents.
  * Role: Owns Angular bootstrap, the cart-change subscription, and teardown.
  * Not in this file: Line rendering and the available-count rule (src/checkout-items.ts).
- * Key dependencies: event-mesh/mesh; @shared/catalog-events; @angular/platform-browser.
- * See also: src/checkout-items.ts; MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Key dependencies: @shared/server-events createPageEvents; @shared/catalog-events; @angular/platform-browser.
+ * See also: src/checkout-items.ts.
  */
 
 import { ApplicationRef, ComponentRef } from "@angular/core";
 import { createApplication } from "@angular/platform-browser";
-import mesh from "event-mesh/mesh";
+import { createPageEvents } from "@shared/server-events";
 import { createCatalogEvents } from "@shared/catalog-events";
 import {
   CheckoutItemsComponent,
@@ -18,7 +18,7 @@ import {
 } from "./checkout-items";
 
 const { publishCartItemUpdateRequested, publishCartItemRemoveRequested } =
-  createCatalogEvents(mesh);
+  createCatalogEvents(createPageEvents());
 
 /**
  * Mounts the checkout line list and publishes update or remove intents.

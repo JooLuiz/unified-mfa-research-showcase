@@ -8,7 +8,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import mesh from "event-mesh/mesh";
+import { createPageEvents } from "@shared/server-events";
 import { createCatalogEvents } from "@shared/catalog-events";
 import { useResponsiveGrid } from "./hooks/useResponsiveGrid";
 import { useProductListFilters } from "./hooks/useProductListFilters";
@@ -19,7 +19,7 @@ import { ProductListToolbar } from "./components/ProductListToolbar";
 import { ActiveFilterTags } from "./components/ActiveFilterTags";
 import { ProductGrid } from "./components/ProductGrid";
 
-const { publishFiltersApplyRequested } = createCatalogEvents(mesh);
+const { publishFiltersApplyRequested } = createCatalogEvents(createPageEvents());
 
 /**
  * Renders the product list page.

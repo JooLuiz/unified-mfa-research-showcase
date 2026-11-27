@@ -1,9 +1,9 @@
 /**
  * Module Federation entry for the product card MFE.
- * Role: Exposes mountProductCard; publishes catalog intents through the host Event Mesh singleton.
- * Not in this file: Card rendering (src/product-card-component.js) or mesh configuration.
+ * Role: Exposes mountProductCard; publishes catalog intents to the host shell through createPageEvents.
+ * Not in this file: Card rendering (src/product-card-component.js) or the in-page transport.
  * Key dependencies: Vue createApp API; src/styles.css.
- * See also: src/product-card-component.js; MESH_IMPLEMENTATIONS/remote-intents.md.
+ * See also: src/product-card-component.js.
  */
 
 import { createApp } from "vue";
@@ -14,7 +14,7 @@ import "./styles.css";
  * Mounts a product card into a host container.
  *
  * @param {HTMLElement} containerElement - Host-owned mount element.
- * @param {{ product?: object, productId?: string, apiBaseUrl?: string, defaultQuantity?: number, actionLabel?: string, actionIntent?: "add-to-cart" | "open-product", hideQuantity?: boolean, variant?: string }} props - Data props only; catalog/cart intents publish on mesh.
+ * @param {{ product?: object, productId?: string, apiBaseUrl?: string, defaultQuantity?: number, actionLabel?: string, actionIntent?: "add-to-cart" | "open-product", hideQuantity?: boolean, variant?: string }} props - Data props only; catalog/cart intents publish to the host shell.
  * @returns {() => void} Cleanup that unmounts the Vue app.
  */
 export function mountProductCard(containerElement, props) {

@@ -29,6 +29,7 @@
     "@shared/catalog-events": "*",
     "event-mesh": "*",
     "rxjs": "^7.8.2",
-    "zone.js": "^0.16.1"
+    "zone.js": "^0.16.1",
+    "@shared/catalog-events": "*"
   }
 }

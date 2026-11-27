@@ -1,18 +1,18 @@
 /**
  * Promotional banner remote for catalog promotion intents.
- * Role: Renders a banner and publishes catalog.promotion-applied on the host mesh when applied.
- * Not in this file: Mesh configuration (host shell owns configureMesh) or PLP filter ownership.
- * Key dependencies: event-mesh/mesh singleton; @shared/catalog-events.
- * See also: MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Role: Renders a banner and publishes catalog.promotion-applied to the host shell when applied.
+ * Not in this file: The in-page transport (@shared/server-events) or PLP filter ownership.
+ * Key dependencies: @shared/server-events createPageEvents; @shared/catalog-events.
+ * See also: @shared/catalog-events createCatalogEvents.
  */
 
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import mesh from "event-mesh/mesh";
+import { createPageEvents } from "@shared/server-events";
 import { createCatalogEvents } from "@shared/catalog-events";
 import "./styles.css";
 
-const { publishPromotionApplied } = createCatalogEvents(mesh);
+const { publishPromotionApplied } = createCatalogEvents(createPageEvents());
 
 async function fetchBannerById(apiBaseUrl, bannerId, signal) {
   const response = await fetch(`${apiBaseUrl}/banners/${bannerId}`, { signal });

@@ -1,6 +1,6 @@
 /**
  * Renders editable checkout cart items supplied by the ecommerce shell.
- * Role: Displays cart snapshots and publishes cart update/remove intents on the host mesh.
+ * Role: Displays cart snapshots and publishes cart update/remove intents to the host shell.
  * Not in this file: Angular bootstrap (src/checkout-items-mount.ts), cart persistence, or shell-owned cart mutations.
  * Key dependencies: src/checkout-availability-watcher.ts.
  * See also: src/checkout-items-mount.ts; apps/ecommerce-shell/src/pages/checkoutPage.js.

@@ -1,18 +1,18 @@
 /**
  * Product card Vue component for catalog browsing and explicit action intents.
- * Role: Renders a product card and publishes catalog.product-open-requested or cart.item-add-requested on the host mesh.
- * Not in this file: Mesh configuration (host shell owns configureMesh) or cart state ownership.
- * Key dependencies: event-mesh/mesh singleton; @shared/catalog-events; @shared/stock-events (via useProductAvailability).
- * See also: src/product-card.js; src/useProductAvailability.js; MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Role: Renders a product card and publishes catalog.product-open-requested or cart.item-add-requested to the host shell.
+ * Not in this file: The in-page transport (@shared/server-events) or cart state ownership.
+ * Key dependencies: @shared/server-events createPageEvents; @shared/catalog-events; @shared/stock-events (via useProductAvailability).
+ * See also: src/product-card.js; src/useProductAvailability.js.
  */
 
 import { computed, h, onMounted, onUnmounted, ref, watch } from "vue";
-import mesh from "event-mesh/mesh";
+import { createPageEvents } from "@shared/server-events";
 import { createCatalogEvents } from "@shared/catalog-events";
 import { useProductAvailability } from "./useProductAvailability";
 
 const { publishProductOpenRequested, publishCartItemAddRequested } =
-  createCatalogEvents(mesh);
+  createCatalogEvents(createPageEvents());
 
 const normalizeQuantity = (nextQuantity) => {
   const parsedQuantity = Number(nextQuantity);

@@ -16,6 +16,7 @@ import { normalizePlpFilters, storePLPFilters } from "../utils/PLPFilterActions"
 import { applyPromotionFilters } from "../pages/promotionsPage";
 import { navigate as navigateInShell } from "../utils/navigate";
 import { publishNotification } from "../notifications/notificationAdapter";
+import { publishRenderRequested } from "../events/eventBus";
 
 /**
  * Builds the product details path for one product.
@@ -31,8 +32,8 @@ function productDetailsPath(productId) {
  * Creates the catalog request handlers for one shell state.
  *
  * @param {object} appState - Shell state holding cart items, products, and PLP filters.
- * @param {{ navigate?: (path: string) => void, notify?: (notification: object) => void }} [dependencies]
- *   - Navigation and toast functions. They default to the shell's own.
+ * @param {{ navigate?: (path: string) => void, notify?: (notification: object) => void, requestRender?: () => void }} [dependencies]
+ *   - Navigation, toast, and re-render functions. They default to the shell's own.
  * @returns {{
  *   onProductOpenRequested: (payload: { productId: string }) => void,
  *   onFiltersApplyRequested: (filters: object) => void,
@@ -44,7 +45,11 @@ function productDetailsPath(productId) {
  */
 function createCatalogIntentHandlers(
   appState,
-  { navigate = navigateInShell, notify = publishNotification } = {},
+  {
+    navigate = navigateInShell,
+    notify = publishNotification,
+    requestRender = publishRenderRequested,
+  } = {},
 ) {
   function notifyStockIssue() {
     notify({
@@ -101,6 +106,10 @@ function createCatalogIntentHandlers(
         title: "Item removed",
         message: `${removedName} was removed from your cart.`,
       });
+      // Removing the last line re-renders so the empty-cart view replaces the item list.
+      if (appState.cartItems.length === 0) {
+        requestRender();
+      }
       return stockCheckResult;
     },
   };

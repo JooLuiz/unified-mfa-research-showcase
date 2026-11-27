@@ -3,19 +3,19 @@
  * Role: Owns the host-facing mountProductDetails function and its Angular application bootstrap;
  *   this is the module exposed via Module Federation. Publishes cart.item-add-requested on add-to-cart.
  * Not in this file: Component behavior (src/product-details.component.ts) or product loading (src/product-loader.ts).
- * Key dependencies: Angular platform-browser createApplication API; event-mesh/mesh; @shared/catalog-events.
- * See also: src/product-details.component.ts; MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Key dependencies: Angular platform-browser createApplication API; @shared/server-events createPageEvents; @shared/catalog-events.
+ * See also: src/product-details.component.ts.
  */
 
 import "@angular/compiler";
 import { ApplicationRef, ComponentRef } from "@angular/core";
 import { createApplication } from "@angular/platform-browser";
-import mesh from "event-mesh/mesh";
+import { createPageEvents } from "@shared/server-events";
 import { createCatalogEvents } from "@shared/catalog-events";
 import { ProductDetailsComponent } from "./product-details.component";
 import type { ProductDetailsProps } from "./product-details.types";
 
-const { publishCartItemAddRequested } = createCatalogEvents(mesh);
+const { publishCartItemAddRequested } = createCatalogEvents(createPageEvents());
 
 /**
  * Mounts the product details page into a host container.

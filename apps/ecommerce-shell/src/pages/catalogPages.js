@@ -1,15 +1,16 @@
 /**
  * Renders the catalog routes: product list (PLP) and product details (PDP).
- * Role: Wires shell state into the product list and product details MFEs; filter and product intents come from mesh.
- * Not in this file: Filter persistence shape (src/utils/PLPFilterActions.js) or cart storage (src/utils/cartActions.js).
+ * Role: Wires shell state into the product list and product details MFEs. Filter, product-open,
+ *   and add-to-cart intents reach the shell as catalog intents.
+ * Not in this file: Intent outcomes (src/intents/catalogIntentHandlers.js) or cart storage (src/utils/cartActions.js).
  * Key dependencies: product-list-page, product-details-page, product-showcase, and product-card remotes.
- * See also: src/utils/renderActions.js (public barrel); MESH_IMPLEMENTATIONS/remote-intents.md.
+ * See also: src/utils/renderActions.js (public barrel).
  */
 
 import { MOCK_API_BASE_URL } from "../utils/constants";
 
 /**
- * Renders the product list page; filter apply intents are handled by persistent mesh listeners in main.js.
+ * Renders the product list page. Filter-apply intents are handled by the listeners main.js registers.
  *
  * @param {object} appState - Shell state holding plpFilters and plpSortBy.
  * @param {HTMLElement} pageMount - Route container element.

@@ -27,7 +27,6 @@ import {
   ensureShellEventListeners,
   publishLogoutRequested,
   publishPlpFiltersChanged,
-  publishRenderRequested,
   resetAccountIntentListeners,
   resetCartEventListeners,
   resetCatalogIntentListeners,
@@ -94,19 +93,8 @@ function setGlobalCartVariable() {
   window.__APP_SHELL_CART__ = appState.cartItems;
 }
 
-const sharedCatalogHandlers = createCatalogIntentHandlers(appState);
-
-const catalogIntentHandlers = {
-  ...sharedCatalogHandlers,
-  // Removing the last line re-renders checkout so the empty-cart view replaces the item list.
-  onCartItemRemoveRequested: async (payload) => {
-    const stockCheckResult = await sharedCatalogHandlers.onCartItemRemoveRequested(payload);
-    if (stockCheckResult.ok && appState.cartItems.length === 0) {
-      publishRenderRequested();
-    }
-    return stockCheckResult;
-  },
-};
+// The shared handlers own the stock checks, the toasts, and the empty-cart re-render.
+const catalogIntentHandlers = createCatalogIntentHandlers(appState);
 
 const checkoutIntentHandlers = {
   onCouponApplied: (coupon) => {

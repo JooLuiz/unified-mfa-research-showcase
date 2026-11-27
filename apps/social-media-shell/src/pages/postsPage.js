@@ -3,9 +3,9 @@
  * Role: Composes the new-post entry point, grouped post feeds, and interleaved promotional
  *   banners, kept live by patching each mounted group whenever a like is toggled anywhere, or
  *   whenever anyone publishes a new post.
- * Not in this file: Like, new-post, and banner outcomes (src/intents/communityIntentHandlers.js,
- *   src/intents/catalogIntentHandlers.js) or trending selection (src/pages/feedPage.js).
- * Key dependencies: src/intents/communityIntentHandlers.js; src/intents/catalogIntentHandlers.js;
+ * Not in this file: Like and banner outcomes, which arrive as community and catalog intents
+ *   (src/intents/*.js, registered by src/main.js), or trending selection (src/pages/feedPage.js).
+ * Key dependencies: src/intents/communityIntentHandlers.js (new posts);
  *   @shared/post-like-events.
  * See also: src/utils/renderActions.js (public barrel).
  */
@@ -17,7 +17,6 @@ import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
-import { createCatalogIntentHandlers } from "../intents/catalogIntentHandlers";
 import { createCommunityIntentHandlers } from "../intents/communityIntentHandlers";
 
 const POSTS_PER_BANNER_GROUP = 4;
@@ -95,10 +94,6 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
   const allPosts = appState.posts || [];
   const banners = appState.banners || [];
 
-  const communityHandlers = createCommunityIntentHandlers(shellTransport, appState);
-  const handleLike = (postId) => communityHandlers.onPostLiked({ postId });
-  const handleAuthorClick = (author) => communityHandlers.onAuthorSelected({ author });
-  const catalogHandlers = createCatalogIntentHandlers();
 
   const handlePostClick = (post) => {
     if (post?.id) {
@@ -123,8 +118,6 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
       title: groupTitle,
       posts: allPosts.slice(groupStartIndex, groupEndIndex),
       currentUserId: appState.currentUser?.id,
-      onLike: handleLike,
-      onAuthorClick: handleAuthorClick,
       onPostClick: handlePostClick,
     });
     activeCleanupFunctions.push(groupFeedHandle);
@@ -148,7 +141,6 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
     activeCleanupFunctions.push(
       modules.mountPromotionalBanner(bannerContainer, {
         banner,
-        onApplyPromotion: () => catalogHandlers.onPromotionApplied({ filters: banner.filters }),
       }),
     );
   }
@@ -165,8 +157,6 @@ async function renderPostsPage(appState, pageMount, modules, activeCleanupFuncti
         title: groupTitle,
         posts: appState.posts.slice(groupStartIndex, groupEndIndex),
         currentUserId: appState.currentUser?.id,
-        onLike: handleLike,
-        onAuthorClick: handleAuthorClick,
         onPostClick: handlePostClick,
       });
     });

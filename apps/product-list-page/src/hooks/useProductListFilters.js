@@ -14,7 +14,7 @@ import {
 } from "../productListFilters";
 
 /**
- * Manages draft/active filter state and publishes filters-apply intents on the host mesh.
+ * Manages draft/active filter state and publishes filters-apply intents to the host shell.
  *
  * @param {object} options - Hook options.
  * @param {object} options.initialFilters - Host-provided initial filters.
@@ -22,7 +22,7 @@ import {
  * @param {(nextFilters: object) => void} options.publishFiltersApply - Publishes catalog.filters-apply-requested.
  * @param {() => void} options.onFiltersApplied - Called whenever the result window should reset; must be a stable callback.
  * @returns {object} Filter state and handlers for the filter sidebar, toolbar, and tags.
- * @sideEffects Resets draft/active filters when initialFilters change; publishes mesh intents on apply/clear/tag remove.
+ * @sideEffects Resets draft/active filters when initialFilters change; publishes intents on apply/clear/tag remove.
  */
 function useProductListFilters({
   initialFilters,

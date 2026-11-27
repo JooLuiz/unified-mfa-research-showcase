@@ -3,18 +3,15 @@
  * Role: Composes the trending posts feed with the featured-products showcase web component,
  *   kept live by patching likes/likedByCurrentUser and recomputing the trending list whenever
  *   a like is toggled anywhere, or whenever anyone publishes a new post.
- * Not in this file: Post creation (src/pages/postsPage.js), post persistence
- *   (src/commands/postCommands.js), or the toggle write itself (src/commands/postLikeCommands.js).
- * Key dependencies: angular-product-showcase custom element; src/intents/catalogIntentHandlers.js for
- *   product redirects; @shared/post-like-events; src/intents/communityIntentHandlers.js.
+ * Not in this file: Post creation (src/pages/postsPage.js), or the like and product-open outcomes,
+ *   which arrive as community and catalog intents (src/intents/*.js, registered by src/main.js).
+ * Key dependencies: angular-product-showcase custom element; @shared/post-like-events.
  * See also: src/utils/renderActions.js (public barrel).
  */
 
 import { subscribeToPostLikesChanged, subscribeToPostCreated } from "@shared/post-like-events";
 import { shellTransport } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
-import { createCatalogIntentHandlers } from "../intents/catalogIntentHandlers";
-import { createCommunityIntentHandlers } from "../intents/communityIntentHandlers";
 
 const TRENDING_LIKES_THRESHOLD = 1;
 const EMPTY_TRENDING_MESSAGE = "No trending posts yet.";
@@ -41,9 +38,6 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
 
   const trendingPostsMount = pageMount.querySelector("#trendingPostsMount");
 
-  const communityHandlers = createCommunityIntentHandlers(shellTransport, appState);
-  const handleLike = (postId) => communityHandlers.onPostLiked({ postId });
-  const handleAuthorClick = (author) => communityHandlers.onAuthorSelected({ author });
 
   const handlePostClick = (post) => {
     if (post?.id) {
@@ -57,8 +51,6 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
     posts: getTrendingPosts(appState.posts),
     currentUserId: appState.currentUser?.id,
     emptyStateMessage: EMPTY_TRENDING_MESSAGE,
-    onLike: handleLike,
-    onAuthorClick: handleAuthorClick,
     onPostClick: handlePostClick,
   });
   activeCleanupFunctions.push(trendingPostFeedHandle);
@@ -72,8 +64,6 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
       posts: getTrendingPosts(appState.posts),
       currentUserId: appState.currentUser?.id,
       emptyStateMessage: EMPTY_TRENDING_MESSAGE,
-      onLike: handleLike,
-      onAuthorClick: handleAuthorClick,
       onPostClick: handlePostClick,
     });
 
@@ -103,10 +93,6 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
     .filter(Boolean);
 
   if (showcaseProducts.length > 0) {
-    const catalogHandlers = createCatalogIntentHandlers();
-    const redirectToProductDetails = (productId) =>
-      catalogHandlers.onProductOpenRequested({ productId });
-
     const showcaseElement = document.createElement("angular-product-showcase");
     showcaseElement.config = {
       title: firstShowcase?.showcaseTitle || "Featured Products",
@@ -115,10 +101,8 @@ async function renderFeedPage(appState, pageMount, modules, activeCleanupFunctio
       hideQuantity: true,
       displayMode: "modal",
       defaultCollapsed: false,
-      onProductClick: redirectToProductDetails,
-      onAddToCart: (showcasePayload) => {
-        catalogHandlers.onCartItemAddRequested({ productId: showcasePayload.productId });
-      },
+      // Cards publish catalog intents; the shell's catalog handlers open the product in the store.
+      actionIntent: "open-product",
     };
     pageMount.appendChild(showcaseElement);
 

@@ -2,7 +2,7 @@
  * Wires the shell's one persistent stock watch stream.
  * Role: Opens the tab's stock stream eagerly for the whole tab session and re-reserves guest cart
  *   lines after a reconnect.
- * Not in this file: Add-to-cart itself (src/main.js handleCartItemAddRequested) or the
+ * Not in this file: Add-to-cart itself (src/intents/catalogIntentHandlers.js) or the
  *   reservation calls (src/utils/cartActions.js).
  * Key dependencies: @shared/stock-events; src/utils/cartActions.js; src/events/eventBus.js.
  * See also: src/main.js.

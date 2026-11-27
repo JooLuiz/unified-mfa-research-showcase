@@ -9,18 +9,17 @@
  *   like toggle write and the "Post Liked" toast
  *   (apps/social-media-shell/src/commands/postLikeCommands.js), reached indirectly: a click
  *   here only publishes the local community/post-liked intent, never calls the gateway itself.
- * Key dependencies: react; event-mesh/mesh singleton; @shared/community-events.
+ * Key dependencies: react; @shared/server-events createPageEvents; @shared/community-events.
  * See also: apps/social-media-shell/src/commands/postLikeCommands.js;
- *   packages/post-like-events/src/postLikeEventsClient.js;
- *   MESH_IMPLEMENTATIONS/remote-intents.md.
+ *   packages/post-like-events/src/postLikeEventsClient.js.
  */
 
 import React, { useEffect } from "react";
-import mesh from "event-mesh/mesh";
+import { createPageEvents } from "@shared/server-events";
 import { createCommunityEvents } from "@shared/community-events";
 
 const { publishPostLiked, publishPostLikesWatching, publishAuthorSelected } =
-  createCommunityEvents(mesh);
+  createCommunityEvents(createPageEvents());
 
 function formatPostDate(isoDateString) {
   if (!isoDateString) {
