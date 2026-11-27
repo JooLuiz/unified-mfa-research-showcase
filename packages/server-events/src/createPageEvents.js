@@ -1,6 +1,7 @@
 /**
  * Carries in-page messages between a shell and the remotes it mounts.
- * Role: The transport remotes hand to @shared/catalog-events and @shared/community-events. On this
+ * Role: The transport remotes hand to the @shared catalog, community, checkout, and account event
+ *   packages. On this
  *   branch each message is a window CustomEvent. The mesh branch replaces this body with the
  *   shared Event Mesh client at the same path.
  * Not in this file: Server requests (src/createServerEvents.js) or iframe messages
@@ -14,12 +15,14 @@ const LEGACY_PAGE_EVENT_NAMES = {
   "cart.changed": "cart:updateGlobalCart",
 };
 
-const PAGE_TOPICS = new Set(["catalog", "community"]);
+const PAGE_TOPICS = new Set(["catalog", "community", "checkout"]);
 const PAGE_CART_EVENTS = new Set([
   "item-add-requested",
   "item-update-requested",
   "item-remove-requested",
 ]);
+// Only the account save intents travel in the page. account.update is a server request.
+const PAGE_ACCOUNT_EVENTS = new Set(["profile-save-requested", "address-save-requested"]);
 
 /**
  * Names the window event that carries one contract inside the page.
@@ -37,10 +40,15 @@ function pageEventName(topic, event) {
  *
  * @param {string} topic - Contract topic.
  * @param {string} event - Contract event.
- * @returns {boolean} True for catalog and community contracts and cart line requests.
+ * @returns {boolean} True for catalog, community, and checkout contracts, cart line requests, and
+ *   account save requests.
  */
 function isPageContract(topic, event) {
-  return PAGE_TOPICS.has(topic) || (topic === "cart" && PAGE_CART_EVENTS.has(event));
+  return (
+    PAGE_TOPICS.has(topic) ||
+    (topic === "cart" && PAGE_CART_EVENTS.has(event)) ||
+    (topic === "account" && PAGE_ACCOUNT_EVENTS.has(event))
+  );
 }
 
 /**

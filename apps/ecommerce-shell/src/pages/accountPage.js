@@ -16,7 +16,6 @@ import { publishLogoutRequested, shellTransport } from "../events/eventBus";
 import { requestSignOutEverywhere } from "@shared/session-events";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import requestJson from "../utils/requestJson";
-import { persistAccountUpdate } from "../commands/accountCommands";
 import { requestCsvExport } from "../exports/requestCsvExport";
 import { publishNotification } from "../notifications/notificationAdapter";
 import {
@@ -85,16 +84,12 @@ async function renderAccountPage(appState, pageMount, activeCleanupFunctions) {
   activeCleanupFunctions.push(
     accountProfileModule.mountAccountProfile(accountProfileMount, {
       user: appState.currentUser,
-      onSaveProfile: (profilePayload) =>
-        persistAccountUpdate(shellTransport, appState, profilePayload),
     }),
   );
 
   activeCleanupFunctions.push(
     accountAddressModule.mountAccountAddress(accountAddressMount, {
       address: appState.currentUser?.address,
-      onSaveAddress: (addressPayload) =>
-        persistAccountUpdate(shellTransport, appState, { address: addressPayload }),
     }),
   );
 

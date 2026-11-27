@@ -1,5 +1,17 @@
+/**
+ * Account profile remote for profile-save intents.
+ * Role: Renders the profile form and publishes account.profile-save-requested for the host shell.
+ * Not in this file: How the intent reaches the shell, or HTTP account persistence (the shell owns it).
+ * Key dependencies: @shared/server-events createPageEvents; @shared/account-events.
+ * See also: apps/ecommerce-shell/src/intents/accountIntentHandlers.js.
+ */
+
 import { createApp, h, reactive } from "vue";
+import { createPageEvents } from "@shared/server-events";
+import { createAccountEvents } from "@shared/account-events";
 import "./styles.css";
+
+const { publishProfileSaveRequested } = createAccountEvents(createPageEvents());
 
 const AccountProfileComponent = {
   props: {
@@ -7,7 +19,6 @@ const AccountProfileComponent = {
       type: Object,
       default: () => null,
     },
-    onSaveProfile: Function,
   },
   setup(props) {
     const formState = reactive({
@@ -17,12 +28,10 @@ const AccountProfileComponent = {
 
     const handleSubmit = (submitEvent) => {
       submitEvent.preventDefault();
-      if (typeof props.onSaveProfile === "function") {
-        props.onSaveProfile({
-          fullName: formState.fullName.trim(),
-          gender: formState.gender.trim(),
-        });
-      }
+      publishProfileSaveRequested({
+        fullName: formState.fullName.trim(),
+        gender: formState.gender.trim(),
+      });
     };
 
     return () => {
@@ -99,7 +108,6 @@ const AccountProfileComponent = {
 export function mountAccountProfile(containerElement, props) {
   const accountProfileApp = createApp(AccountProfileComponent, {
     user: props.user,
-    onSaveProfile: props.onSaveProfile,
   });
   accountProfileApp.mount(containerElement);
 

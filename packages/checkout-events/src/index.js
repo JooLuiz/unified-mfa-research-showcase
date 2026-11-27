@@ -1,7 +1,8 @@
 export {
+  CHECKOUT_COUPON_APPLIED_EVENT,
+  CHECKOUT_PLACE_ORDER_REQUESTED_EVENT,
   CHECKOUT_TOPIC,
-  COUPON_APPLIED_EVENT,
-  PLACE_ORDER_REQUESTED_EVENT,
-  isValidCouponApplied,
+  createCouponAppliedRequest,
+  isValidCouponAppliedRequest,
 } from "./checkoutEventsContracts.js";
 export { createCheckoutEvents } from "./createCheckoutEvents.js";

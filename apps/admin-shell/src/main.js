@@ -12,6 +12,7 @@ import loadRemoteModules from "./utils/loadRemoteModules";
 import {
   bindShellTransport,
   createShellSessionChannel,
+  ensureAccountIntentListeners,
   publishLogoutRequested,
   shellTransport,
   subscribeToAuthSessionChanges,
@@ -36,6 +37,7 @@ import {
   startAdminLiveEvents,
   stopAdminLiveEvents,
 } from "./events/adminLiveEvents";
+import { createAccountIntentHandlers } from "./intents/accountIntentHandlers";
 import { createPageRenderer } from "./pages/pageRenderer";
 
 const appState = {
@@ -90,8 +92,14 @@ function syncAdminLiveEventsWithSession() {
   void startNotificationInboxLiveEvents(shellTransport, { shell: "admin" });
 }
 
+const accountIntentHandlers = createAccountIntentHandlers(appState);
+
 const authSession = createAuthSessionLifecycle(createShellSessionChannel(), {
   isAuthenticated: () => Boolean(appState.authToken),
+  // Window listeners last for the tab, so they are attached once and never detached.
+  attachListeners: () => {
+    ensureAccountIntentListeners(accountIntentHandlers);
+  },
   startLiveEvents: syncAdminLiveEventsWithSession,
   stopLiveEvents: stopAdminLiveSubscriptions,
 });

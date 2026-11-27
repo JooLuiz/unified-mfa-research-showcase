@@ -1,13 +1,15 @@
 /**
  * Publishes and subscribes to social shell window and header events.
- * Role: Maps shared shell contracts onto window CustomEvents, carries remote catalog and community
- *   intents on their in-page names, and exposes the shell's publish and subscribe helpers.
+ * Role: Maps shared shell contracts onto window CustomEvents, carries remote catalog, community,
+ *   and account intents on their in-page names, and exposes the shell's publish and subscribe helpers.
  * Not in this file: Route rendering, auth storage, or notification toasts.
  * Key dependencies: @shared/shell-events; @shared/catalog-events; @shared/community-events;
+ *   @shared/account-events;
  *   @shared/server-events page contracts; window CustomEvent.
  * See also: src/main.js; src/utils/mountActions.js.
  */
 
+import { createAccountEvents } from "@shared/account-events";
 import { createCatalogEvents } from "@shared/catalog-events";
 import { createCommunityEvents } from "@shared/community-events";
 import { NOTIFICATION_RAISED_EVENT, NOTIFICATION_TOPIC } from "@shared/notifications";
@@ -139,6 +141,8 @@ const { ensureCatalogIntentListeners, resetCatalogIntentListeners } =
   createCatalogEvents(shellTransport);
 const { ensureCommunityIntentListeners, resetCommunityIntentListeners } =
   createCommunityEvents(shellTransport);
+const { ensureAccountIntentListeners, resetAccountIntentListeners } =
+  createAccountEvents(shellTransport);
 
 /**
  * Listens for header navigation and logout events on a mounted header element.
@@ -185,11 +189,13 @@ export {
   createShellSessionChannel,
   bindShellTransport,
   createShellTransport,
+  ensureAccountIntentListeners,
   ensureCatalogIntentListeners,
   ensureCommunityIntentListeners,
   publishAuthSessionChanged,
   publishLogoutRequested,
   publishRenderRequested,
+  resetAccountIntentListeners,
   resetCatalogIntentListeners,
   resetCommunityIntentListeners,
   shellTransport,

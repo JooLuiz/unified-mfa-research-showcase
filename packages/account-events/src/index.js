@@ -1,6 +1,18 @@
+/**
+ * Exposes shared account contracts.
+ * Role: Public barrel for account save-request names and the account event factory.
+ * Not in this file: Event behavior or transport setup.
+ * Key dependencies: None.
+ * See also: src/createAccountEvents.js; src/accountEventsContracts.js.
+ */
+
 export {
-  ACCOUNT_TOPIC,
+  ACCOUNT_ADDRESS_SAVE_REQUESTED_EVENT,
   ACCOUNT_PROFILE_SAVE_REQUESTED_EVENT,
+  ACCOUNT_TOPIC,
+  createAddressSaveRequest,
+  createProfileSaveRequest,
+  isValidAddressSaveRequest,
   isValidProfileSaveRequest,
 } from "./accountEventsContracts.js";
 export { createAccountEvents } from "./createAccountEvents.js";

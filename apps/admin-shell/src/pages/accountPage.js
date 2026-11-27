@@ -6,7 +6,6 @@
  * See also: src/commands/accountCommands.js.
  */
 
-import { persistAccountUpdate } from "../commands/accountCommands";
 import { requestSignOutEverywhere } from "@shared/session-events";
 import { publishLogoutRequested, shellTransport } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
@@ -66,15 +65,11 @@ async function renderAccountPage(appState, pageMount, activeCleanupFunctions) {
   activeCleanupFunctions.push(
     accountProfileModule.mountAccountProfile(accountProfileMount, {
       user: appState.currentUser,
-      onSaveProfile: (profilePayload) =>
-        persistAccountUpdate(shellTransport, appState, profilePayload),
     }),
   );
   activeCleanupFunctions.push(
     accountAddressModule.mountAccountAddress(accountAddressMount, {
       address: appState.currentUser?.address,
-      onSaveAddress: (addressPayload) =>
-        persistAccountUpdate(shellTransport, appState, { address: addressPayload }),
     }),
   );
 }

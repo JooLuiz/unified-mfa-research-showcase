@@ -1,32 +1,62 @@
 /**
- * Names checkout contracts shared by the checkout remote and the ecommerce shell.
- * Role: Holds coupon and place-order topic, event, and payload checks.
- * Not in this file: Order HTTP calls or window event names.
+ * Defines shared checkout contracts for coupon and place-order intents.
+ * Role: Centralizes topic/event names and payload validators for coupon and place-order messages.
+ * Not in this file: Publishing, cart ownership, order persistence, or UI rendering.
  * Key dependencies: None.
  * See also: src/createCheckoutEvents.js.
  */
 
 const CHECKOUT_TOPIC = "checkout";
-const COUPON_APPLIED_EVENT = "coupon-applied";
-const PLACE_ORDER_REQUESTED_EVENT = "place-order-requested";
+const CHECKOUT_COUPON_APPLIED_EVENT = "coupon-applied";
+const CHECKOUT_PLACE_ORDER_REQUESTED_EVENT = "place-order-requested";
 
 /**
- * Checks whether a value is a coupon code the shell can store.
+ * @typedef {{ code: string, discountPercentage: number }} CouponAppliedRequest
+ */
+
+function isRecord(value) {
+  return Boolean(value) && typeof value === "object";
+}
+
+/**
+ * Checks whether a value can request applying a coupon.
  *
  * @param {unknown} value - Candidate coupon payload.
- * @returns {value is { code: string }} Whether the payload has a non-empty code.
+ * @returns {value is CouponAppliedRequest} Whether the payload has a code and finite discount.
  */
-function isValidCouponApplied(value) {
-  if (!value || typeof value !== "object") {
+function isValidCouponAppliedRequest(value) {
+  if (!isRecord(value)) {
     return false;
   }
-  const candidate = /** @type {{ code?: unknown }} */ (value);
-  return typeof candidate.code === "string" && candidate.code.trim() !== "";
+
+  return (
+    typeof value.code === "string" &&
+    value.code.trim() !== "" &&
+    Number.isFinite(value.discountPercentage)
+  );
+}
+
+/**
+ * Creates a safe coupon-applied payload for delivery.
+ *
+ * @param {unknown} value - Candidate coupon request.
+ * @returns {CouponAppliedRequest | null} Normalized payload, or null when invalid.
+ */
+function createCouponAppliedRequest(value) {
+  if (!isValidCouponAppliedRequest(value)) {
+    return null;
+  }
+
+  return {
+    code: value.code.trim(),
+    discountPercentage: Number(value.discountPercentage),
+  };
 }
 
 export {
+  CHECKOUT_COUPON_APPLIED_EVENT,
+  CHECKOUT_PLACE_ORDER_REQUESTED_EVENT,
   CHECKOUT_TOPIC,
-  COUPON_APPLIED_EVENT,
-  PLACE_ORDER_REQUESTED_EVENT,
-  isValidCouponApplied,
+  createCouponAppliedRequest,
+  isValidCouponAppliedRequest,
 };

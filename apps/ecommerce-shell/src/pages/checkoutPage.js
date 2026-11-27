@@ -1,40 +1,30 @@
 /**
  * Renders the checkout and order-placed routes.
- * Role: Composes checkout item, summary, and coupon mounts and shows the failed-order toast.
- * Not in this file: Order HTTP details (src/commands/placeOrder.js) or the place-order sequence and post-order navigation (src/commands/placeCheckoutOrder.js).
- * Key dependencies: src/commands/placeCheckoutOrder.js; src/notifications/notificationAdapter.js;
- *   src/utils/cartSync.js. Cart line edits arrive as catalog intents (src/intents/catalogIntentHandlers.js).
+ * Role: Composes checkout item, summary, and coupon mounts and keeps the summary in step with the cart.
+ * Not in this file: Coupon and place-order outcomes, which arrive as checkout intents
+ *   (src/intents/checkoutIntentHandlers.js), or order HTTP details (src/commands/placeOrder.js).
+ * Key dependencies: src/commands/placeCheckoutOrder.js totals. Cart line edits arrive as catalog
+ *   intents (src/intents/catalogIntentHandlers.js).
  * See also: src/utils/renderActions.js (public barrel).
  */
 
-import {
-  publishCartChanged,
-  publishRenderRequested,
-  shellTransport,
-  subscribeToCartChanges,
-} from "../events/eventBus";
+import { publishRenderRequested, subscribeToCartChanges } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
-import { scheduleCartPersist } from "../utils/cartSync";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
-import { publishNotification } from "../notifications/notificationAdapter";
-import {
-  calculateCheckoutTotals,
-  placeCheckoutOrder,
-} from "../commands/placeCheckoutOrder";
+import { calculateCheckoutTotals } from "../commands/placeCheckoutOrder";
 
 /**
- * Renders checkout, awaiting order persistence before clearing the cart or navigating.
+ * Renders checkout. The summary refreshes on every cart change, including an applied coupon.
  *
  * @param {object} appState - Shell state holding cart, coupon, products, and session.
  * @param {HTMLElement} pageMount - Route container element.
  * @param {object} modules - Loaded remote module mount functions.
  * @param {Array<() => void>} activeCleanupFunctions - Cleanup registry for the current route.
  * @returns {Promise<void>}
- * @sideEffects On order failure shows an error toast; the command navigates on success.
  */
 async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFunctions) {
   if (!isAuthenticated(appState)) {
@@ -107,29 +97,10 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
   checkoutSummaryHandle = modules.mountCheckoutSummary(checkoutSummaryMount, {
     subtotal: initialTotals.subtotal,
     discountAmount: initialTotals.discountAmount,
-    onPlaceOrder: async () => {
-      const orderResult = await placeCheckoutOrder(shellTransport, appState);
-      if (!orderResult.ok) {
-        publishNotification({
-          type: "error",
-          title: "Order not placed",
-          message: "Your cart is still available. Please try again.",
-        });
-      }
-    },
   });
   activeCleanupFunctions.push(() => checkoutSummaryHandle.unmount());
 
-  activeCleanupFunctions.push(
-    modules.mountApplyCoupon(applyCouponMount, {
-      onCouponApplied: (couponPayload) => {
-        appState.appliedCoupon = couponPayload;
-        refreshCheckoutSummary();
-        publishCartChanged();
-        scheduleCartPersist(appState);
-      },
-    }),
-  );
+  activeCleanupFunctions.push(modules.mountApplyCoupon(applyCouponMount));
 }
 
 /**

@@ -10,9 +10,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import "../../../../test/support/installBrowserGlobals.js";
 import { installDomDocument } from "../../../../test/support/installDomDocument.js";
+import { createAccountEvents } from "@shared/account-events";
+import { createCheckoutEvents } from "@shared/checkout-events";
+import { createPageEvents } from "@shared/server-events";
 import { loadAppModule } from "../../../../test/support/loadAppModule.js";
 
 const {
+  ensureAccountIntentListeners,
+  ensureCheckoutIntentListeners,
   publishAuthSessionChanged,
   publishLogoutRequested,
   publishRenderRequested,
@@ -103,4 +108,33 @@ test("header navigate and logout call the handlers they were given", () => {
   unsubscribe();
 
   assert.deepEqual(outcomes, ["navigate", "logout"]);
+});
+
+test("a profile or address save from the account remote reaches the shell's account handler", () => {
+  const saves = [];
+  ensureAccountIntentListeners({
+    onProfileSaveRequested: (profile) => saves.push({ profile }),
+    onAddressSaveRequested: (address) => saves.push({ address }),
+  });
+  const remoteAccountEvents = createAccountEvents(createPageEvents());
+  const address = { street: "1 Main St", city: "Lisbon", state: "LX", postalCode: "1000", country: "PT" };
+
+  remoteAccountEvents.publishProfileSaveRequested({ fullName: "Ada", gender: "female" });
+  remoteAccountEvents.publishAddressSaveRequested(address);
+
+  assert.deepEqual(saves, [{ profile: { fullName: "Ada", gender: "female" } }, { address }]);
+});
+
+test("a coupon or place-order request from the checkout remotes reaches the shell's checkout handler", () => {
+  const requests = [];
+  ensureCheckoutIntentListeners({
+    onCouponApplied: (coupon) => requests.push(coupon),
+    onPlaceOrderRequested: () => requests.push("place-order"),
+  });
+  const remoteCheckoutEvents = createCheckoutEvents(createPageEvents());
+
+  remoteCheckoutEvents.publishCouponApplied({ code: "ten", discountPercentage: 10 });
+  remoteCheckoutEvents.publishPlaceOrderRequested();
+
+  assert.deepEqual(requests, [{ code: "ten", discountPercentage: 10 }, "place-order"]);
 });
