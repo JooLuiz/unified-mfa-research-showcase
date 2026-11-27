@@ -140,9 +140,7 @@ const AgnosticFormularyComponent = {
 
       const trimmedPayload = formularyDefinition.fields.reduce(
         (accumulator, fieldDefinition) => {
-          const rawValue = formValues[fieldDefinition.name];
-          accumulator[fieldDefinition.name] =
-            typeof rawValue === "string" ? rawValue.trim() : rawValue;
+          accumulator[fieldDefinition.name] = formValues[fieldDefinition.name].trim();
           return accumulator;
         },
         {},
@@ -179,7 +177,7 @@ const AgnosticFormularyComponent = {
               formValues[fieldDefinition.name] = changeEvent.target.value;
             },
           },
-          (fieldDefinition.options || []).map((optionDefinition) =>
+          fieldDefinition.options.map((optionDefinition) =>
             h(
               "option",
               { value: optionDefinition.value },
@@ -192,14 +190,14 @@ const AgnosticFormularyComponent = {
       if (fieldDefinition.type === "textarea") {
         return h("textarea", {
           ...sharedAttributes,
-          placeholder: fieldDefinition.placeholder || "",
+          placeholder: fieldDefinition.placeholder,
         });
       }
 
       return h("input", {
         ...sharedAttributes,
-        type: fieldDefinition.type || "text",
-        placeholder: fieldDefinition.placeholder || "",
+        type: fieldDefinition.type,
+        placeholder: fieldDefinition.placeholder,
       });
     };
 
