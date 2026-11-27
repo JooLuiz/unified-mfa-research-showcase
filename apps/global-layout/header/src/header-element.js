@@ -1,4 +1,5 @@
 import React from "react";
+import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import PrettyIcons from "js-pretty-icons";
 import "./styles.css";
@@ -206,7 +207,7 @@ class HeaderElement extends HTMLElement {
 
   connectedCallback() {
     this.root = createRoot(this);
-    this.renderComponent();
+    flushSync(() => this.renderComponent());
   }
 
   disconnectedCallback() {
@@ -217,7 +218,7 @@ class HeaderElement extends HTMLElement {
 
   set state(nextState) {
     this.internalState = nextState;
-    this.renderComponent();
+    flushSync(() => this.renderComponent());
   }
 
   get state() {

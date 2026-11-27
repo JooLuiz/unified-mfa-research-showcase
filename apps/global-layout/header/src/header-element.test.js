@@ -165,3 +165,21 @@ test("state set before connecting renders on connect, and disconnecting before c
     await act(async () => disconnectElement(unconnected));
   }
 });
+
+test("the bell slot exists as soon as a signed-in header connects and is gone right after sign-out", async () => {
+  registerHeaderElement();
+  const { root } = installDomDocument();
+  const header = createCustomElement(HEADER_NAME);
+  header.state = { appType: "admin", isAuthenticated: true, currentUserName: "Alice" };
+  try {
+    await act(() => {
+      connectElement(header, root);
+      assert.notEqual(findElement(header, (node) => node.id === "notificationBellMount"), null);
+
+      header.state = { appType: "admin", isAuthenticated: false };
+      assert.equal(findElement(header, (node) => node.id === "notificationBellMount"), null);
+    });
+  } finally {
+    await act(async () => disconnectElement(header));
+  }
+});
