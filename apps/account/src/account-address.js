@@ -1,17 +1,17 @@
 /**
  * Account address remote for address-save intents.
- * Role: Renders the shipping address form and publishes account.address-save-requested on the host mesh.
- * Not in this file: Mesh configuration or HTTP account persistence (shell owns those).
- * Key dependencies: event-mesh/mesh singleton; @shared/account-events.
- * See also: MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Role: Renders the shipping address form and publishes account.address-save-requested for the host shell.
+ * Not in this file: How the intent reaches the shell, or HTTP account persistence (the shell owns it).
+ * Key dependencies: @shared/server-events createPageEvents; @shared/account-events.
+ * See also: apps/ecommerce-shell/src/intents/accountIntentHandlers.js.
  */
 
 import { createApp, h, reactive } from "vue";
-import mesh from "event-mesh/mesh";
+import { createPageEvents } from "@shared/server-events";
 import { createAccountEvents } from "@shared/account-events";
 import "./styles.css";
 
-const { publishAddressSaveRequested } = createAccountEvents(mesh);
+const { publishAddressSaveRequested } = createAccountEvents(createPageEvents());
 
 const AccountAddressComponent = {
   props: {

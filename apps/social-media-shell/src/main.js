@@ -65,8 +65,8 @@ import {
   PAGE_APP_NAMES,
   createPageAppRegistrations,
 } from "./pages/pageRegistry";
-import { persistAccountUpdate } from "./commands/accountCommands";
 import { publishNotification } from "./notifications/notificationAdapter";
+import { createAccountIntentHandlers } from "./intents/accountIntentHandlers";
 import { createCatalogIntentHandlers } from "./intents/catalogIntentHandlers";
 import { createCommunityIntentHandlers } from "./intents/communityIntentHandlers";
 
@@ -129,15 +129,7 @@ function registerPageApplications() {
 
 const catalogIntentHandlers = createCatalogIntentHandlers();
 const communityIntentHandlers = createCommunityIntentHandlers(shellTransport, appState);
-
-const accountIntentHandlers = {
-  onProfileSaveRequested: (profilePayload) => {
-    void persistAccountUpdate(shellTransport, appState, profilePayload);
-  },
-  onAddressSaveRequested: (addressPayload) => {
-    void persistAccountUpdate(shellTransport, appState, { address: addressPayload });
-  },
-};
+const accountIntentHandlers = createAccountIntentHandlers(appState);
 
 subscribeToNewInboxNotifications((notification) => {
   publishNotification({

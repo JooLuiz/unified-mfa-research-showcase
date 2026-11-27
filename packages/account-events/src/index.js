@@ -1,7 +1,7 @@
 /**
- * Exposes shared account Event Mesh contracts.
+ * Exposes shared account contracts.
  * Role: Public barrel for account save-request names and the account event factory.
- * Not in this file: Event behavior or mesh configuration.
+ * Not in this file: Event behavior or transport setup.
  * Key dependencies: None.
  * See also: src/createAccountEvents.js; src/accountEventsContracts.js.
  */

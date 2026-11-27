@@ -54,7 +54,7 @@ import {
   startAdminLiveEvents,
   stopAdminLiveEvents,
 } from "./events/adminLiveEvents";
-import { persistAccountUpdate } from "./commands/accountCommands";
+import { createAccountIntentHandlers } from "./intents/accountIntentHandlers";
 import { createPageRenderer } from "./pages/pageRenderer";
 
 const appState = {
@@ -111,14 +111,7 @@ function syncAdminLiveEventsWithSession() {
   void startNotificationInboxLiveEvents(shellTransport, { shell: "admin" });
 }
 
-const accountIntentHandlers = {
-  onProfileSaveRequested: (profilePayload) => {
-    void persistAccountUpdate(shellTransport, appState, profilePayload);
-  },
-  onAddressSaveRequested: (addressPayload) => {
-    void persistAccountUpdate(shellTransport, appState, { address: addressPayload });
-  },
-};
+const accountIntentHandlers = createAccountIntentHandlers(appState);
 
 const shellEventHandlers = {
   onRenderRequested: () => {

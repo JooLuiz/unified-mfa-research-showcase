@@ -1,9 +1,9 @@
 /**
- * Defines shared local Event Mesh contracts for account save intents.
+ * Defines shared account contracts for profile and address save intents.
  * Role: Centralizes topic/event names and payload validators for profile and address saves.
- * Not in this file: Mesh publishing, HTTP persistence, or UI rendering.
+ * Not in this file: Publishing, HTTP persistence, or UI rendering.
  * Key dependencies: None.
- * See also: src/createAccountEvents.js; MESH_IMPLEMENTATIONS/remote-intents.md.
+ * See also: src/createAccountEvents.js.
  */
 
 const ACCOUNT_TOPIC = "account";
@@ -34,7 +34,7 @@ function isValidProfileSaveRequest(value) {
 }
 
 /**
- * Creates a safe profile-save payload for mesh delivery.
+ * Creates a safe profile-save payload for delivery.
  *
  * @param {unknown} value - Candidate profile request.
  * @returns {ProfileSaveRequest | null} Normalized payload, or null when invalid.
@@ -71,7 +71,7 @@ function isValidAddressSaveRequest(value) {
 }
 
 /**
- * Creates a safe address-save payload for mesh delivery.
+ * Creates a safe address-save payload for delivery.
  *
  * @param {unknown} value - Candidate address request.
  * @returns {AddressSaveRequest | null} Normalized payload, or null when invalid.

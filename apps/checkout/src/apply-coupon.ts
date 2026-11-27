@@ -1,9 +1,9 @@
 /**
  * Apply-coupon checkout remote.
- * Role: Validates coupon codes locally and publishes checkout.coupon-applied on the host mesh.
- * Not in this file: Cart totals ownership or Event Mesh configuration.
- * Key dependencies: event-mesh/mesh singleton; @shared/checkout-events.
- * See also: MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Role: Validates coupon codes locally and publishes checkout.coupon-applied for the host shell.
+ * Not in this file: Cart totals ownership or how the intent reaches the shell.
+ * Key dependencies: @shared/server-events createPageEvents; @shared/checkout-events.
+ * See also: apps/ecommerce-shell/src/intents/checkoutIntentHandlers.js.
  */
 
 import "@angular/compiler";
@@ -13,11 +13,11 @@ import {
   ComponentRef,
 } from "@angular/core";
 import { createApplication } from "@angular/platform-browser";
-import mesh from "event-mesh/mesh";
+import { createPageEvents } from "@shared/server-events";
 import { createCheckoutEvents } from "@shared/checkout-events";
 import "./styles.css";
 
-const { publishCouponApplied } = createCheckoutEvents(mesh);
+const { publishCouponApplied } = createCheckoutEvents(createPageEvents());
 
 type ApplyCouponProps = Record<string, never>;
 

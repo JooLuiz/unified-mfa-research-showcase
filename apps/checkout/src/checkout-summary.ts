@@ -1,9 +1,9 @@
 /**
  * Checkout order summary remote.
- * Role: Displays totals and publishes checkout.place-order-requested on the host mesh.
- * Not in this file: Order persistence, cart ownership, or Event Mesh configuration.
- * Key dependencies: event-mesh/mesh singleton; @shared/checkout-events.
- * See also: MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Role: Displays totals and publishes checkout.place-order-requested for the host shell.
+ * Not in this file: Order persistence, cart ownership, or how the intent reaches the shell.
+ * Key dependencies: @shared/server-events createPageEvents; @shared/checkout-events.
+ * See also: apps/ecommerce-shell/src/intents/checkoutIntentHandlers.js.
  */
 
 import "@angular/compiler";
@@ -15,11 +15,11 @@ import {
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { createApplication } from "@angular/platform-browser";
-import mesh from "event-mesh/mesh";
+import { createPageEvents } from "@shared/server-events";
 import { createCheckoutEvents } from "@shared/checkout-events";
 import "./styles.css";
 
-const { publishPlaceOrderRequested } = createCheckoutEvents(mesh);
+const { publishPlaceOrderRequested } = createCheckoutEvents(createPageEvents());
 
 type CheckoutSummaryProps = {
   subtotal: number;

@@ -11,7 +11,7 @@ export type AddressSaveRequest = {
   country: string;
 };
 
-export type AccountMeshClient = {
+export type AccountTransport = {
   publish(input: object): void;
   subscribe(
     topic: string,
@@ -51,4 +51,4 @@ export function createAddressSaveRequest(
   value: unknown,
 ): AddressSaveRequest | null;
 
-export function createAccountEvents(input: AccountMeshClient): AccountEvents;
+export function createAccountEvents(input: AccountTransport): AccountEvents;

@@ -1,8 +1,8 @@
 /**
- * Publishes and subscribes to shared checkout Event Mesh messages.
- * Role: Hides mesh transport details behind coupon and place-order operations for remotes and shells.
- * Not in this file: Mesh configuration, cart state ownership, order APIs, or UI rendering.
- * Key dependencies: An Event Mesh client supplied by the owning shell, or a recording transport in tests.
+ * Publishes and subscribes to shared checkout intents over an injected transport.
+ * Role: Hides the transport behind coupon and place-order operations for remotes and shells.
+ * Not in this file: Transport setup, cart state ownership, order APIs, or UI rendering.
+ * Key dependencies: A transport supplied by the owning shell or remote, or a recording transport in tests.
  * See also: src/checkoutEventsContracts.js; src/createCheckoutEvents.test.js.
  */
 
@@ -17,7 +17,7 @@ import {
 /**
  * Creates a checkout-scoped local event adapter for checkout remotes and host shells.
  *
- * @param {{ publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void }} transport - Mesh client or recording transport. Both expose publish and subscribe.
+ * @param {{ publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void }} transport - Branch transport or recording transport. Both expose publish and subscribe.
  * @returns {object} Checkout event adapter with publish helpers and intent listeners.
  * @note publishPlaceOrderRequested always includes payload: {} so every transport receives a record.
  */
@@ -88,14 +88,14 @@ function createCheckoutEvents(transport) {
   }
 
   /**
-   * Registers persistent checkout intent handlers after a mesh configuration change.
+   * Registers persistent checkout intent handlers once per session.
    *
    * @param {{
    *   onCouponApplied?: (payload: { code: string, discountPercentage: number }) => void,
    *   onPlaceOrderRequested?: () => void,
    * }} handlers - Host orchestration handlers.
    * @returns {void}
-   * @sideEffects Registers local mesh subscriptions for provided handlers.
+   * @sideEffects Registers local subscriptions for provided handlers.
    */
   function ensureCheckoutIntentListeners(handlers) {
     if (checkoutIntentListenersStarted) {
@@ -114,7 +114,7 @@ function createCheckoutEvents(transport) {
   }
 
   /**
-   * Marks checkout intent subscriptions for re-registration after mesh.close() clears them.
+   * Marks checkout intent subscriptions for re-registration after the transport drops them.
    *
    * @returns {void}
    */

@@ -1,9 +1,9 @@
 /**
- * Defines shared local Event Mesh contracts for checkout intents.
+ * Defines shared checkout contracts for coupon and place-order intents.
  * Role: Centralizes topic/event names and payload validators for coupon and place-order messages.
- * Not in this file: Mesh publishing, cart ownership, order persistence, or UI rendering.
+ * Not in this file: Publishing, cart ownership, order persistence, or UI rendering.
  * Key dependencies: None.
- * See also: src/createCheckoutEvents.js; MESH_IMPLEMENTATIONS/remote-intents.md.
+ * See also: src/createCheckoutEvents.js.
  */
 
 const CHECKOUT_TOPIC = "checkout";
@@ -37,7 +37,7 @@ function isValidCouponAppliedRequest(value) {
 }
 
 /**
- * Creates a safe coupon-applied payload for mesh delivery.
+ * Creates a safe coupon-applied payload for delivery.
  *
  * @param {unknown} value - Candidate coupon request.
  * @returns {CouponAppliedRequest | null} Normalized payload, or null when invalid.

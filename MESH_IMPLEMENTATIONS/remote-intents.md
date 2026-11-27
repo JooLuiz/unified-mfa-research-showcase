@@ -1,6 +1,6 @@
 # Remote intents over Event Mesh
 
-Product, checkout, account, community, and login remotes publish local intents on the host shell's Event Mesh singleton. Hosts subscribe and own side effects. Remotes must not call `configureMesh`. **JWT never appears in mesh payloads.**
+Product, checkout, account, community, and login remotes publish local intents through `createPageEvents()` from `@shared/server-events`, which on this branch wraps the host shell's Event Mesh singleton. Hosts subscribe and own side effects. Remotes must not call `configureMesh`. **JWT never appears in mesh payloads.**
 
 ## Phase 1 contracts
 
@@ -24,8 +24,8 @@ Helpers live in [`packages/catalog-events`](../packages/catalog-events) (`create
 | --- | --- | --- | --- | --- |
 | `cart` | `item-update-requested` | `{ productId, quantity }` | `checkout-items` | Ecommerce: `updateCartItem` (+ toast path via cart.changed UI) |
 | `cart` | `item-remove-requested` | `{ productId }` | `checkout-items` | Ecommerce: `removeCartItem` + toast; empty cart → `render-requested` |
-| `checkout` | `coupon-applied` | `{ code, discountPercentage }` | `apply-coupon` | Ecommerce: set `appState.appliedCoupon`; checkout page and header refresh |
-| `checkout` | `place-order-requested` | `{}` | `checkout-summary` | Ecommerce: `placeCheckoutOrder` command |
+| `checkout` | `coupon-applied` | `{ code, discountPercentage }` | `apply-coupon` | Ecommerce: `src/intents/checkoutIntentHandlers.js` sets `appState.appliedCoupon` and publishes `cart.changed`, so the checkout summary and header refresh |
+| `checkout` | `place-order-requested` | `{}` | `checkout-summary` | Ecommerce: `src/intents/checkoutIntentHandlers.js` runs `placeCheckoutOrder`; a failed order shows an error toast |
 | `navigation` | `path-requested` | `{ path: "/products" }` | `checkout-empty` (on iframe `go-shopping`) | Ecommerce: `navigate(path)` via existing shell listeners |
 
 Checkout helpers live in [`packages/checkout-events`](../packages/checkout-events) (`createCheckoutEvents`). Cart update/remove reuse `@shared/catalog-events`. Path requests reuse `@shared/shell-events`.
@@ -36,7 +36,7 @@ Inbound `subscribeToCartChanges` remains host-injected on checkout-items (snapsh
 
 | Topic | Event | Payload | Publishers | Typical host effect |
 | --- | --- | --- | --- | --- |
-| `account` | `profile-save-requested` | `{ fullName, gender }` | `account-profile` | Ecommerce/social/admin: `persistAccountUpdate` |
+| `account` | `profile-save-requested` | `{ fullName, gender }` | `account-profile` | Ecommerce/social/admin: `src/intents/accountIntentHandlers.js` runs `persistAccountUpdate` |
 | `account` | `address-save-requested` | `{ street, city, state, postalCode, country }` | `account-address` | Same with `{ address }` wrap |
 | `community` | `post-liked` | `{ postId }` | `post-feed` | Social: stub log (same as prior callback) |
 | `community` | `author-selected` | `{ author }` | `post-feed` | Social: stub log |
@@ -66,9 +66,9 @@ Integrators mount these remotes with **data / inbound adapter props only**. They
 | Shared checkout package | `packages/checkout-events/` |
 | Shared account package | `packages/account-events/` |
 | Shared community package | `packages/community-events/` |
-| Ecommerce listeners | `apps/ecommerce-shell/src/main.js`, `src/events/localMeshEventBus.js` |
-| Social listeners | `apps/social-media-shell/src/main.js`, `src/events/shellEventBus.js` |
-| Admin listeners | `apps/admin-shell/src/main.js`, `src/events/shellEventBus.js` |
+| Ecommerce listeners | `apps/ecommerce-shell/src/main.js`, `src/events/eventBus.js`, `src/intents/` |
+| Social listeners | `apps/social-media-shell/src/main.js`, `src/events/eventBus.js`, `src/intents/` |
+| Admin listeners | `apps/admin-shell/src/main.js`, `src/events/eventBus.js`, `src/intents/` |
 | Account remotes | `apps/account/src/account-profile.js`, `account-address.js` |
 | Post feed | `apps/social-media-posts/src/post-feed.js` |
 | Formulary mounts | `apps/formulary/src/new-post-formulary.js`, `faq-formulary.js` |

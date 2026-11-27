@@ -1,26 +1,24 @@
 /**
  * Renders the checkout and order-placed routes.
- * Role: Composes checkout remotes with data/inbound adapters; cart/coupon/place-order intents come from mesh.
- * Not in this file: Persistent mesh handlers (src/main.js) or place-order command (src/commands/placeCheckoutOrder.js).
- * Key dependencies: src/events/eventBus.js; checkout remotes.
- * See also: src/utils/renderActions.js (public barrel); MESH_IMPLEMENTATIONS/remote-intents.md.
+ * Role: Composes checkout item, summary, and coupon mounts and keeps the summary in step with the cart.
+ * Not in this file: Coupon and place-order outcomes, which arrive as checkout intents
+ *   (src/intents/checkoutIntentHandlers.js), or order HTTP details (src/commands/placeOrder.js).
+ * Key dependencies: src/commands/placeCheckoutOrder.js totals. Cart line edits arrive as catalog
+ *   intents (src/intents/catalogIntentHandlers.js).
+ * See also: src/utils/renderActions.js (public barrel).
  */
 
-import { publishRenderRequested } from "../events/eventBus";
+import { publishRenderRequested, subscribeToCartChanges } from "../events/eventBus";
 import { navigate } from "../utils/navigate";
 import { MOCK_API_BASE_URL } from "../utils/constants";
 import {
   isAuthenticated,
   rememberPostLoginRedirect,
 } from "../utils/authActions";
-import {
-  subscribeToCartChanges,
-  subscribeToCouponApplied,
-} from "../events/eventBus";
 import { calculateCheckoutTotals } from "../commands/placeCheckoutOrder";
 
 /**
- * Renders checkout with remotes; summary refreshes from cart.changed while on this route.
+ * Renders checkout. The summary refreshes on every cart change, including an applied coupon.
  *
  * @param {object} appState - Shell state holding cart, coupon, products, and session.
  * @param {HTMLElement} pageMount - Route container element.
@@ -96,12 +94,6 @@ async function renderCheckoutPage(appState, pageMount, modules, activeCleanupFun
   activeCleanupFunctions.push(() => checkoutSummaryHandle.unmount());
 
   activeCleanupFunctions.push(modules.mountApplyCoupon(applyCouponMount));
-
-  activeCleanupFunctions.push(
-    subscribeToCouponApplied(() => {
-      refreshCheckoutSummary();
-    }),
-  );
 }
 
 /**

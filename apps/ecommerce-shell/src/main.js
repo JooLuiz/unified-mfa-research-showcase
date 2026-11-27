@@ -55,9 +55,9 @@ import {
 import { startStockGating } from "./events/stockGating";
 import { endCartSession, hydrateSavedCart, mergeGuestCartOnLogin, scheduleCartPersist, startCartTabSync } from "./utils/cartSync";
 import { navigate } from "./utils/navigate";
-import { placeCheckoutOrder } from "./commands/placeCheckoutOrder";
-import { persistAccountUpdate } from "./commands/accountCommands";
+import { createAccountIntentHandlers } from "./intents/accountIntentHandlers";
 import { createCatalogIntentHandlers } from "./intents/catalogIntentHandlers";
+import { createCheckoutIntentHandlers } from "./intents/checkoutIntentHandlers";
 import { createPageRenderer } from "./pages/pageRenderer";
 
 const appState = {
@@ -96,25 +96,8 @@ function setGlobalCartVariable() {
 // The shared handlers own the stock checks, the toasts, and the empty-cart re-render.
 const catalogIntentHandlers = createCatalogIntentHandlers(appState);
 
-const checkoutIntentHandlers = {
-  onCouponApplied: (coupon) => {
-    appState.appliedCoupon = coupon;
-    updateHeaderState(appState, pageRenderer.getHeaderElement());
-    scheduleCartPersist(appState);
-  },
-  onPlaceOrderRequested: () => {
-    void placeCheckoutOrder(shellTransport, appState);
-  },
-};
-
-const accountIntentHandlers = {
-  onProfileSaveRequested: (profilePayload) => {
-    void persistAccountUpdate(shellTransport, appState, profilePayload);
-  },
-  onAddressSaveRequested: (addressPayload) => {
-    void persistAccountUpdate(shellTransport, appState, { address: addressPayload });
-  },
-};
+const checkoutIntentHandlers = createCheckoutIntentHandlers(appState);
+const accountIntentHandlers = createAccountIntentHandlers(appState);
 
 async function mergeGuestCartAfterLogin() {
   const mergeResult = await mergeGuestCartOnLogin(

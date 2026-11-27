@@ -3,7 +3,7 @@ export type CouponAppliedRequest = {
   discountPercentage: number;
 };
 
-export type CheckoutMeshClient = {
+export type CheckoutTransport = {
   publish(input: object): void;
   subscribe(
     topic: string,
@@ -39,4 +39,4 @@ export function createCouponAppliedRequest(
   value: unknown,
 ): CouponAppliedRequest | null;
 
-export function createCheckoutEvents(input: CheckoutMeshClient): CheckoutEvents;
+export function createCheckoutEvents(input: CheckoutTransport): CheckoutEvents;

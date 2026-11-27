@@ -1,8 +1,8 @@
 /**
- * Publishes and subscribes to shared account Event Mesh messages.
- * Role: Hides mesh transport details behind profile and address save operations for remotes and shells.
- * Not in this file: Mesh configuration, HTTP account APIs, or UI rendering.
- * Key dependencies: An Event Mesh client supplied by the owning shell, or a recording transport in tests.
+ * Publishes and subscribes to shared account intents over an injected transport.
+ * Role: Hides the transport behind profile and address save operations for remotes and shells.
+ * Not in this file: Transport setup, HTTP account APIs, or UI rendering.
+ * Key dependencies: A transport supplied by the owning shell or remote, or a recording transport in tests.
  * See also: src/accountEventsContracts.js; src/createAccountEvents.test.js.
  */
 
@@ -19,7 +19,7 @@ import {
 /**
  * Creates an account-scoped local event adapter for account remotes and host shells.
  *
- * @param {{ publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void }} transport - Mesh client or recording transport. publish and subscribe are read when a helper runs, not while this factory runs.
+ * @param {{ publish: (input: object) => void, subscribe: (topic: string, event: string, callback: (message: object) => void) => () => void }} transport - Branch transport or recording transport. publish and subscribe are read when a helper runs, not while this factory runs.
  * @returns {object} Account event adapter with publish helpers and intent listeners.
  */
 function createAccountEvents(transport) {
@@ -94,14 +94,14 @@ function createAccountEvents(transport) {
   }
 
   /**
-   * Registers persistent account intent handlers after a mesh configuration change.
+   * Registers persistent account intent handlers once per session.
    *
    * @param {{
    *   onProfileSaveRequested?: (payload: { fullName: string, gender: string }) => void,
    *   onAddressSaveRequested?: (payload: object) => void,
    * }} handlers - Host orchestration handlers.
    * @returns {void}
-   * @sideEffects Registers local mesh subscriptions for provided handlers.
+   * @sideEffects Registers local subscriptions for provided handlers.
    */
   function ensureAccountIntentListeners(handlers) {
     if (accountIntentListenersStarted) {
@@ -136,7 +136,7 @@ function createAccountEvents(transport) {
   }
 
   /**
-   * Marks account intent subscriptions for re-registration after mesh.close() clears them.
+   * Marks account intent subscriptions for re-registration after the transport drops them.
    *
    * @returns {void}
    */

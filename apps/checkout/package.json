@@ -32,7 +32,6 @@
     "@angular/elements": "^21.2.8",
     "@angular/platform-browser": "^21.2.8",
     "rxjs": "^7.8.2",
-    "zone.js": "^0.16.1",
-    "@shared/catalog-events": "*"
+    "zone.js": "^0.16.1"
   }
 }
