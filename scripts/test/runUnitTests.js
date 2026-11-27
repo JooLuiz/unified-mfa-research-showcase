@@ -107,6 +107,7 @@ const TEST_FILES = [
   "apps/social-media-shell/src/utils/mountActions.test.js",
   "apps/social-media-shell/src/utils/pageApps.test.js",
   "scripts/coverage/coverageFilters.test.js",
+  "scripts/coverage/lineTerminators.test.js",
   "scripts/test/quietReporter.test.js",
   "apps/admin-shell/src/pages/accountPage.test.js",
   "apps/admin-shell/src/pages/adminLivePages.test.js",
