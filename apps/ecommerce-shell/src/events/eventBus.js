@@ -172,7 +172,8 @@ const {
   resetCatalogIntentListeners,
 } = catalogEvents;
 
-const {  ensureCheckoutIntentListeners,
+const {
+  ensureCheckoutIntentListeners,
   resetCheckoutIntentListeners,
 } = checkoutEvents;
 
@@ -230,7 +231,8 @@ export {
   shellTransport,
   subscribeToAuthSessionChanges,
   subscribeToCartChanges,
-  subscribeToCartItemAddRequests,  subscribeToHeaderEvents,
+  subscribeToCartItemAddRequests,
+  subscribeToHeaderEvents,
   subscribeToLogoutRequests,
   subscribeToRenderRequests,
 };
